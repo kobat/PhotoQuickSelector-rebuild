@@ -1,9 +1,12 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoQuickSelector.Core;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
+using Windows.UI;
 
 namespace PhotoQuickSelector_App.ViewModels;
 
@@ -37,8 +40,18 @@ public partial class PhotoItemViewModel : ObservableObject
     [ObservableProperty]
     public partial BitmapImage? Thumbnail { get; set; }
 
+    // レーティング★のブラシ（不透明のまま RGB で濃淡を表現）
+    private static readonly Brush NormalRatingBrush = new SolidColorBrush(Colors.Gold);            // #FFD700
+    private static readonly Brush ExifRatingBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xF2, 0xE2, 0xA8)); // 淡い金
+
     // 評価の表示用プロパティ（★はレーティング数）
     public string RatingStars => Eval.Rating > 0 ? new string('★', Eval.Rating) : "";
+
+    /// <summary>レーティングが EXIF(xmp:Rating) 由来で、まだユーザー変更されていないか。</summary>
+    public bool IsRatingFromExif => Eval.PersistedRating == null && Eval.Rating > 0;
+
+    /// <summary>EXIF 由来は薄め色、ユーザー変更済みは通常の金色。</summary>
+    public Brush RatingForeground => IsRatingFromExif ? ExifRatingBrush : NormalRatingBrush;
 
     // フラグは状態を可視性で表現（採用=旗 / 拒否=×）
     public Visibility PickVisibility => Eval.FlagRating > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -59,6 +72,7 @@ public partial class PhotoItemViewModel : ObservableObject
         Eval.SetRating(value);
         _store.SaveRating(FileName, Eval.PersistedRating);
         OnPropertyChanged(nameof(RatingStars));
+        OnPropertyChanged(nameof(RatingForeground)); // EXIF由来→ユーザー変更で色が変わる
     }
 
     public void RatingUp() => SetRating(Eval.Rating + 1);
