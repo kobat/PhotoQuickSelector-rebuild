@@ -93,7 +93,7 @@ public static class MetadataReader
     {
         var lens = GetString(subIfd, ExifDirectoryBase.TagLensModel);
         if (lens.Length > 0) return lens;
-        return GetDescription(subIfd, ExifDirectoryBase.TagLensSpecification);
+        return GetDescription(subIfd, ExifDirectoryBase.TagLensSpecification).Trim();
     }
 
     private static string ReadExposureTimeDescription(ExifSubIfdDirectory? subIfd)
@@ -189,7 +189,7 @@ public static class MetadataReader
         => directory != null && directory.ContainsTag(tag) ? directory.GetDescription(tag) ?? "" : "";
 
     private static string GetString(Directory? directory, int tag)
-        => directory != null && directory.ContainsTag(tag) ? directory.GetString(tag) ?? "" : "";
+        => directory != null && directory.ContainsTag(tag) ? (directory.GetString(tag) ?? "").Trim() : "";
 
     private static int GetInt32(Directory? directory, int tag)
         => directory != null && directory.ContainsTag(tag) ? directory.GetInt32(tag) : 0;
