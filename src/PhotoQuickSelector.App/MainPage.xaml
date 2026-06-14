@@ -31,6 +31,13 @@
                         <TextBlock Text="読み込み" />
                     </StackPanel>
                 </Button>
+                <Button x:Name="RefreshButton" Click="RefreshButton_Click"
+                        ToolTipService.ToolTip="選択フォルダを更新 (F5)">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE72C;" FontSize="14" />
+                        <TextBlock Text="更新" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
 
             <TreeView
@@ -38,11 +45,21 @@
                 Grid.Row="1"
                 SelectionMode="Single"
                 Expanding="FolderTree_Expanding"
-                DoubleTapped="FolderTree_DoubleTapped">
+                DoubleTapped="FolderTree_DoubleTapped"
+                KeyDown="FolderTree_KeyDown">
                 <TreeView.ItemTemplate>
                     <DataTemplate x:DataType="vm:FolderNode">
                         <TreeViewItem ItemsSource="{x:Bind Children}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
+                                <StackPanel.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="更新" Click="RefreshMenuItem_Click">
+                                            <MenuFlyoutItem.Icon>
+                                                <FontIcon Glyph="&#xE72C;" />
+                                            </MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                    </MenuFlyout>
+                                </StackPanel.ContextFlyout>
                                 <FontIcon Glyph="&#xE8B7;" FontSize="14" />
                                 <TextBlock Text="{x:Bind Name}" />
                             </StackPanel>

@@ -44,6 +44,61 @@ public sealed partial class MainPage : Page
         if (args.Item is FolderNode folder) folder.LoadChildren();
     }
 
+    // --- 手動更新（更新ボタン / F5 / 右クリック「更新」） ---
+
+    private void RefreshButton_Click(object sender, RoutedEventArgs e) => RefreshSelectedOrDrives();
+
+    private void FolderTree_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.F5)
+        {
+            RefreshSelectedOrDrives();
+            e.Handled = true;
+        }
+    }
+
+    private void RefreshMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is FolderNode folder)
+            RefreshFolder(folder);
+    }
+
+    private void RefreshSelectedOrDrives()
+    {
+        if (FolderTree.SelectedItem is FolderNode folder)
+            RefreshFolder(folder);
+        else
+            RefreshDrives();
+    }
+
+    private void RefreshFolder(FolderNode folder)
+    {
+        folder.Refresh();
+        if (FolderTree.ContainerFromItem(folder) is TreeViewItem container)
+            container.IsExpanded = true;
+    }
+
+    private void RefreshDrives()
+    {
+        // ドライブ一覧も差分同期（Clear→全件追加はしない）
+        var ready = DriveInfo.GetDrives().Where(d => d.IsReady).ToList();
+        var readyPaths = new HashSet<string>(
+            ready.Select(d => d.RootDirectory.FullName), StringComparer.OrdinalIgnoreCase);
+
+        for (int i = RootFolders.Count - 1; i >= 0; i--)
+            if (!readyPaths.Contains(RootFolders[i].Path))
+                RootFolders.RemoveAt(i);
+
+        var existing = new HashSet<string>(
+            RootFolders.Select(r => r.Path), StringComparer.OrdinalIgnoreCase);
+        foreach (var drive in ready)
+        {
+            var path = drive.RootDirectory.FullName;
+            if (!existing.Contains(path))
+                RootFolders.Add(new FolderNode(drive.Name, path, hasChildren: true));
+        }
+    }
+
     private void FolderTree_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         // ダブルクリックは「下位フォルダの展開/折りたたみ」。読み込みは「読み込み」ボタンのみ。
