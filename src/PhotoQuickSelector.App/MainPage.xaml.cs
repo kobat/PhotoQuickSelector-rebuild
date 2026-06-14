@@ -167,6 +167,12 @@ public sealed partial class MainPage : Page
             ViewModel.RemoveFavorite(shortcut.Path);
     }
 
+    private void RemoveFavoriteButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is FolderShortcut shortcut)
+            ViewModel.RemoveFavorite(shortcut.Path);
+    }
+
     private void AddFavoriteFromRecentMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement fe && fe.DataContext is FolderShortcut shortcut)

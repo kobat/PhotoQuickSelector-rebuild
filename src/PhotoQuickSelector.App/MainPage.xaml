@@ -56,11 +56,15 @@
                 <ListView ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
                           SelectionMode="None" IsItemClickEnabled="True"
                           ItemClick="Shortcut_ItemClick" MaxHeight="180">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="vm:FolderShortcut">
-                            <StackPanel Orientation="Horizontal" Spacing="6"
-                                        ToolTipService.ToolTip="{x:Bind Path}">
-                                <StackPanel.ContextFlyout>
+                            <Grid ToolTipService.ToolTip="{x:Bind Path}">
+                                <Grid.ContextFlyout>
                                     <MenuFlyout>
                                         <MenuFlyoutItem Text="お気に入りから削除"
                                                         Click="RemoveFavoriteMenuItem_Click">
@@ -69,10 +73,25 @@
                                             </MenuFlyoutItem.Icon>
                                         </MenuFlyoutItem>
                                     </MenuFlyout>
-                                </StackPanel.ContextFlyout>
-                                <FontIcon Glyph="&#xE8B7;" FontSize="14" />
-                                <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
+                                </Grid.ContextFlyout>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE8B7;" FontSize="14"
+                                          VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <TextBlock Grid.Column="1" Text="{x:Bind Name}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Column="2" Click="RemoveFavoriteButton_Click"
+                                        Background="Transparent" BorderThickness="0"
+                                        Padding="4" MinWidth="0"
+                                        VerticalAlignment="Center"
+                                        ToolTipService.ToolTip="お気に入りから削除">
+                                    <FontIcon Glyph="&#xE711;" FontSize="12" />
+                                </Button>
+                            </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
