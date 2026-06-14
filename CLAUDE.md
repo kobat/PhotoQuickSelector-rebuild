@@ -50,7 +50,8 @@
     リダイレクトされる点に注意。
   - トリミング発行対策で JSON は source generator（`AppSettingsJsonContext`）を使用。
     日本語パスは `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` で生 UTF-8 保存。
-- Phase 2 補完まですべて `origin/main` にプッシュ済み。
+  - お気に入りの削除: お気に入りリスト各行の **× ボタン**＋右クリック「お気に入りから削除」（`f6cbef4`）。
+- `f6cbef4` まで含めすべて `origin/main` にプッシュ済み。
 
 ## 残タスク（次の候補）
 - Phase 3: プレビュー画面（大画面ズーム/パン/ナビゲーター/AFフォーカス表示、Win2D 描画）。
@@ -64,3 +65,16 @@
 - 検証で `DSC09432.JPG` の rating が null→0 に変わっている（実効値は同じ）。
 - コミット時の `LF→CRLF` 警告は無害（Windows の改行正規化）。
 - WinUI TreeView は子コレクションの `Clear()`→全件再追加で内部状態が壊れる。**差分同期で更新する**こと。
+
+### 開発フローのハマりどころ（本セッションで判明）
+- アプリは**マルチインスタンス**。`winapp run`／computer-use の `open_application` を呼ぶたびに
+  ウィンドウが増える。後始末は PowerShell `Stop-Process -Name PhotoQuickSelector.App -Force`。
+- `BuildAndRun.ps1` は **csproj ディレクトリ（`src\PhotoQuickSelector.App`）から実行**する。
+  リポジトリ直下から実行すると `No .csproj file found in current directory` で失敗。
+- packaged 開発時、ウィンドウの実体プロセスは `photoquickselector.app.exe`（ワーカー）。
+  computer-use のスクリーンショットは AUMID 付与だけだと中身がマスクされるので、
+  `request_access` に `photoquickselector.app.exe` を渡すと表示される。
+- `settings.json` の実体は packaged 時
+  `…\Packages\<PFN>\LocalCache\Local\PhotoQuickSelector\settings.json` にリダイレクトされる。
+- × ボタン（`f6cbef4`）はビルド成功・`RemoveFavorite` ロジック検証済みだが、**画面上の目視確認は未完**
+  （デスクトップのフォーカス競合のため）。次セッションで `winui:winui-ui-testing` の自動 UI テスト推奨。
