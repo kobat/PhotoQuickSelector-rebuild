@@ -50,7 +50,7 @@
     リダイレクトされる点に注意。
   - トリミング発行対策で JSON は source generator（`AppSettingsJsonContext`）を使用。
     日本語パスは `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` で生 UTF-8 保存。
-- Phase 2 までは `origin/main` にプッシュ済み。Phase 2 補完は未コミット。
+- Phase 2 補完まですべて `origin/main` にプッシュ済み。
 
 ## 残タスク（次の候補）
 - Phase 3: プレビュー画面（大画面ズーム/パン/ナビゲーター/AFフォーカス表示、Win2D 描画）。
