@@ -51,6 +51,7 @@
   - トリミング発行対策で JSON は source generator（`AppSettingsJsonContext`）を使用。
     日本語パスは `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` で生 UTF-8 保存。
   - お気に入りの削除: お気に入りリスト各行の **× ボタン**＋右クリック「お気に入りから削除」（`f6cbef4`）。
+    ユーザーによる画面目視確認済み（2026-06-14、問題なし）。
 - `f6cbef4` まで含めすべて `origin/main` にプッシュ済み。
 
 ## 残タスク（次の候補）
@@ -76,5 +77,5 @@
   `request_access` に `photoquickselector.app.exe` を渡すと表示される。
 - `settings.json` の実体は packaged 時
   `…\Packages\<PFN>\LocalCache\Local\PhotoQuickSelector\settings.json` にリダイレクトされる。
-- × ボタン（`f6cbef4`）はビルド成功・`RemoveFavorite` ロジック検証済みだが、**画面上の目視確認は未完**
-  （デスクトップのフォーカス競合のため）。次セッションで `winui:winui-ui-testing` の自動 UI テスト推奨。
+- × ボタン（`f6cbef4`）はビルド成功・`RemoveFavorite` ロジック検証済み。ユーザーが画面目視確認済み
+  （2026-06-14、問題なし）。
