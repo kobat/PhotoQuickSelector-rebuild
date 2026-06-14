@@ -23,6 +23,30 @@
 - `MetadataExtractor`（EXIF/XMP 解析）
 - `System.Data.SQLite.Core`（評価データ永続化）
 
+### 配布・パッケージング
+- 配布形態: **(A) 素の自己完結 EXE（unpackaged / MSIX なし）**。
+- .NET ランタイム・Windows App SDK ランタイムを**同梱**し、未インストール環境でも起動可能にする。
+- アプリ本体プロジェクト（Phase 2 で作成）の `.csproj` に以下を設定:
+  ```xml
+  <WindowsPackageType>None</WindowsPackageType>            <!-- unpackaged -->
+  <SelfContained>true</SelfContained>                       <!-- .NET 同梱 -->
+  <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained> <!-- WinAppSDK 同梱 -->
+  <PublishSingleFile>true</PublishSingleFile>
+  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  <PublishTrimmed>false</PublishTrimmed>                    <!-- WinUI はトリミング不可 -->
+  ```
+- 発行コマンド:
+  ```
+  dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained
+  ```
+- 既知の制約（WinUI3 特有）:
+  - 完全な単一ファイルにはならない場合がある。ネイティブ依存（WinAppSDK ネイティブ、Win2D、
+    `SQLite.Interop.dll`）は exe 内に取り込み**初回起動時に自己展開**。`resources.pri` 等が
+    隣に残ることがある → 「**大きな exe 1 個＋数個の付随ファイル**」を前提とする。
+  - exe サイズは概ね 150〜250MB、初回起動にひと呼吸。
+  - SQLite は `System.Data.SQLite.Core` を維持（`SQLite.Interop.dll` は自己展開対象）。
+
 ---
 
 ## 1. アプリ概要
