@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PhotoQuickSelector.Core/PhotoQuickSelector.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PhotoQuickSelector.Core.Tests/PhotoQuickSelector.Core.Tests.csproj" />
+  </Folder>
+</Solution>
