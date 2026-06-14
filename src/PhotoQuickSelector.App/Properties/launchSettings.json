@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PhotoQuickSelector.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "PhotoQuickSelector.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
