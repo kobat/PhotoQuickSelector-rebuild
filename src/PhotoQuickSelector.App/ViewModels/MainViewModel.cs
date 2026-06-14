@@ -88,6 +88,51 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial PhotoItemViewModel? SelectedPhoto { get; set; }
 
+    // --- プレビュー画面（右ペインのサムネイル一覧 ⇄ 大画面プレビュー切替） ---
+
+    [ObservableProperty]
+    public partial bool IsPreviewMode { get; set; }
+
+    /// <summary>三分割グリッド線オーバーレイの表示（SPEC §3-6 / §3-7 の G キー）。</summary>
+    [ObservableProperty]
+    public partial bool ShowGrid { get; set; }
+
+    public Visibility ThumbnailVisibility => IsPreviewMode ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility PreviewVisibility => IsPreviewMode ? Visibility.Visible : Visibility.Collapsed;
+
+    partial void OnIsPreviewModeChanged(bool value)
+    {
+        OnPropertyChanged(nameof(ThumbnailVisibility));
+        OnPropertyChanged(nameof(PreviewVisibility));
+    }
+
+    /// <summary>サムネイルをダブルクリック等でプレビュー（大画面）へ遷移する。</summary>
+    public void EnterPreview()
+    {
+        if (SelectedPhoto == null && Photos.Count > 0)
+            SelectedPhoto = Photos[0];
+        if (SelectedPhoto == null) return;
+        IsPreviewMode = true;
+    }
+
+    /// <summary>プレビューからサムネイル一覧へ戻る（Esc / 再ダブルクリック）。</summary>
+    public void ExitPreview() => IsPreviewMode = false;
+
+    /// <summary>次の写真へ。複数枚あるとき末尾はそのまま。</summary>
+    public void MoveNext() => MoveBy(1);
+
+    /// <summary>前の写真へ。先頭はそのまま。</summary>
+    public void MovePrevious() => MoveBy(-1);
+
+    private void MoveBy(int delta)
+    {
+        if (SelectedPhoto == null) return;
+        int index = Photos.IndexOf(SelectedPhoto);
+        if (index < 0) return;
+        int next = Math.Clamp(index + delta, 0, Photos.Count - 1);
+        if (next != index) SelectedPhoto = Photos[next];
+    }
+
     /// <summary>
     /// フォルダ内の JPEG を読み込み、メタデータを並列抽出してサムネイル一覧を構築する。
     /// 評価は既存の <see cref="MetadataStore"/>（フォルダ内 sqlite）からマージする。

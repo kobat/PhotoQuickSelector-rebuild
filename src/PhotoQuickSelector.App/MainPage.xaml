@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:PhotoQuickSelector_App"
     xmlns:vm="using:PhotoQuickSelector_App.ViewModels"
+    xmlns:ctl="using:PhotoQuickSelector_App.Controls"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -217,10 +218,12 @@
             <GridView
                 x:Name="PhotoGrid"
                 Grid.Row="1"
+                Visibility="{x:Bind ViewModel.ThumbnailVisibility, Mode=OneWay}"
                 ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
                 SelectionMode="Single"
                 IsItemClickEnabled="False"
                 SelectionChanged="PhotoGrid_SelectionChanged"
+                DoubleTapped="PhotoGrid_DoubleTapped"
                 KeyDown="PhotoGrid_KeyDown">
                 <GridView.ItemTemplate>
                     <DataTemplate x:DataType="vm:PhotoItemViewModel">
@@ -268,6 +271,12 @@
                     </DataTemplate>
                 </GridView.ItemTemplate>
             </GridView>
+
+            <!-- 大画面プレビュー（サムネイルとは Visibility で排他） -->
+            <ctl:PreviewControl
+                x:Name="Preview"
+                Grid.Row="1"
+                Visibility="{x:Bind ViewModel.PreviewVisibility, Mode=OneWay}" />
         </Grid>
     </Grid>
 </Page>

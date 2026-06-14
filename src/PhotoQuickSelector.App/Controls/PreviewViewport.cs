@@ -1,0 +1,197 @@
+using System.Numerics;
+
+namespace PhotoQuickSelector_App.Controls;
+
+/// <summary>ズーム表示のモード。</summary>
+public enum ZoomMode
+{
+    /// <summary>キャンバスに収まるようフィット。</summary>
+    Fit,
+    /// <summary>等倍（画像 1px = 1 描画単位）。SPEC §6-5 の 100%。</summary>
+    ActualSize,
+    /// <summary>任意倍率（ホイール等で変更）。</summary>
+    Custom,
+}
+
+/// <summary>
+/// プレビューのズーム/パン計算を集約した UI 非依存クラス。
+/// SPEC §3-6 の ResizeImage / OriginalSizeImage 相当（DrawOffset / DrawWidth/Height を公開）。
+/// 画像座標は「Orientation 補正済みの表示サイズ」（<see cref="ImageMetadata.Width"/>/<c>Height</c>）で扱う。
+/// </summary>
+public sealed class PreviewViewport
+{
+    /// <summary>キャンバス（描画領域）のサイズ。単位は描画単位（DIP）。</summary>
+    public double CanvasWidth { get; private set; }
+    public double CanvasHeight { get; private set; }
+
+    /// <summary>Orientation 補正済みの画像表示サイズ（px）。</summary>
+    public double ImageWidth { get; private set; }
+    public double ImageHeight { get; private set; }
+
+    /// <summary>現在のズームモード。</summary>
+    public ZoomMode Mode { get; private set; } = ZoomMode.Fit;
+
+    /// <summary>現在の倍率（画像 px → 描画単位）。DrawWidth = ImageWidth * Scale。</summary>
+    public double Scale { get; private set; } = 1.0;
+
+    /// <summary>描画先の左上オフセット（DrawOffsetX/Y, 単位 DIP）。</summary>
+    public double OffsetX { get; private set; }
+    public double OffsetY { get; private set; }
+
+    public double DrawWidth => ImageWidth * Scale;
+    public double DrawHeight => ImageHeight * Scale;
+
+    private const double MinScale = 0.02;
+    private const double MaxScale = 16.0;
+
+    /// <summary>フィット時の倍率。</summary>
+    public double FitScale
+    {
+        get
+        {
+            if (ImageWidth <= 0 || ImageHeight <= 0) return 1.0;
+            if (CanvasWidth <= 0 || CanvasHeight <= 0) return 1.0;
+            return Math.Min(CanvasWidth / ImageWidth, CanvasHeight / ImageHeight);
+        }
+    }
+
+    /// <summary>キャンバスサイズを更新し、フィット/カスタムを維持したまま再センタリングする。</summary>
+    public void SetCanvasSize(double width, double height)
+    {
+        CanvasWidth = width;
+        CanvasHeight = height;
+        ApplyMode();
+    }
+
+    /// <summary>新しい画像をセットしてフィット表示に初期化する。</summary>
+    public void SetImage(double imageWidth, double imageHeight)
+    {
+        ImageWidth = imageWidth;
+        ImageHeight = imageHeight;
+        Mode = ZoomMode.Fit;
+        ApplyMode();
+    }
+
+    /// <summary>フィット表示にする。</summary>
+    public void SetFit()
+    {
+        Mode = ZoomMode.Fit;
+        ApplyMode();
+    }
+
+    /// <summary>等倍（100%）表示にする。中心を維持。</summary>
+    public void SetActualSize()
+    {
+        SetScaleAround(1.0, CanvasWidth / 2, CanvasHeight / 2);
+        Mode = ZoomMode.ActualSize;
+    }
+
+    /// <summary>フィット ⇄ 等倍をトグルする（SPEC §3-7 の Z キー）。</summary>
+    public void ToggleZoom()
+    {
+        if (Mode == ZoomMode.Fit) SetActualSize();
+        else SetFit();
+    }
+
+    /// <summary>指定キャンバス座標を中心に倍率を factor 倍する（ホイールズーム用）。</summary>
+    public void ZoomBy(double factor, double centerX, double centerY)
+    {
+        var target = Math.Clamp(Scale * factor, MinScale, MaxScale);
+        SetScaleAround(target, centerX, centerY);
+        Mode = ZoomMode.Custom;
+    }
+
+    /// <summary>描画をドラッグで移動する。</summary>
+    public void Pan(double dx, double dy)
+    {
+        OffsetX += dx;
+        OffsetY += dy;
+        Clamp();
+    }
+
+    private void ApplyMode()
+    {
+        Scale = Mode switch
+        {
+            ZoomMode.Fit => FitScale,
+            ZoomMode.ActualSize => 1.0,
+            _ => Scale,
+        };
+        Center();
+        Clamp();
+    }
+
+    /// <summary>キャンバス座標 (cx,cy) のもとの画像点を固定したまま倍率を変更する。</summary>
+    private void SetScaleAround(double newScale, double cx, double cy)
+    {
+        newScale = Math.Clamp(newScale, MinScale, MaxScale);
+        // ズーム中心の画像座標（px）を求め、倍率変更後も同じキャンバス座標に来るようオフセット調整。
+        double imgX = (cx - OffsetX) / Scale;
+        double imgY = (cy - OffsetY) / Scale;
+        Scale = newScale;
+        OffsetX = cx - imgX * Scale;
+        OffsetY = cy - imgY * Scale;
+        Clamp();
+    }
+
+    /// <summary>画像をキャンバス中央に配置する。</summary>
+    private void Center()
+    {
+        OffsetX = (CanvasWidth - DrawWidth) / 2;
+        OffsetY = (CanvasHeight - DrawHeight) / 2;
+    }
+
+    /// <summary>
+    /// オフセットをクランプ。描画がキャンバスより小さい軸は中央寄せ、
+    /// 大きい軸は端が内側に入り込まないよう範囲内に収める。
+    /// </summary>
+    private void Clamp()
+    {
+        OffsetX = ClampAxis(OffsetX, DrawWidth, CanvasWidth);
+        OffsetY = ClampAxis(OffsetY, DrawHeight, CanvasHeight);
+    }
+
+    private static double ClampAxis(double offset, double drawSize, double canvasSize)
+    {
+        if (drawSize <= canvasSize)
+            return (canvasSize - drawSize) / 2; // 収まるなら中央
+        // はみ出すなら [canvasSize - drawSize, 0] に制限
+        return Math.Clamp(offset, canvasSize - drawSize, 0);
+    }
+
+    /// <summary>
+    /// 画像座標（Orientation 補正済み表示空間, 0..ImageWidth/Height）→ キャンバス座標への変換。
+    /// AF 枠やグリッド線のオーバーレイ描画に使う。
+    /// </summary>
+    public (double X, double Y) ImageToCanvas(double imgX, double imgY)
+        => (OffsetX + imgX * Scale, OffsetY + imgY * Scale);
+
+    /// <summary>
+    /// 元画像（Orientation 適用前, 幅 bw × 高さ bh）座標を Orientation 補正済み表示空間
+    /// （0..DisplayW, 0..DisplayH）へ写すアフィン行列。Win2D の DrawingSession.Transform に
+    /// スケール・平行移動を合成して用いる。EXIF Orientation 1..8 に対応。
+    /// </summary>
+    public static Matrix3x2 OrientationMatrix(int orientation, double bw, double bh)
+    {
+        float w = (float)bw, h = (float)bh;
+        return orientation switch
+        {
+            2 => new Matrix3x2(-1, 0, 0, 1, w, 0),   // 水平反転
+            3 => new Matrix3x2(-1, 0, 0, -1, w, h),  // 180度
+            4 => new Matrix3x2(1, 0, 0, -1, 0, h),   // 垂直反転
+            5 => new Matrix3x2(0, 1, 1, 0, 0, 0),    // 転置
+            6 => new Matrix3x2(0, 1, -1, 0, h, 0),   // 90度 CW
+            7 => new Matrix3x2(0, -1, -1, 0, h, w),  // 転地（transverse）
+            8 => new Matrix3x2(0, -1, 1, 0, 0, w),   // 270度 CW (90度 CCW)
+            _ => Matrix3x2.Identity,                 // 1: 通常
+        };
+    }
+
+    /// <summary>
+    /// 元画像 px から最終キャンバス座標への合成行列（Orientation → Scale → Offset）。
+    /// </summary>
+    public Matrix3x2 BuildTransform(int orientation, double bw, double bh)
+        => OrientationMatrix(orientation, bw, bh)
+           * Matrix3x2.CreateScale((float)Scale)
+           * Matrix3x2.CreateTranslation((float)OffsetX, (float)OffsetY);
+}

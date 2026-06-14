@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="PhotoQuickSelector_App.Controls.PreviewControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:PhotoQuickSelector_App.ViewModels"
+    xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- メイン大画面プレビュー（Win2D） -->
+        <canvas:CanvasControl
+            x:Name="MainCanvas"
+            Grid.Row="0"
+            IsTabStop="True"
+            UseSystemFocusVisuals="False"
+            ClearColor="#1E1E1E"
+            KeyDown="OnKeyDown"
+            Draw="MainCanvas_Draw"
+            CreateResources="MainCanvas_CreateResources"
+            SizeChanged="MainCanvas_SizeChanged"
+            PointerPressed="MainCanvas_PointerPressed"
+            PointerMoved="MainCanvas_PointerMoved"
+            PointerReleased="MainCanvas_PointerReleased"
+            PointerWheelChanged="MainCanvas_PointerWheelChanged"
+            DoubleTapped="MainCanvas_DoubleTapped" />
+
+        <!-- フィルムストリップ（横スクロール） -->
+        <ListView
+            x:Name="FilmStrip"
+            Grid.Row="1"
+            Height="96"
+            Padding="4"
+            ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
+            SelectedItem="{x:Bind ViewModel.SelectedPhoto, Mode=TwoWay}"
+            SelectionMode="Single"
+            ScrollViewer.HorizontalScrollMode="Enabled"
+            ScrollViewer.HorizontalScrollBarVisibility="Auto"
+            ScrollViewer.VerticalScrollMode="Disabled"
+            ScrollViewer.VerticalScrollBarVisibility="Disabled">
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsStackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="2" />
+                    <Setter Property="MinWidth" Value="0" />
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:PhotoItemViewModel">
+                    <Image
+                        Width="78"
+                        Height="78"
+                        Source="{x:Bind Thumbnail, Mode=OneWay}"
+                        Stretch="Uniform" />
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+</UserControl>

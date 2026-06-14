@@ -53,11 +53,27 @@
   - お気に入りの削除: お気に入りリスト各行の **× ボタン**＋右クリック「お気に入りから削除」（`f6cbef4`）。
     ユーザーによる画面目視確認済み（2026-06-14、問題なし）。
 - `f6cbef4` まで含めすべて `origin/main` にプッシュ済み。
+- **Phase 3 ステージ A 完了（未コミット）**: 右ペインに大画面プレビューを追加（Win2D `CanvasControl`）。
+  サムネイルのダブルクリックで Thumbnail⇄Preview を相互遷移（`MainViewModel.IsPreviewMode` ＋
+  `ThumbnailVisibility`/`PreviewVisibility` で排他表示）。下部に横スクロールのフィルムストリップ。
+  ズーム（ホイール／`Z`=フィット⇄100%／`Shift+Z`=等倍）、ドラッグでパン、`←`/`→` で前後移動、
+  EXIF Orientation を回転トランスフォームで適用。実機（Sony DSC*.JPG 4000 枚）で目視確認済み。
+  - 新規: `Controls/PreviewControl.xaml(.cs)`（Win2D）、`Controls/PreviewViewport.cs`（ズーム/パン/
+    Orientation 変換の純ロジック）。`Microsoft.Graphics.Win2D` 1.4.0 を追加。
+  - 設計メモ: 写真コレクション/選択は既存 `MainViewModel.Photos` / `SelectedPhoto` を共有。
+    前後移動で `SelectedPhoto` を更新し、`MainPage` 側でサムネイルグリッドの選択も同期。
 
 ## 残タスク（次の候補）
-- Phase 3: プレビュー画面（大画面ズーム/パン/ナビゲーター/AFフォーカス表示、Win2D 描画）。
+- Phase 3 ステージ B: AF フォーカス枠オーバーレイ／三分割グリッド線（`ShowGrid`/`G`）／
+  右ナビゲーター（全体像＋表示領域矩形＋AF枠）／フォーカス点へスクロール（`Alt+F`）。
+  注: AF 点の正確なマッピングには Sony tag `0x2027` の `[0],[1]`（AF 座標系の幅/高さ）が必要だが、
+  現状 `MetadataReader.ReadSonyFocus` は `[2],[3]`(=FocusPoint) のみ保持。Core 拡張を要検討。
+- Phase 3 ステージ C: プレビュー時の全キー操作網羅（評価系の共通化・`Alt`/`Ctrl+Alt` スクロール等）＋
+  `CanvasBitmap` の前後 N 枚先読みキャッシュ／範囲外破棄。
 - Phase 4: フィルタ／クリップボード出力（.bat 生成）／外部連携／設定。
 - パッケージング: 素の自己完結 EXE の publish 構成を組み込み＋発行確認。
+  注: csproj の Release は現状 `PublishTrimmed=true`。**WinUI/Win2D はトリミング不可**のため
+  パッケージング時に `false` へ要修正（SPEC §0）。
 
 ## キー操作（右ペイン・写真選択時）
 - `0`–`5` レーティング / `6`–`9`＋`P` カラーラベル（赤橙緑青紫）/ `[` `]` レーティング増減 / `Ctrl+↑/↓` フラグ
@@ -79,3 +95,13 @@
   `…\Packages\<PFN>\LocalCache\Local\PhotoQuickSelector\settings.json` にリダイレクトされる。
 - × ボタン（`f6cbef4`）はビルド成功・`RemoveFavorite` ロジック検証済み。ユーザーが画面目視確認済み
   （2026-06-14、問題なし）。
+
+### Win2D プレビューのキー入力（ステージ A で判明）
+- **`UserControl.Focus()` は効かないことがある**。キー入力を受けたい場合はフォーカス可能な子
+  `Control`（ここでは `IsTabStop=True` の `CanvasControl`）に `Focus()` する。これで `←`/`→`/`Z`/
+  ホイール/ドラッグはすべて動作（目視確認済み）。
+- **`Esc` は WinUI のフォーカス管理に先取りされ `KeyDown` に届かない**。`KeyboardAccelerator`
+  （`CanvasControl.KeyboardAccelerators` に追加、ツールチップは `KeyboardAcceleratorPlacementMode.Hidden`）
+  で処理する実装にしてある。ただし **computer-use の合成 `Esc` 注入では発火しない**（`←`/`Z` 等は注入で
+  動く）。Esc でのプレビュー終了は**実キーボードでユーザー確認済み（2026-06-15、動作 OK）**。プレビュー終了の
+  正規手段はダブルクリック（SPEC §2、動作確認済み）。SPEC §3-7 の `Esc` は本来「選択リセット」用途。

@@ -24,6 +24,18 @@ public sealed partial class MainPage : Page
     {
         InitializeComponent();
         Loaded += MainPage_Loaded;
+
+        // プレビュー（大画面）にビューモデルを注入し、選択変更でサムネイル側の選択も同期する。
+        Preview.ViewModel = ViewModel;
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+    }
+
+    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MainViewModel.SelectedPhoto)) return;
+        // プレビューでの前後移動・フィルムストリップ選択をサムネイルグリッドへ反映。
+        if (!ReferenceEquals(PhotoGrid.SelectedItem, ViewModel.SelectedPhoto))
+            PhotoGrid.SelectedItem = ViewModel.SelectedPhoto;
     }
 
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
@@ -233,6 +245,12 @@ public sealed partial class MainPage : Page
     private void PhotoGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         ViewModel.SelectedPhoto = PhotoGrid.SelectedItem as PhotoItemViewModel;
+    }
+
+    private void PhotoGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        // サムネイルのダブルクリックで大画面プレビューへ（SPEC §2）。
+        ViewModel.EnterPreview();
     }
 
     private void PhotoGrid_KeyDown(object sender, KeyRoutedEventArgs e)
