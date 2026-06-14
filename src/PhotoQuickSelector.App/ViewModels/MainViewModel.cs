@@ -15,7 +15,7 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<PhotoItemViewModel> Photos { get; } = new();
 
     [ObservableProperty]
-    public partial string StatusText { get; set; } = "左のツリーでフォルダを選び、ダブルクリックか「読み込み」で開きます。";
+    public partial string StatusText { get; set; } = "左のツリーでフォルダを選び、「読み込み」ボタンで開きます。";
 
     [ObservableProperty]
     public partial string? CurrentFolder { get; set; }

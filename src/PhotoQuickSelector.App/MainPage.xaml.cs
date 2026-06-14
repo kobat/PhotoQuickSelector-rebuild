@@ -44,8 +44,15 @@ public sealed partial class MainPage : Page
         if (args.Item is FolderNode folder) folder.LoadChildren();
     }
 
-    private async void FolderTree_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
-        => await LoadSelectedFolderAsync();
+    private void FolderTree_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        // ダブルクリックは「下位フォルダの展開/折りたたみ」。読み込みは「読み込み」ボタンのみ。
+        if (FolderTree.SelectedItem is not FolderNode folder) return;
+        if (FolderTree.ContainerFromItem(folder) is not TreeViewItem container) return;
+
+        if (!container.IsExpanded) folder.LoadChildren(); // 展開前に子を読み込む
+        container.IsExpanded = !container.IsExpanded;
+    }
 
     private async void LoadButton_Click(object sender, RoutedEventArgs e)
         => await LoadSelectedFolderAsync();
