@@ -1,18 +1,80 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI.Xaml;
 using PhotoQuickSelector.Core;
 
 namespace PhotoQuickSelector_App.ViewModels;
 
 /// <summary>
 /// メイン画面のビューモデル。フォルダ読み込み（メタデータ並列抽出＋評価のマージ）と
-/// 右ペインのサムネイル一覧を管理する。
+/// 右ペインのサムネイル一覧、およびアプリ設定（最近/お気に入り）を管理する。
 /// </summary>
 public partial class MainViewModel : ObservableObject
 {
     private MetadataStore? _store;
 
+    /// <summary>アプリ設定（最近フォルダ・お気に入り・左ペイン状態）。</summary>
+    public AppSettings Settings { get; } = AppSettings.Load();
+
     public ObservableCollection<PhotoItemViewModel> Photos { get; } = new();
+
+    /// <summary>左ペイン上部「お気に入り」一覧（<see cref="AppSettings.Favorites"/> の投影）。</summary>
+    public ObservableCollection<FolderShortcut> Favorites { get; } = new();
+
+    /// <summary>左ペイン上部「最近開いたフォルダ」一覧（<see cref="AppSettings.RecentFolders"/> の投影）。</summary>
+    public ObservableCollection<FolderShortcut> RecentFolders { get; } = new();
+
+    public Visibility FavoritesVisibility =>
+        Favorites.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility RecentVisibility =>
+        RecentFolders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    public MainViewModel()
+    {
+        RebuildShortcuts();
+    }
+
+    /// <summary>設定の最近/お気に入りから表示用コレクションを作り直す。</summary>
+    private void RebuildShortcuts()
+    {
+        Favorites.Clear();
+        foreach (var path in Settings.Favorites)
+            Favorites.Add(new FolderShortcut(path));
+
+        RecentFolders.Clear();
+        foreach (var path in Settings.RecentFolders)
+            RecentFolders.Add(new FolderShortcut(path));
+
+        OnPropertyChanged(nameof(FavoritesVisibility));
+        OnPropertyChanged(nameof(RecentVisibility));
+    }
+
+    public bool IsFavorite(string path) => Settings.IsFavorite(path);
+
+    /// <summary>お気に入りの登録/解除を切り替え、即時保存する。</summary>
+    public void ToggleFavorite(string path)
+    {
+        if (Settings.IsFavorite(path)) Settings.RemoveFavorite(path);
+        else Settings.AddFavorite(path);
+        Settings.Save();
+        RebuildShortcuts();
+    }
+
+    public void RemoveFavorite(string path)
+    {
+        Settings.RemoveFavorite(path);
+        Settings.Save();
+        RebuildShortcuts();
+    }
+
+    public void RemoveRecentFolder(string path)
+    {
+        Settings.RecentFolders.RemoveAll(
+            p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+        Settings.Save();
+        RebuildShortcuts();
+    }
 
     [ObservableProperty]
     public partial string StatusText { get; set; } = "左のツリーでフォルダを選び、「読み込み」ボタンで開きます。";
@@ -44,6 +106,11 @@ public partial class MainViewModel : ObservableObject
             var paths = Directory.GetFiles(folderPath)
                 .Where(MetadataReader.IsSupported)
                 .ToArray();
+
+            // 列挙に成功＝有効なフォルダ。最近一覧へ記録して永続化する。
+            Settings.AddRecentFolder(folderPath);
+            Settings.Save();
+            RebuildShortcuts();
 
             if (paths.Length == 0)
             {

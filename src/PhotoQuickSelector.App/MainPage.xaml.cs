@@ -28,6 +28,8 @@ public sealed partial class MainPage : Page
 
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
     {
+        RestoreLeftPaneLayout();
+
         if (RootFolders.Count > 0) return;
         foreach (var drive in DriveInfo.GetDrives())
         {
@@ -35,6 +37,34 @@ public sealed partial class MainPage : Page
             RootFolders.Add(new FolderNode(drive.Name, drive.RootDirectory.FullName, hasChildren: true));
         }
         FolderTree.ItemsSource = RootFolders;
+    }
+
+    // --- 左ペインの幅／折りたたみ状態の復元・保存（AppSettings） ---
+
+    private void RestoreLeftPaneLayout()
+    {
+        var s = ViewModel.Settings;
+        _lastLeftWidth = s.LeftPaneWidth > 0 ? s.LeftPaneWidth : 300;
+        LeftColumn.Width = s.LeftPaneCollapsed
+            ? new GridLength(0)
+            : new GridLength(_lastLeftWidth);
+    }
+
+    /// <summary>左ペインの現在の幅／折りたたみ状態を設定へ書き戻して保存する（ウィンドウ終了時）。</summary>
+    public void SaveLeftPaneLayout()
+    {
+        var s = ViewModel.Settings;
+        if (LeftColumn.ActualWidth > 0)
+        {
+            s.LeftPaneCollapsed = false;
+            s.LeftPaneWidth = LeftColumn.ActualWidth;
+        }
+        else
+        {
+            s.LeftPaneCollapsed = true;
+            s.LeftPaneWidth = _lastLeftWidth > 0 ? _lastLeftWidth : 300;
+        }
+        s.Save();
     }
 
     // --- フォルダツリー ---
@@ -116,6 +146,65 @@ public sealed partial class MainPage : Page
     {
         if (FolderTree.SelectedItem is FolderNode folder)
             await ViewModel.LoadFolderAsync(folder.Path);
+    }
+
+    // --- 最近 / お気に入りショートカット ---
+
+    private async void Shortcut_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is FolderShortcut shortcut)
+        {
+            if (Directory.Exists(shortcut.Path))
+                await ViewModel.LoadFolderAsync(shortcut.Path);
+            else
+                ViewModel.RemoveRecentFolder(shortcut.Path); // 消えたフォルダは一覧から除去
+        }
+    }
+
+    private void RemoveFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is FolderShortcut shortcut)
+            ViewModel.RemoveFavorite(shortcut.Path);
+    }
+
+    private void AddFavoriteFromRecentMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is FolderShortcut shortcut)
+            ViewModel.ToggleFavorite(shortcut.Path);
+    }
+
+    private void RemoveRecentMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is FolderShortcut shortcut)
+            ViewModel.RemoveRecentFolder(shortcut.Path);
+    }
+
+    // --- ツリーノードのお気に入り登録/解除 ---
+
+    private void FolderTreeFlyout_Opening(object sender, object e)
+    {
+        if (sender is not MenuFlyout flyout) return;
+        var node = (flyout.Target as FrameworkElement)?.DataContext as FolderNode;
+        bool isFavorite = node != null && ViewModel.IsFavorite(node.Path);
+
+        // Items[0]=お気に入りに追加 / Items[1]=お気に入りから削除
+        if (flyout.Items.Count >= 2)
+        {
+            flyout.Items[0].Visibility = isFavorite ? Visibility.Collapsed : Visibility.Visible;
+            flyout.Items[1].Visibility = isFavorite ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    private void AddFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is FolderNode node)
+            ViewModel.ToggleFavorite(node.Path);
+    }
+
+    private void RemoveFavoriteFromTreeMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.DataContext is FolderNode node)
+            ViewModel.RemoveFavorite(node.Path);
     }
 
     // --- 左ペインの折りたたみ ---

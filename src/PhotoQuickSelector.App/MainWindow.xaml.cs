@@ -23,5 +23,13 @@ public sealed partial class MainWindow : Window
 
         // Navigate the root frame to the main page on startup.
         RootFrame.Navigate(typeof(MainPage));
+
+        // 終了時に左ペインの幅／折りたたみ状態を保存する。
+        Closed += MainWindow_Closed;
+    }
+
+    private void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        (RootFrame.Content as MainPage)?.SaveLeftPaneLayout();
     }
 }

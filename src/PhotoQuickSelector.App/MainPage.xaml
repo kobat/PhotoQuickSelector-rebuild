@@ -17,9 +17,11 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- 左ペイン: フォルダツリー -->
+        <!-- 左ペイン: お気に入り / 最近 / フォルダツリー -->
         <Grid Grid.Column="0" x:Name="LeftPane" Padding="8">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
@@ -40,9 +42,87 @@
                 </Button>
             </StackPanel>
 
+            <!-- お気に入り -->
+            <Expander Grid.Row="1" x:Name="FavoritesExpander"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                      Margin="0,0,0,4" IsExpanded="True"
+                      Visibility="{x:Bind ViewModel.FavoritesVisibility, Mode=OneWay}">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE735;" FontSize="14" />
+                        <TextBlock Text="お気に入り" />
+                    </StackPanel>
+                </Expander.Header>
+                <ListView ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
+                          SelectionMode="None" IsItemClickEnabled="True"
+                          ItemClick="Shortcut_ItemClick" MaxHeight="180">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FolderShortcut">
+                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                        ToolTipService.ToolTip="{x:Bind Path}">
+                                <StackPanel.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="お気に入りから削除"
+                                                        Click="RemoveFavoriteMenuItem_Click">
+                                            <MenuFlyoutItem.Icon>
+                                                <FontIcon Glyph="&#xE738;" />
+                                            </MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                    </MenuFlyout>
+                                </StackPanel.ContextFlyout>
+                                <FontIcon Glyph="&#xE8B7;" FontSize="14" />
+                                <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Expander>
+
+            <!-- 最近開いたフォルダ -->
+            <Expander Grid.Row="2" x:Name="RecentExpander"
+                      HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                      Margin="0,0,0,8" IsExpanded="True"
+                      Visibility="{x:Bind ViewModel.RecentVisibility, Mode=OneWay}">
+                <Expander.Header>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE81C;" FontSize="14" />
+                        <TextBlock Text="最近開いたフォルダ" />
+                    </StackPanel>
+                </Expander.Header>
+                <ListView ItemsSource="{x:Bind ViewModel.RecentFolders, Mode=OneWay}"
+                          SelectionMode="None" IsItemClickEnabled="True"
+                          ItemClick="Shortcut_ItemClick" MaxHeight="220">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:FolderShortcut">
+                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                        ToolTipService.ToolTip="{x:Bind Path}">
+                                <StackPanel.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="お気に入りに追加"
+                                                        Click="AddFavoriteFromRecentMenuItem_Click">
+                                            <MenuFlyoutItem.Icon>
+                                                <FontIcon Glyph="&#xE735;" />
+                                            </MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutItem Text="一覧から削除"
+                                                        Click="RemoveRecentMenuItem_Click">
+                                            <MenuFlyoutItem.Icon>
+                                                <FontIcon Glyph="&#xE738;" />
+                                            </MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                    </MenuFlyout>
+                                </StackPanel.ContextFlyout>
+                                <FontIcon Glyph="&#xE81C;" FontSize="14" />
+                                <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Expander>
+
             <TreeView
                 x:Name="FolderTree"
-                Grid.Row="1"
+                Grid.Row="3"
                 SelectionMode="Single"
                 Expanding="FolderTree_Expanding"
                 DoubleTapped="FolderTree_DoubleTapped"
@@ -52,7 +132,20 @@
                         <TreeViewItem ItemsSource="{x:Bind Children}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <StackPanel.ContextFlyout>
-                                    <MenuFlyout>
+                                    <MenuFlyout Opening="FolderTreeFlyout_Opening">
+                                        <MenuFlyoutItem Text="お気に入りに追加"
+                                                        Click="AddFavoriteMenuItem_Click">
+                                            <MenuFlyoutItem.Icon>
+                                                <FontIcon Glyph="&#xE735;" />
+                                            </MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutItem Text="お気に入りから削除"
+                                                        Click="RemoveFavoriteFromTreeMenuItem_Click">
+                                            <MenuFlyoutItem.Icon>
+                                                <FontIcon Glyph="&#xE738;" />
+                                            </MenuFlyoutItem.Icon>
+                                        </MenuFlyoutItem>
+                                        <MenuFlyoutSeparator />
                                         <MenuFlyoutItem Text="更新" Click="RefreshMenuItem_Click">
                                             <MenuFlyoutItem.Icon>
                                                 <FontIcon Glyph="&#xE72C;" />

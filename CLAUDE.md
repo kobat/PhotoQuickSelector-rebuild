@@ -41,10 +41,18 @@
 - **Phase 2 完了**: WinUI アプリ本体（左右分割／フォルダツリー遅延読込／サムネイル／評価編集／キー操作）。
   追加修正: ダブルクリック=展開、初期文言修正、レーティング★の EXIF/ユーザー色分け、
   フォルダ追加削除の差分同期反映（更新ボタン/F5/右クリック更新/再展開）。
-- すべて `origin/main` にプッシュ済み。
+- **Phase 2 補完 完了**: アプリ設定（`AppSettings`）を新設し、最近開いたフォルダ／お気に入り、
+  左ペイン幅・折りたたみ状態を JSON 永続化。左ペイン上部に「お気に入り」「最近開いたフォルダ」
+  の Expander（件数 0 のときは非表示）を追加。お気に入りはツリーノード右クリックで追加/解除、
+  最近は読み込み時に自動記録。設定は終了時（幅/折りたたみ）と変更時（最近/お気に入り）に保存。
+  - 保存先: `%LOCALAPPDATA%\PhotoQuickSelector\settings.json`（素のファイルパス＝unpackaged でも可）。
+    packaged 開発時は実体が `…\Packages\<PFN>\LocalCache\Local\PhotoQuickSelector\settings.json` に
+    リダイレクトされる点に注意。
+  - トリミング発行対策で JSON は source generator（`AppSettingsJsonContext`）を使用。
+    日本語パスは `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` で生 UTF-8 保存。
+- Phase 2 までは `origin/main` にプッシュ済み。Phase 2 補完は未コミット。
 
 ## 残タスク（次の候補）
-- Phase 2 補完: 最近フォルダ／お気に入りの永続化（`AppSettings`）、左ペイン幅・折りたたみ状態の保存。
 - Phase 3: プレビュー画面（大画面ズーム/パン/ナビゲーター/AFフォーカス表示、Win2D 描画）。
 - Phase 4: フィルタ／クリップボード出力（.bat 生成）／外部連携／設定。
 - パッケージング: 素の自己完結 EXE の publish 構成を組み込み＋発行確認。
