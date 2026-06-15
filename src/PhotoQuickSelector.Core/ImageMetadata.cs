@@ -60,6 +60,13 @@ public sealed class ImageMetadata
     public PointI? FocusPoint { get; init; }
     public SizeI? FocusSize { get; init; }
 
+    /// <summary>
+    /// AF フォーカス点が測られている基準画像サイズ（Sony tag 0x2027 の [0],[1]）。
+    /// フォーカス点を実画像ピクセルへ正規化する際の分母。通常 <see cref="OriginalWidth"/>/
+    /// <see cref="OriginalHeight"/> とほぼ一致する。null のときは元画像サイズで代用する。
+    /// </summary>
+    public SizeI? FocusReferenceSize { get; init; }
+
     // GPS
     public bool HasGpsLocation { get; init; }
     public string GpsLocationDescription { get; init; } = "";

@@ -46,7 +46,7 @@ public static class MetadataReader
         var orientation = GetInt32(ifd0, ExifDirectoryBase.TagOrientation);
 
         var (takenOffset, takenDescription) = ReadTakenDateTime(subIfd);
-        var (focusPoint, focusSize) = ReadSonyFocus(sony);
+        var (focusPoint, focusSize, focusReferenceSize) = ReadSonyFocus(sony);
         var (hasGps, gpsDescription) = ReadGps(gps);
 
         return new ImageMetadata
@@ -83,6 +83,7 @@ public static class MetadataReader
 
             FocusPoint = focusPoint,
             FocusSize = focusSize,
+            FocusReferenceSize = focusReferenceSize,
 
             HasGpsLocation = hasGps,
             GpsLocationDescription = gpsDescription,
@@ -143,17 +144,22 @@ public static class MetadataReader
     }
 
     /// <summary>
-    /// Sony メーカーノートから AF フォーカス点・枠サイズを読む。
+    /// Sony メーカーノートから AF フォーカス点・枠サイズ・基準画像サイズを読む。
     /// 生タグ 0x2027(フォーカス座標) / 0x2037(枠サイズ) を直接参照する。
+    /// 0x2027 は [基準幅, 基準高さ, フォーカス X, フォーカス Y] の順（exiftool 仕様）。
     /// </summary>
-    private static (PointI?, SizeI?) ReadSonyFocus(SonyType1MakernoteDirectory? sony)
+    private static (PointI?, SizeI?, SizeI?) ReadSonyFocus(SonyType1MakernoteDirectory? sony)
     {
-        if (sony == null) return (null, null);
+        if (sony == null) return (null, null, null);
 
         PointI? point = null;
+        SizeI? referenceSize = null;
         var locationTag = sony.GetInt32Array(0x2027);
         if (locationTag is { Length: >= 4 })
+        {
+            referenceSize = new SizeI(locationTag[0], locationTag[1]);
             point = new PointI(locationTag[2], locationTag[3]);
+        }
 
         SizeI? size = null;
         var frameSizeTag = sony.GetByteArray(0x2037);
@@ -165,7 +171,7 @@ public static class MetadataReader
             size = new SizeI(width, height);
         }
 
-        return (point, size);
+        return (point, size, referenceSize);
     }
 
     private static (bool, string) ReadGps(GpsDirectory? gps)
