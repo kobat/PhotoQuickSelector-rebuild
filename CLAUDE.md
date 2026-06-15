@@ -62,14 +62,26 @@
     Orientation 変換の純ロジック）。`Microsoft.Graphics.Win2D` 1.4.0 を追加。
   - 設計メモ: 写真コレクション/選択は既存 `MainViewModel.Photos` / `SelectedPhoto` を共有。
     前後移動で `SelectedPhoto` を更新し、`MainPage` 側でサムネイルグリッドの選択も同期。
+- **Phase 3 ステージ C 完了（未コミット）**: 評価キーを `PhotoKeyCommands.TryHandleEvaluation` に
+  共通化（`MainPage` のサムネイル側と `PreviewControl` の両方から呼ぶ）。プレビューで
+  `0`–`5`/`6`–`9`・`P`/`[ ]`/`Ctrl+↑↓` が効く。`Alt+矢印`=パン、`Shift+Alt+←/→`=フィット/100%。
+  `CanvasBitmap` の前後 N 枚先読みキャッシュ（`Dictionary`＋inflight 共有＋範囲外破棄＋デバイス
+  再生成で世代無効化）。実機で評価キー・パン・前後移動を確認済み。
+- **Phase 3 ステージ B 完了（未コミット）**: AF 枠オーバーレイ／三分割グリッド線（`G`）／フォーカス点
+  スクロール（`Alt+F`）。Core 拡張で `ImageMetadata.FocusReferenceSize`（Sony `0x2027` の `[0],[1]`）を
+  追加（`MetadataReaderFocusTests` 追加、計 47 件）。右ナビゲーターは今回見送り。
+  実機（横構図 DSC*.JPG／縦構図 DSC03334=Orientation8）で AF枠・グリッド・スクロールを目視確認済み。
+  - **重大な発見＆修正**: `CanvasBitmap.LoadAsync` は **EXIF Orientation を自動適用**して返す
+    （生 8640×5760 → `SizeInPixels` 5760×8640 で正立）。ステージ A は `OrientationMatrix` を
+    自前で重ねており、回転画像は**二重回転**で誤表示していた（Orientation=1 のみのテストで見逃し）。
+    修正: 画像/グリッドは回転を加えず `SizeInPixels`（DPI 非依存）でスケール＋平行移動のみ。
+    AF 枠だけは生センサー座標 `0x2027[2],[3]` を `OrientationMatrix`（生寸法基準）→`ImageToCanvas`
+    で表示空間へ写す。`PreviewViewport.BuildTransform` は不使用化（`OrientationMatrix` は AF で利用）。
+  - 検証中に既知 DPI バグも修正: グリッドが `_bitmap.Size`（DPI 依存）基準で画像外へはみ出していた。
 
 ## 残タスク（次の候補）
-- Phase 3 ステージ B: AF フォーカス枠オーバーレイ／三分割グリッド線（`ShowGrid`/`G`）／
-  右ナビゲーター（全体像＋表示領域矩形＋AF枠）／フォーカス点へスクロール（`Alt+F`）。
-  注: AF 点の正確なマッピングには Sony tag `0x2027` の `[0],[1]`（AF 座標系の幅/高さ）が必要だが、
-  現状 `MetadataReader.ReadSonyFocus` は `[2],[3]`(=FocusPoint) のみ保持。Core 拡張を要検討。
-- Phase 3 ステージ C: プレビュー時の全キー操作網羅（評価系の共通化・`Alt`/`Ctrl+Alt` スクロール等）＋
-  `CanvasBitmap` の前後 N 枚先読みキャッシュ／範囲外破棄。
+- Phase 3 ステージ B 残: 右ナビゲーター（全体像＋表示領域矩形＋AF枠）／`Ctrl+Alt+矢印`（右プレビュー
+  スクロール）／`Ctrl+Alt+F`。AF 枠の正確な位置（回転画像）はユーザー最終確認推奨。
 - Phase 4: フィルタ／クリップボード出力（.bat 生成）／外部連携／設定。
 - パッケージング: 素の自己完結 EXE の publish 構成を組み込み＋発行確認。
   注: csproj の Release は現状 `PublishTrimmed=true`。**WinUI/Win2D はトリミング不可**のため
@@ -105,3 +117,16 @@
   で処理する実装にしてある。ただし **computer-use の合成 `Esc` 注入では発火しない**（`←`/`Z` 等は注入で
   動く）。Esc でのプレビュー終了は**実キーボードでユーザー確認済み（2026-06-15、動作 OK）**。プレビュー終了の
   正規手段はダブルクリック（SPEC §2、動作確認済み）。SPEC §3-7 の `Esc` は本来「選択リセット」用途。
+- **computer-use の合成キーはプレビュー入場直後（`FocusForKeys` 後）なら `Z`/`G`/`Alt+矢印`/数字キー等が
+  通る**が、キャンバスへ別途クリックした後などはフォーカスが外れて通らないことがある。検証は
+  「ダブルクリックで入場 → 直後にキー」の順で行うと安定。
+
+### Win2D の Orientation / DPI（ステージ B で判明・重要）
+- **`CanvasBitmap.LoadAsync` は EXIF Orientation を自動適用して返す**（WIC 経由）。生 8640×5760・
+  Orientation=8 の画像は `SizeInPixels` が 5760×8640（正立）になる。**自前で `OrientationMatrix` を
+  かけると二重回転**になり、横→縦が横のまま等の誤表示になる（ステージ A は Orientation=1 画像しか
+  無く見逃していた）。→ 画像/グリッド描画は回転を加えず、`SizeInPixels` 基準でスケール＋平行移動のみ。
+- **AF フォーカス点 `0x2027[2],[3]` は生センサー座標（Orientation 適用前）**。正立ビットマップへ重ねるには
+  `PreviewViewport.OrientationMatrix(orientation, 生W, 生H)`（生寸法＝`ImageMetadata.OriginalWidth/Height`）で
+  表示空間へ写し、`ImageToCanvas` でキャンバスへ。基準寸法は `FocusReferenceSize`(=`0x2027[0],[1]`)。
+- **`CanvasBitmap.Size` は DPI 依存**（高 DPI スケールで縮む）。寸法計算は必ず `SizeInPixels` を使う。
