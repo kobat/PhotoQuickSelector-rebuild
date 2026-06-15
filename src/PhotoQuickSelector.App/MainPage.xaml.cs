@@ -258,38 +258,8 @@ public sealed partial class MainPage : Page
         var item = ViewModel.SelectedPhoto;
         if (item == null) return;
 
-        // レーティング 0-5（修飾子なし）
-        if (KeyboardModifiers.None)
-        {
-            switch (e.Key)
-            {
-                case VirtualKey.Number0: item.SetRating(0); e.Handled = true; return;
-                case VirtualKey.Number1: item.SetRating(1); e.Handled = true; return;
-                case VirtualKey.Number2: item.SetRating(2); e.Handled = true; return;
-                case VirtualKey.Number3: item.SetRating(3); e.Handled = true; return;
-                case VirtualKey.Number4: item.SetRating(4); e.Handled = true; return;
-                case VirtualKey.Number5: item.SetRating(5); e.Handled = true; return;
-
-                // カラーラベル 6-9 + P（紫）。★旧実装で未割当だった紫に P を割当て。
-                case VirtualKey.Number6: item.ToggleColorLabel(ColorLabel.Red); e.Handled = true; return;
-                case VirtualKey.Number7: item.ToggleColorLabel(ColorLabel.Yellow); e.Handled = true; return;
-                case VirtualKey.Number8: item.ToggleColorLabel(ColorLabel.Green); e.Handled = true; return;
-                case VirtualKey.Number9: item.ToggleColorLabel(ColorLabel.Blue); e.Handled = true; return;
-                case VirtualKey.P: item.ToggleColorLabel(ColorLabel.Purple); e.Handled = true; return;
-
-                case (VirtualKey)219: item.RatingDown(); e.Handled = true; return; // [
-                case (VirtualKey)221: item.RatingUp(); e.Handled = true; return;   // ]
-            }
-        }
-
-        // フラグ（Ctrl+上/下）
-        if (KeyboardModifiers.Ctrl)
-        {
-            switch (e.Key)
-            {
-                case VirtualKey.Up: item.FlagUp(); e.Handled = true; return;
-                case VirtualKey.Down: item.FlagDown(); e.Handled = true; return;
-            }
-        }
+        // 評価キー（レーティング / カラーラベル / フラグ）は PreviewControl と共通化（SPEC §3-7）。
+        if (PhotoKeyCommands.TryHandleEvaluation(e.Key, item))
+            e.Handled = true;
     }
 }
