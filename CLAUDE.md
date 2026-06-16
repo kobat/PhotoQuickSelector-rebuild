@@ -81,15 +81,26 @@
   すべて revert 済みで未コミット（下記「残タスク」参照）。
 
 ## 残タスク（次の候補）
-- **プレビューのキーボード入力フォーカス問題（未解決・最優先級）**: 現状はキャンバス（画像）にフォーカスが
-  ある時のみキーが効き、フィルムストリップ等にフォーカスがある時は効かない。試した案（ルート bubbling
-  `KeyDown` 集約 / `PreviewKeyDown` tunneling / 最上位ウィンドウ HWND サブクラス / `Window.Activated` 復帰）は
-  **すべて revert 済み**（コードは `cffb7c1`）。原因の要点: ① Win2D `CanvasControl` にフォーカスがあると実
-  キーボードのキーは XAML へ流れない（祖先の tunneling/bubbling とも不発。ただしキャンバス直付け `KeyDown`
-  は効く）、② 最上位ウィンドウ HWND の `SetWindowSubclass` では `WM_KEYDOWN` を拾えない（WinUI 3 は子の
-  island/InputSite HWND でキー入力を扱う）、③ computer-use の合成キーは当てにならず検証は実キーボード必須。
-  次の最有力案＝`cffb7c1` ベースで**キャンバスの `KeyDown` を残したまま `FilmStrip`(ListView) にも `KeyDown`
-  を追加**する最小変更。詳細はメモリ `preview-keyboard-focus-investigation` 参照。
+- **プレビューのキーボード入力フォーカス問題（原因特定済み・修正待ち／最優先級）**: 症状は「画像を
+  クリックするとキーが効かなくなる」。2026-06-16 に診断 HUD（`FocusManager.GotFocus/LostFocus` ＋
+  各レベルの `KeyDown` を `handledEventsToo:true` で計測）を `PreviewControl` に仕込み、実キーボードで切り分けた。
+  - **旧仮説は誤りと判明**: 「Win2D `CanvasControl` にフォーカスがあるとキーが XAML へ流れない」は**間違い**。
+    入場直後（キャンバスにフォーカスがある状態）では KeyDown は `canvas → ucGrid → userControl → xamlRoot`
+    まで正常に bubbling する（HUD で全レベル発火を確認）。`OnKeyDown`（`MainCanvas` 直付け）も当然効く。
+  - **真の原因＝クリックでフォーカスがキャンバスから逃げる**: 画像を 1 回クリックすると
+    `focus← CanvasControl#MainCanvas` → `FOCUS→ ScrollViewer` となり、KeyDown は `xamlRoot` でしか拾われない
+    （= その ScrollViewer は `MainCanvas`/`ucGrid`/`userControl`/`FilmStrip` の**いずれの子孫でもない**＝
+    PreviewControl の外側＝Page/Frame 等の祖先 ScrollViewer）。Win2D `CanvasControl` は**ポインタ起点の
+    フォーカスを保持できない**ため、フレームワークの「クリック→フォーカス可能要素探索」が祖先方向へ遡って
+    最初の ScrollViewer に focus を置く。`MainCanvas_PointerPressed` の同期 `Focus()` はその後に走る
+    フレームワークのフォーカス処理に**上書きされる**。結果 `OnKeyDown` が経路外になりキーが無効化される。
+  - **遅延フォーカスは勝つ**: `FocusForKeys`（`DispatcherQueue.TryEnqueue` 経由の `MainCanvas.Focus()`）は
+    フレームワーク処理の**後**に走るので入場時は成功している。→ **推奨修正＝`PointerPressed` の `Focus()` を
+    遅延（`DispatcherQueue.TryEnqueue`）に変える/追加する**最小変更。これでクリック後もキャンバスが
+    フォーカスを保持し、既存 `OnKeyDown` がそのまま効く。フィルムストリップ側でも評価キーを効かせたい場合は
+    別途 `FilmStrip` に `KeyDown` を足して `PhotoKeyCommands.TryHandleEvaluation` を呼ぶ（矢印は ListView が消費）。
+  - 診断 HUD の計装コード（`PreviewControl.xaml`/`.xaml.cs` の `DIAGNOSTIC` ブロック）は**未コミットで作業ツリーに
+    残置**。修正適用後に削除する。詳細はメモリ `preview-keyboard-focus-investigation` 参照。
 - Phase 3 ステージ B 残: 右ナビゲーター（全体像＋表示領域矩形＋AF枠）／`Ctrl+Alt+矢印`（右プレビュー
   スクロール）／`Ctrl+Alt+F`。AF 枠の正確な位置（回転画像）はユーザー最終確認推奨。
 - Phase 4: フィルタ／クリップボード出力（.bat 生成）／外部連携／設定。
