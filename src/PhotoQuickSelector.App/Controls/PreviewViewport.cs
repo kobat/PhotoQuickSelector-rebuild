@@ -167,6 +167,21 @@ public sealed class PreviewViewport
         => (OffsetX + imgX * Scale, OffsetY + imgY * Scale);
 
     /// <summary>
+    /// 現在キャンバスに見えている画像領域（表示空間 px, 0..ImageWidth/Height にクランプ）を返す。
+    /// ナビゲーターの「表示領域矩形」描画に使う。見えていなければ幅/高さ 0。
+    /// </summary>
+    public (double X, double Y, double W, double H) VisibleImageRect()
+    {
+        if (ImageWidth <= 0 || ImageHeight <= 0 || Scale <= 0) return (0, 0, 0, 0);
+        double left = Math.Max(0, (0 - OffsetX) / Scale);
+        double top = Math.Max(0, (0 - OffsetY) / Scale);
+        double right = Math.Min(ImageWidth, (CanvasWidth - OffsetX) / Scale);
+        double bottom = Math.Min(ImageHeight, (CanvasHeight - OffsetY) / Scale);
+        if (right <= left || bottom <= top) return (0, 0, 0, 0);
+        return (left, top, right - left, bottom - top);
+    }
+
+    /// <summary>
     /// 元画像（Orientation 適用前, 幅 bw × 高さ bh）座標を Orientation 補正済み表示空間
     /// （0..DisplayW, 0..DisplayH）へ写すアフィン行列。Win2D の DrawingSession.Transform に
     /// スケール・平行移動を合成して用いる。EXIF Orientation 1..8 に対応。

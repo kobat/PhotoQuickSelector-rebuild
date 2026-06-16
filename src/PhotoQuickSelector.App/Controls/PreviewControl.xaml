@@ -7,29 +7,38 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:PhotoQuickSelector_App.ViewModels"
     xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition x:Name="RightPanelColumn" Width="260" MinWidth="160" />
+        </Grid.ColumnDefinitions>
 
-        <!-- メイン大画面プレビュー（Win2D） -->
-        <canvas:CanvasControl
-            x:Name="MainCanvas"
-            Grid.Row="0"
-            IsTabStop="True"
-            UseSystemFocusVisuals="False"
-            ClearColor="#1E1E1E"
-            Draw="MainCanvas_Draw"
-            CreateResources="MainCanvas_CreateResources"
-            SizeChanged="MainCanvas_SizeChanged"
-            PointerPressed="MainCanvas_PointerPressed"
-            PointerMoved="MainCanvas_PointerMoved"
-            PointerReleased="MainCanvas_PointerReleased"
-            PointerWheelChanged="MainCanvas_PointerWheelChanged"
-            DoubleTapped="MainCanvas_DoubleTapped" />
+        <!-- 左カラム: メイン大画面 ＋ フィルムストリップ -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- メイン大画面プレビュー（Win2D） -->
+            <canvas:CanvasControl
+                x:Name="MainCanvas"
+                Grid.Row="0"
+                IsTabStop="True"
+                UseSystemFocusVisuals="False"
+                ClearColor="#1E1E1E"
+                Draw="MainCanvas_Draw"
+                CreateResources="MainCanvas_CreateResources"
+                SizeChanged="MainCanvas_SizeChanged"
+                PointerPressed="MainCanvas_PointerPressed"
+                PointerMoved="MainCanvas_PointerMoved"
+                PointerReleased="MainCanvas_PointerReleased"
+                PointerWheelChanged="MainCanvas_PointerWheelChanged"
+                DoubleTapped="MainCanvas_DoubleTapped" />
 
         <!-- フィルムストリップ（横スクロール） -->
         <ListView
@@ -66,5 +75,55 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
+        </Grid>
+
+        <!-- 左カラムと右パネルのリサイズ用スプリッター -->
+        <controls:GridSplitter
+            Grid.Column="1"
+            Width="8"
+            ResizeBehavior="BasedOnAlignment"
+            ResizeDirection="Auto" />
+
+        <!-- 右カラム: 上=ズームプレビュー(ルーペ) / 下=ナビゲーター -->
+        <Grid Grid.Column="2" Background="#252525">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" MinHeight="80" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition x:Name="NavRow" Height="220" MinHeight="100" />
+            </Grid.RowDefinitions>
+
+            <!-- ズームプレビュー（100% ルーペ。独立スクロール） -->
+            <canvas:CanvasControl
+                x:Name="ZoomCanvas"
+                Grid.Row="0"
+                ClearColor="#1E1E1E"
+                Draw="ZoomCanvas_Draw"
+                CreateResources="SubCanvas_CreateResources"
+                SizeChanged="ZoomCanvas_SizeChanged"
+                PointerPressed="ZoomCanvas_PointerPressed"
+                PointerMoved="ZoomCanvas_PointerMoved"
+                PointerReleased="ZoomCanvas_PointerReleased"
+                PointerWheelChanged="ZoomCanvas_PointerWheelChanged" />
+
+            <!-- ズームプレビューとナビゲーターのリサイズ用スプリッター -->
+            <controls:GridSplitter
+                Grid.Row="1"
+                Height="8"
+                HorizontalAlignment="Stretch"
+                ResizeBehavior="BasedOnAlignment"
+                ResizeDirection="Auto" />
+
+            <!-- ナビゲーター（全体縮小画像＋表示領域矩形＋AF枠） -->
+            <canvas:CanvasControl
+                x:Name="NavCanvas"
+                Grid.Row="2"
+                ClearColor="#2A2A2A"
+                Draw="NavCanvas_Draw"
+                CreateResources="SubCanvas_CreateResources"
+                SizeChanged="NavCanvas_SizeChanged"
+                PointerPressed="NavCanvas_PointerPressed"
+                PointerMoved="NavCanvas_PointerMoved"
+                PointerReleased="NavCanvas_PointerReleased" />
+        </Grid>
     </Grid>
 </UserControl>
