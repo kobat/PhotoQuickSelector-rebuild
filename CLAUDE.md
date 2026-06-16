@@ -77,53 +77,21 @@
     AF 枠だけは生センサー座標 `0x2027[2],[3]` を `OrientationMatrix`（生寸法基準）→`ImageToCanvas`
     で表示空間へ写す。`PreviewViewport.BuildTransform` は不使用化（`OrientationMatrix` は AF で利用）。
   - 検証中に既知 DPI バグも修正: グリッドが `_bitmap.Size`（DPI 依存）基準で画像外へはみ出していた。
-- **`cffb7c1` まで（Phase 3 A/B/C 含む）`origin/main` にプッシュ済み。** 以降のフォーカス改善の試行は
-  すべて revert 済みで未コミット（下記「残タスク」参照）。
+- **プレビューのキーボード入力フォーカス問題 完了（`f54d9b4`、`origin/main` プッシュ済み）**:
+  「画像クリック後にキーが効かない」「フィルムストリップフォーカス時の `Alt+矢印` が画像切替になる」を解消。
+  キー入力を **Window 直下の `MainWindow` ルート `Grid`（`x:Name="RootGrid"`）の `PreviewKeyDown`(tunneling)**
+  で集約（`RootGrid.PreviewKeyDown += RootGrid_PreviewKeyDown` → `MainPage.HandleGlobalKeyDown` →
+  `IsPreviewMode` で `PreviewControl.HandleKeyDown(VirtualKey)` ／サムネイル評価キーへ分岐、処理したら
+  `e.Handled=true`）。RootGrid は最上位なのでフォーカス位置に依存せず tunneling の最初に届き、Handled で
+  後続 KeyDown を抑止できる＝ListView より先にキーを奪える（bubbling KeyDown では ListView に Alt+矢印を
+  先取りされ誤動作した）。`PreviewControl.OnKeyDown`(イベント) は `bool HandleKeyDown(VirtualKey)` へ変更し
+  `MainCanvas` の `KeyDown` 配線を削除、到達不能化した `MainPage.PhotoGrid_KeyDown` も削除。実機確認済み。
+  経緯と原因の詳細はメモリ `preview-keyboard-focus-investigation` ／ 再利用知見は `winui-keyinput-gotchas`。
+- **`cffb7c1` まで（Phase 3 A/B/C 含む）／`f54d9b4`（上記キー集約）`origin/main` にプッシュ済み。**
 
 ## 残タスク（次の候補）
-- **プレビューのキーボード入力フォーカス問題（修正実装済み・実機確認待ち）**: ユーザー指摘
-  （過去は Window 直下のコントロールで `PreviewKeyDown` 相当を受け、画像クリック後もキーが効いた／元アプリでも
-  採用）に基づき実装（ビルド成功）。`MainWindow` のルート `Grid` に `x:Name="RootGrid"` を付け、`RootFrame.Navigate`
-  後に **`RootGrid.PreviewKeyDown += RootGrid_PreviewKeyDown;`** で集約。RootGrid は Frame/Page の祖先＝最上位
-  なので tunneling の最初に必ず届く（フォーカス位置に依存しない）。`RootGrid_PreviewKeyDown` は `e.Handled` なら
-  return、未処理なら `MainPage.HandleGlobalKeyDown(e)`→`IsPreviewMode` で `PreviewControl.HandleKeyDown(VirtualKey)`
-  またはサムネイル評価キーへ分岐し、処理したら `e.Handled=true`。`PreviewControl.xaml` の `KeyDown="OnKeyDown"`
-  と `MainPage` の `PhotoGrid_KeyDown`（到達不能化）は削除。Esc は従来どおり `MainCanvas` の `KeyboardAccelerator`。
-  - **当初 bubbling `KeyDown`(handledEventsToo) で実装→フィルムストリップ(ListView)フォーカス時に `Alt+矢印` が
-    ListView の選択移動（画像切替）に消費され誤動作**。tunneling の `PreviewKeyDown` はルートが最初に受け取り、
-    Handled で後続 KeyDown を抑止できる（Preview/KeyDown はイベントデータ共有）ため ListView より先にキーを奪える。
-    → 修正済み。**実キーボードで「フィルムストリップ・画像クリック後の Alt+矢印パン／各キー」をユーザー確認待ち**。
-  - 以下は原因調査の記録（残置）:
-- **（調査記録）原因特定の経緯**: 症状は「画像を
-  クリックするとキーが効かなくなる」。2026-06-16 に診断 HUD（`FocusManager.GotFocus/LostFocus` ＋
-  各レベルの `KeyDown` を `handledEventsToo:true` で計測）を `PreviewControl` に仕込み、実キーボードで切り分けた。
-  - **旧仮説は誤りと判明**: 「Win2D `CanvasControl` にフォーカスがあるとキーが XAML へ流れない」は**間違い**。
-    入場直後（キャンバスにフォーカスがある状態）では KeyDown は `canvas → ucGrid → userControl → xamlRoot`
-    まで正常に bubbling する（HUD で全レベル発火を確認）。`OnKeyDown`（`MainCanvas` 直付け）も当然効く。
-  - **真の原因＝クリックでフォーカスがキャンバスから逃げる**: 画像を 1 回クリックすると
-    `focus← CanvasControl#MainCanvas` → `FOCUS→ ScrollViewer` となり、KeyDown は `xamlRoot` でしか拾われない
-    （= その ScrollViewer は `MainCanvas`/`ucGrid`/`userControl`/`FilmStrip` の**いずれの子孫でもない**＝
-    PreviewControl の外側＝Page/Frame 等の祖先 ScrollViewer）。Win2D `CanvasControl` は**ポインタ起点の
-    フォーカスを保持できない**ため、フレームワークの「クリック→フォーカス可能要素探索」が祖先方向へ遡って
-    最初の ScrollViewer に focus を置く。`MainCanvas_PointerPressed` の同期 `Focus()` はその後に走る
-    フレームワークのフォーカス処理に**上書きされる**。結果 `OnKeyDown` が経路外になりキーが無効化される。
-  - **試した修正（Option A）＝失敗**: `MainCanvas_PointerPressed` の同期 `Focus()` を遅延（`FocusForKeys`
-    ＝`DispatcherQueue.TryEnqueue` 経由の `MainCanvas.Focus()`）へ置換。入場時の `FocusForKeys` は効くのに、
-    **クリック後の遅延 `Focus()` ではフォーカスがキャンバスへ戻らない**（HUD に `FOCUS→ CanvasControl` が
-    出ず、ScrollViewer に居座ったまま。`KEY@xamlRoot Right handled=False src=Grid` のみ）。＝Win2D
-    `CanvasControl` はクリック直後にプログラム的フォーカスを奪い返せない。この修正は **revert 済み**。
-  - **次の最有力案＝高位の共通祖先でキー集約（フォーカスに依存しない）**: HUD で確認した重要事実として、
-    **どのフォーカス状態（キャンバス／クリック後 ScrollViewer／フィルムストリップ）でも `KEY@xamlRoot` は
-    必ず発火する**（クリック後 ScrollViewer 時も `handled=False` で到達）。よって `MainCanvas` 直付けに頼らず、
-    **`XamlRoot.Content`（最上位）か `MainPage` ルートに `AddHandler(UIElement.KeyDownEvent, …,
-    handledEventsToo:true)` でキー処理を集約**し、`IsPreviewMode` で分岐して評価/ナビ処理（現 `OnKeyDown` 相当・
-    `PhotoKeyCommands.TryHandleEvaluation`）を呼ぶのが筋。※過去メモの「ルート bubbling KeyDown は失敗」は
-    **旧 StatusText 診断（不正確）に基づく結論で、今回の HUD 計測で覆った**ので再挑戦の価値あり。
-    実装時の注意: ScrollViewer/ListView が `←/→` を先に消費しうる点（`handledEventsToo` で拾えば処理は可能）と、
-    プレビュー終了時に集約ハンドラを外す/無効化すること。
-  - 診断 HUD の計装コード（`PreviewControl.xaml`/`.xaml.cs` の `DIAGNOSTIC` ブロック）と Option A は
-    **revert 済み**（PreviewControl 2 ファイルは `cffb7c1` 相当に復元）。詳細はメモリ
-    `preview-keyboard-focus-investigation` 参照。
+- ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
+  原因/経緯の詳細はメモリ `preview-keyboard-focus-investigation`、再利用知見は `winui-keyinput-gotchas`。
 - Phase 3 ステージ B 残: 右ナビゲーター（全体像＋表示領域矩形＋AF枠）／`Ctrl+Alt+矢印`（右プレビュー
   スクロール）／`Ctrl+Alt+F`。AF 枠の正確な位置（回転画像）はユーザー最終確認推奨。
 - Phase 4: フィルタ／クリップボード出力（.bat 生成）／外部連携／設定。
