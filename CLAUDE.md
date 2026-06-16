@@ -94,13 +94,23 @@
     フォーカスを保持できない**ため、フレームワークの「クリック→フォーカス可能要素探索」が祖先方向へ遡って
     最初の ScrollViewer に focus を置く。`MainCanvas_PointerPressed` の同期 `Focus()` はその後に走る
     フレームワークのフォーカス処理に**上書きされる**。結果 `OnKeyDown` が経路外になりキーが無効化される。
-  - **遅延フォーカスは勝つ**: `FocusForKeys`（`DispatcherQueue.TryEnqueue` 経由の `MainCanvas.Focus()`）は
-    フレームワーク処理の**後**に走るので入場時は成功している。→ **推奨修正＝`PointerPressed` の `Focus()` を
-    遅延（`DispatcherQueue.TryEnqueue`）に変える/追加する**最小変更。これでクリック後もキャンバスが
-    フォーカスを保持し、既存 `OnKeyDown` がそのまま効く。フィルムストリップ側でも評価キーを効かせたい場合は
-    別途 `FilmStrip` に `KeyDown` を足して `PhotoKeyCommands.TryHandleEvaluation` を呼ぶ（矢印は ListView が消費）。
-  - 診断 HUD の計装コード（`PreviewControl.xaml`/`.xaml.cs` の `DIAGNOSTIC` ブロック）は**未コミットで作業ツリーに
-    残置**。修正適用後に削除する。詳細はメモリ `preview-keyboard-focus-investigation` 参照。
+  - **試した修正（Option A）＝失敗**: `MainCanvas_PointerPressed` の同期 `Focus()` を遅延（`FocusForKeys`
+    ＝`DispatcherQueue.TryEnqueue` 経由の `MainCanvas.Focus()`）へ置換。入場時の `FocusForKeys` は効くのに、
+    **クリック後の遅延 `Focus()` ではフォーカスがキャンバスへ戻らない**（HUD に `FOCUS→ CanvasControl` が
+    出ず、ScrollViewer に居座ったまま。`KEY@xamlRoot Right handled=False src=Grid` のみ）。＝Win2D
+    `CanvasControl` はクリック直後にプログラム的フォーカスを奪い返せない。この修正は **revert 済み**。
+  - **次の最有力案＝高位の共通祖先でキー集約（フォーカスに依存しない）**: HUD で確認した重要事実として、
+    **どのフォーカス状態（キャンバス／クリック後 ScrollViewer／フィルムストリップ）でも `KEY@xamlRoot` は
+    必ず発火する**（クリック後 ScrollViewer 時も `handled=False` で到達）。よって `MainCanvas` 直付けに頼らず、
+    **`XamlRoot.Content`（最上位）か `MainPage` ルートに `AddHandler(UIElement.KeyDownEvent, …,
+    handledEventsToo:true)` でキー処理を集約**し、`IsPreviewMode` で分岐して評価/ナビ処理（現 `OnKeyDown` 相当・
+    `PhotoKeyCommands.TryHandleEvaluation`）を呼ぶのが筋。※過去メモの「ルート bubbling KeyDown は失敗」は
+    **旧 StatusText 診断（不正確）に基づく結論で、今回の HUD 計測で覆った**ので再挑戦の価値あり。
+    実装時の注意: ScrollViewer/ListView が `←/→` を先に消費しうる点（`handledEventsToo` で拾えば処理は可能）と、
+    プレビュー終了時に集約ハンドラを外す/無効化すること。
+  - 診断 HUD の計装コード（`PreviewControl.xaml`/`.xaml.cs` の `DIAGNOSTIC` ブロック）と Option A は
+    **revert 済み**（PreviewControl 2 ファイルは `cffb7c1` 相当に復元）。詳細はメモリ
+    `preview-keyboard-focus-investigation` 参照。
 - Phase 3 ステージ B 残: 右ナビゲーター（全体像＋表示領域矩形＋AF枠）／`Ctrl+Alt+矢印`（右プレビュー
   スクロール）／`Ctrl+Alt+F`。AF 枠の正確な位置（回転画像）はユーザー最終確認推奨。
 - Phase 4: フィルタ／クリップボード出力（.bat 生成）／外部連携／設定。
