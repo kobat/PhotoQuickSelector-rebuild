@@ -52,8 +52,7 @@
     日本語パスは `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` で生 UTF-8 保存。
   - お気に入りの削除: お気に入りリスト各行の **× ボタン**＋右クリック「お気に入りから削除」（`f6cbef4`）。
     ユーザーによる画面目視確認済み（2026-06-14、問題なし）。
-- `f6cbef4` まで含めすべて `origin/main` にプッシュ済み。
-- **Phase 3 ステージ A 完了（未コミット）**: 右ペインに大画面プレビューを追加（Win2D `CanvasControl`）。
+- **Phase 3 ステージ A 完了（`4b3aca0`）**: 右ペインに大画面プレビューを追加（Win2D `CanvasControl`）。
   サムネイルのダブルクリックで Thumbnail⇄Preview を相互遷移（`MainViewModel.IsPreviewMode` ＋
   `ThumbnailVisibility`/`PreviewVisibility` で排他表示）。下部に横スクロールのフィルムストリップ。
   ズーム（ホイール／`Z`=フィット⇄100%／`Shift+Z`=等倍）、ドラッグでパン、`←`/`→` で前後移動、
@@ -62,13 +61,13 @@
     Orientation 変換の純ロジック）。`Microsoft.Graphics.Win2D` 1.4.0 を追加。
   - 設計メモ: 写真コレクション/選択は既存 `MainViewModel.Photos` / `SelectedPhoto` を共有。
     前後移動で `SelectedPhoto` を更新し、`MainPage` 側でサムネイルグリッドの選択も同期。
-- **Phase 3 ステージ C 完了（未コミット）**: 評価キーを `PhotoKeyCommands.TryHandleEvaluation` に
+- **Phase 3 ステージ C 完了（`05a7947`）**: 評価キーを `PhotoKeyCommands.TryHandleEvaluation` に
   共通化（`MainPage` のサムネイル側と `PreviewControl` の両方から呼ぶ）。プレビューで
   `0`–`5`/`6`–`9`・`P`/`[ ]`/`Ctrl+↑↓` が効く。`Alt+矢印`=パン、`Shift+Alt+←/→`=フィット/100%。
   `CanvasBitmap` の前後 N 枚先読みキャッシュ（`Dictionary`＋inflight 共有＋範囲外破棄＋デバイス
   再生成で世代無効化）。実機で評価キー・パン・前後移動を確認済み。
-- **Phase 3 ステージ B 完了（未コミット）**: AF 枠オーバーレイ／三分割グリッド線（`G`）／フォーカス点
-  スクロール（`Alt+F`）。Core 拡張で `ImageMetadata.FocusReferenceSize`（Sony `0x2027` の `[0],[1]`）を
+- **Phase 3 ステージ B 完了（Core `41476a6` / App `05a7947`）**: AF 枠オーバーレイ／三分割グリッド線（`G`）／
+  フォーカス点スクロール（`Alt+F`）。Core 拡張で `ImageMetadata.FocusReferenceSize`（Sony `0x2027` の `[0],[1]`）を
   追加（`MetadataReaderFocusTests` 追加、計 47 件）。右ナビゲーターは今回見送り。
   実機（横構図 DSC*.JPG／縦構図 DSC03334=Orientation8）で AF枠・グリッド・スクロールを目視確認済み。
   - **重大な発見＆修正**: `CanvasBitmap.LoadAsync` は **EXIF Orientation を自動適用**して返す
@@ -78,8 +77,19 @@
     AF 枠だけは生センサー座標 `0x2027[2],[3]` を `OrientationMatrix`（生寸法基準）→`ImageToCanvas`
     で表示空間へ写す。`PreviewViewport.BuildTransform` は不使用化（`OrientationMatrix` は AF で利用）。
   - 検証中に既知 DPI バグも修正: グリッドが `_bitmap.Size`（DPI 依存）基準で画像外へはみ出していた。
+- **`cffb7c1` まで（Phase 3 A/B/C 含む）`origin/main` にプッシュ済み。** 以降のフォーカス改善の試行は
+  すべて revert 済みで未コミット（下記「残タスク」参照）。
 
 ## 残タスク（次の候補）
+- **プレビューのキーボード入力フォーカス問題（未解決・最優先級）**: 現状はキャンバス（画像）にフォーカスが
+  ある時のみキーが効き、フィルムストリップ等にフォーカスがある時は効かない。試した案（ルート bubbling
+  `KeyDown` 集約 / `PreviewKeyDown` tunneling / 最上位ウィンドウ HWND サブクラス / `Window.Activated` 復帰）は
+  **すべて revert 済み**（コードは `cffb7c1`）。原因の要点: ① Win2D `CanvasControl` にフォーカスがあると実
+  キーボードのキーは XAML へ流れない（祖先の tunneling/bubbling とも不発。ただしキャンバス直付け `KeyDown`
+  は効く）、② 最上位ウィンドウ HWND の `SetWindowSubclass` では `WM_KEYDOWN` を拾えない（WinUI 3 は子の
+  island/InputSite HWND でキー入力を扱う）、③ computer-use の合成キーは当てにならず検証は実キーボード必須。
+  次の最有力案＝`cffb7c1` ベースで**キャンバスの `KeyDown` を残したまま `FilmStrip`(ListView) にも `KeyDown`
+  を追加**する最小変更。詳細はメモリ `preview-keyboard-focus-investigation` 参照。
 - Phase 3 ステージ B 残: 右ナビゲーター（全体像＋表示領域矩形＋AF枠）／`Ctrl+Alt+矢印`（右プレビュー
   スクロール）／`Ctrl+Alt+F`。AF 枠の正確な位置（回転画像）はユーザー最終確認推奨。
 - Phase 4: フィルタ／クリップボード出力（.bat 生成）／外部連携／設定。
