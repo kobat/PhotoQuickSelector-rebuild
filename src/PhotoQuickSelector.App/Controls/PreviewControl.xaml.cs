@@ -402,66 +402,71 @@ public sealed partial class PreviewControl : UserControl
     /// <summary>Alt+矢印スクロール 1 回あたりの移動量（DIP）。</summary>
     private const double PanStep = 120;
 
-    private void OnKeyDown(object sender, KeyRoutedEventArgs e)
+    /// <summary>
+    /// プレビューのキー操作（ナビ / ズーム / スクロール / 評価）を処理する。処理したら true。
+    /// Window 直下のルート集約ハンドラ（<see cref="MainPage.HandleGlobalKeyDown"/>）から呼ばれる。
+    /// 画像クリックでフォーカスがキャンバスから外れていても効くよう、フォーカス非依存で実行する。
+    /// </summary>
+    public bool HandleKeyDown(VirtualKey key)
     {
-        if (_viewModel == null) return;
+        if (_viewModel == null) return false;
 
         bool alt = KeyboardModifiers.Alt;
 
         // Shift+Alt+←/→ : フィット / 100%（SPEC §3-7）
         if (alt && KeyboardModifiers.Shift)
         {
-            switch (e.Key)
+            switch (key)
             {
-                case VirtualKey.Left: _viewport.SetFit(); MainCanvas.Invalidate(); e.Handled = true; return;
-                case VirtualKey.Right: _viewport.SetActualSize(); MainCanvas.Invalidate(); e.Handled = true; return;
+                case VirtualKey.Left: _viewport.SetFit(); MainCanvas.Invalidate(); return true;
+                case VirtualKey.Right: _viewport.SetActualSize(); MainCanvas.Invalidate(); return true;
             }
         }
 
         // Alt+矢印 : ズーム画像をスクロール（パン） / Alt+F : フォーカス点へスクロール
         if (alt)
         {
-            switch (e.Key)
+            switch (key)
             {
-                case VirtualKey.Left: _viewport.Pan(PanStep, 0); MainCanvas.Invalidate(); e.Handled = true; return;
-                case VirtualKey.Right: _viewport.Pan(-PanStep, 0); MainCanvas.Invalidate(); e.Handled = true; return;
-                case VirtualKey.Up: _viewport.Pan(0, PanStep); MainCanvas.Invalidate(); e.Handled = true; return;
-                case VirtualKey.Down: _viewport.Pan(0, -PanStep); MainCanvas.Invalidate(); e.Handled = true; return;
-                case VirtualKey.F: ScrollToFocus(); e.Handled = true; return;
+                case VirtualKey.Left: _viewport.Pan(PanStep, 0); MainCanvas.Invalidate(); return true;
+                case VirtualKey.Right: _viewport.Pan(-PanStep, 0); MainCanvas.Invalidate(); return true;
+                case VirtualKey.Up: _viewport.Pan(0, PanStep); MainCanvas.Invalidate(); return true;
+                case VirtualKey.Down: _viewport.Pan(0, -PanStep); MainCanvas.Invalidate(); return true;
+                case VirtualKey.F: ScrollToFocus(); return true;
             }
         }
 
         // 修飾子なしの ←/→ : 前後移動
         if (KeyboardModifiers.None)
         {
-            switch (e.Key)
+            switch (key)
             {
-                case VirtualKey.Left: _viewModel.MovePrevious(); e.Handled = true; return;
-                case VirtualKey.Right: _viewModel.MoveNext(); e.Handled = true; return;
+                case VirtualKey.Left: _viewModel.MovePrevious(); return true;
+                case VirtualKey.Right: _viewModel.MoveNext(); return true;
             }
         }
 
         // Esc は KeyboardAccelerator 側で処理（KeyDown には届かないため）。
         // Z : フィット ⇄ 100% トグル / Shift+Z : 100%
-        if (e.Key == VirtualKey.Z)
+        if (key == VirtualKey.Z)
         {
             if (KeyboardModifiers.Shift) _viewport.SetActualSize();
             else _viewport.ToggleZoom();
             MainCanvas.Invalidate();
-            e.Handled = true;
-            return;
+            return true;
         }
 
         // G : 三分割グリッド線トグル（ShowGrid 変更で再描画される）
-        if (KeyboardModifiers.None && e.Key == VirtualKey.G)
+        if (KeyboardModifiers.None && key == VirtualKey.G)
         {
             _viewModel.ShowGrid = !_viewModel.ShowGrid;
-            e.Handled = true;
-            return;
+            return true;
         }
 
         // 評価キー（rating / flag / colorlabel）はサムネイル一覧と共通化（SPEC §3-7）。
-        if (_viewModel.SelectedPhoto is { } photo && PhotoKeyCommands.TryHandleEvaluation(e.Key, photo))
-            e.Handled = true;
+        if (_viewModel.SelectedPhoto is { } photo && PhotoKeyCommands.TryHandleEvaluation(key, photo))
+            return true;
+
+        return false;
     }
 }

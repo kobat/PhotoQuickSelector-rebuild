@@ -81,7 +81,20 @@
   すべて revert 済みで未コミット（下記「残タスク」参照）。
 
 ## 残タスク（次の候補）
-- **プレビューのキーボード入力フォーカス問題（原因特定済み・修正待ち／最優先級）**: 症状は「画像を
+- **プレビューのキーボード入力フォーカス問題（修正実装済み・実機確認待ち）**: ユーザー指摘
+  （過去は Window 直下のコントロールで `PreviewKeyDown` 相当を受け、画像クリック後もキーが効いた／元アプリでも
+  採用）に基づき実装（ビルド成功）。`MainWindow` のルート `Grid` に `x:Name="RootGrid"` を付け、`RootFrame.Navigate`
+  後に **`RootGrid.PreviewKeyDown += RootGrid_PreviewKeyDown;`** で集約。RootGrid は Frame/Page の祖先＝最上位
+  なので tunneling の最初に必ず届く（フォーカス位置に依存しない）。`RootGrid_PreviewKeyDown` は `e.Handled` なら
+  return、未処理なら `MainPage.HandleGlobalKeyDown(e)`→`IsPreviewMode` で `PreviewControl.HandleKeyDown(VirtualKey)`
+  またはサムネイル評価キーへ分岐し、処理したら `e.Handled=true`。`PreviewControl.xaml` の `KeyDown="OnKeyDown"`
+  と `MainPage` の `PhotoGrid_KeyDown`（到達不能化）は削除。Esc は従来どおり `MainCanvas` の `KeyboardAccelerator`。
+  - **当初 bubbling `KeyDown`(handledEventsToo) で実装→フィルムストリップ(ListView)フォーカス時に `Alt+矢印` が
+    ListView の選択移動（画像切替）に消費され誤動作**。tunneling の `PreviewKeyDown` はルートが最初に受け取り、
+    Handled で後続 KeyDown を抑止できる（Preview/KeyDown はイベントデータ共有）ため ListView より先にキーを奪える。
+    → 修正済み。**実キーボードで「フィルムストリップ・画像クリック後の Alt+矢印パン／各キー」をユーザー確認待ち**。
+  - 以下は原因調査の記録（残置）:
+- **（調査記録）原因特定の経緯**: 症状は「画像を
   クリックするとキーが効かなくなる」。2026-06-16 に診断 HUD（`FocusManager.GotFocus/LostFocus` ＋
   各レベルの `KeyDown` を `handledEventsToo:true` で計測）を `PreviewControl` に仕込み、実キーボードで切り分けた。
   - **旧仮説は誤りと判明**: 「Win2D `CanvasControl` にフォーカスがあるとキーが XAML へ流れない」は**間違い**。

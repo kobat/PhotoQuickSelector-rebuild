@@ -253,13 +253,25 @@ public sealed partial class MainPage : Page
         ViewModel.EnterPreview();
     }
 
-    private void PhotoGrid_KeyDown(object sender, KeyRoutedEventArgs e)
+    /// <summary>
+    /// Window 直下のルート要素（<see cref="MainWindow"/> の RootGrid）の <c>PreviewKeyDown</c> から
+    /// 委譲されるキー処理。tunneling で子より先に呼ばれるフォーカス非依存の集約点なので、画像クリックで
+    /// フォーカスが祖先 ScrollViewer へ移っても、フィルムストリップ（ListView）にフォーカスがあっても、
+    /// 評価/ナビキーを ListView のナビゲーションより先に処理できる。処理したら <paramref name="e"/> を
+    /// Handled にして後続の bubbling KeyDown（子コントロールのナビ等）を抑止する。
+    /// プレビュー時は <see cref="Controls.PreviewControl.HandleKeyDown"/> へ委譲し、サムネイル一覧時は
+    /// 評価キーのみ処理する（素の矢印は未処理のまま通して GridView の通常ナビへ流す）。
+    /// </summary>
+    public void HandleGlobalKeyDown(KeyRoutedEventArgs e)
     {
-        var item = ViewModel.SelectedPhoto;
-        if (item == null) return;
+        if (ViewModel.IsPreviewMode)
+        {
+            if (Preview.HandleKeyDown(e.Key))
+                e.Handled = true;
+            return;
+        }
 
-        // 評価キー（レーティング / カラーラベル / フラグ）は PreviewControl と共通化（SPEC §3-7）。
-        if (PhotoKeyCommands.TryHandleEvaluation(e.Key, item))
+        if (ViewModel.SelectedPhoto is { } item && PhotoKeyCommands.TryHandleEvaluation(e.Key, item))
             e.Handled = true;
     }
 }

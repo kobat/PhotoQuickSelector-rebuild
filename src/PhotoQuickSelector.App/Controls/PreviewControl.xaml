@@ -22,7 +22,6 @@
             IsTabStop="True"
             UseSystemFocusVisuals="False"
             ClearColor="#1E1E1E"
-            KeyDown="OnKeyDown"
             Draw="MainCanvas_Draw"
             CreateResources="MainCanvas_CreateResources"
             SizeChanged="MainCanvas_SizeChanged"

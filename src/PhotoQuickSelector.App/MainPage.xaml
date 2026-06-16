@@ -223,8 +223,7 @@
                 SelectionMode="Single"
                 IsItemClickEnabled="False"
                 SelectionChanged="PhotoGrid_SelectionChanged"
-                DoubleTapped="PhotoGrid_DoubleTapped"
-                KeyDown="PhotoGrid_KeyDown">
+                DoubleTapped="PhotoGrid_DoubleTapped">
                 <GridView.ItemTemplate>
                     <DataTemplate x:DataType="vm:PhotoItemViewModel">
                         <Grid Width="200" Height="200" Margin="2"
