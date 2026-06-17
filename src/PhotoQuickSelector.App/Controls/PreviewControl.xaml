@@ -44,7 +44,7 @@
         <ListView
             x:Name="FilmStrip"
             Grid.Row="1"
-            Height="96"
+            Height="118"
             Padding="4"
             ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
             SelectedItem="{x:Bind ViewModel.SelectedPhoto, Mode=TwoWay}"
@@ -67,11 +67,66 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                    <Image
-                        Width="78"
-                        Height="78"
-                        Source="{x:Bind Thumbnail, Mode=OneWay}"
-                        Stretch="Uniform" />
+                    <StackPanel Width="88">
+                        <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
+                        <Border CornerRadius="4" BorderThickness="3"
+                                BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
+                            <Grid Width="84" Height="84"
+                                  Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="Uniform" />
+
+                                <!-- 旗バッジ（左上）：採用=旗 / 拒否=×。正方形 -->
+                                <Border VerticalAlignment="Top" HorizontalAlignment="Left"
+                                        Margin="3" Width="20" Height="20" CornerRadius="3"
+                                        Background="#99000000"
+                                        Visibility="{x:Bind FlagVisibility, Mode=OneWay}">
+                                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE7C1;" FontSize="11" Foreground="LimeGreen"
+                                                  Visibility="{x:Bind PickVisibility, Mode=OneWay}" />
+                                        <FontIcon Glyph="&#xE711;" FontSize="11" Foreground="OrangeRed"
+                                                  Visibility="{x:Bind RejectVisibility, Mode=OneWay}" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- 色ドット（右上）：高さは旗と同じ、単一色は正方形 -->
+                                <Border VerticalAlignment="Top" HorizontalAlignment="Right"
+                                        Margin="3" Height="20" MinWidth="20" Padding="4,0" CornerRadius="3"
+                                        Background="#99000000"
+                                        Visibility="{x:Bind ColorDotsVisibility, Mode=OneWay}">
+                                    <StackPanel Orientation="Horizontal" Spacing="2"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Ellipse Width="8" Height="8" Fill="#E53935"
+                                                 Visibility="{x:Bind RedVisibility, Mode=OneWay}" />
+                                        <Ellipse Width="8" Height="8" Fill="#FDD835"
+                                                 Visibility="{x:Bind YellowVisibility, Mode=OneWay}" />
+                                        <Ellipse Width="8" Height="8" Fill="#43A047"
+                                                 Visibility="{x:Bind GreenVisibility, Mode=OneWay}" />
+                                        <Ellipse Width="8" Height="8" Fill="#1E88E5"
+                                                 Visibility="{x:Bind BlueVisibility, Mode=OneWay}" />
+                                        <Ellipse Width="8" Height="8" Fill="#8E24AA"
+                                                 Visibility="{x:Bind PurpleVisibility, Mode=OneWay}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 下部中央：★レーティング（色ドットと同形の黒バッジ） -->
+                                <Border VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                                        Margin="0,0,0,2" Height="20" MinWidth="20" Padding="4,0"
+                                        CornerRadius="3" Background="#99000000"
+                                        Visibility="{x:Bind RatingVisibility, Mode=OneWay}">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               FontSize="11"
+                                               Foreground="{x:Bind RatingForeground, Mode=OneWay}"
+                                               Text="{x:Bind RatingStars, Mode=OneWay}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- ファイル名（画像の下の独立行） -->
+                        <TextBlock Text="{x:Bind FileName}" FontSize="10"
+                                   HorizontalAlignment="Center" TextAlignment="Center"
+                                   MaxWidth="88" Margin="0,2,0,0"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>

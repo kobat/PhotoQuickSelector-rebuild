@@ -57,6 +57,9 @@ public partial class PhotoItemViewModel : ObservableObject
     public Visibility PickVisibility => Eval.FlagRating > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RejectVisibility => Eval.FlagRating < 0 ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>フラグ（採用/拒否）バッジ全体の表示可否。中立(0)なら隠す。</summary>
+    public Visibility FlagVisibility => Eval.FlagRating != 0 ? Visibility.Visible : Visibility.Collapsed;
+
     public Visibility RedVisibility => Vis(ColorLabel.Red);
     public Visibility YellowVisibility => Vis(ColorLabel.Yellow);
     public Visibility GreenVisibility => Vis(ColorLabel.Green);
@@ -66,6 +69,47 @@ public partial class PhotoItemViewModel : ObservableObject
     private Visibility Vis(ColorLabel label) =>
         Eval.HasColorLabel(label) ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>レーティングがあるとき、下部中央の★を表示する。</summary>
+    public Visibility RatingVisibility =>
+        Eval.Rating > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>いずれかのカラーラベルがあるとき、右上の色ドットを表示する。</summary>
+    public Visibility ColorDotsVisibility =>
+        HasAnyColorLabel ? Visibility.Visible : Visibility.Collapsed;
+
+    private bool HasAnyColorLabel =>
+        ColorLabelOrder.Any(Eval.HasColorLabel);
+
+    // カラーラベルの色（XAML の楕円 Fill と一致）。枠線色の決定にも使う。
+    private static readonly ColorLabel[] ColorLabelOrder =
+        { ColorLabel.Red, ColorLabel.Yellow, ColorLabel.Green, ColorLabel.Blue, ColorLabel.Purple };
+
+    private static readonly Brush TransparentBrush = new SolidColorBrush(Colors.Transparent);
+    private static readonly IReadOnlyDictionary<ColorLabel, Brush> ColorLabelBrushes =
+        new Dictionary<ColorLabel, Brush>
+        {
+            [ColorLabel.Red] = new SolidColorBrush(Color.FromArgb(0xFF, 0xE5, 0x39, 0x35)),
+            [ColorLabel.Yellow] = new SolidColorBrush(Color.FromArgb(0xFF, 0xFD, 0xD8, 0x35)),
+            [ColorLabel.Green] = new SolidColorBrush(Color.FromArgb(0xFF, 0x43, 0xA0, 0x47)),
+            [ColorLabel.Blue] = new SolidColorBrush(Color.FromArgb(0xFF, 0x1E, 0x88, 0xE5)),
+            [ColorLabel.Purple] = new SolidColorBrush(Color.FromArgb(0xFF, 0x8E, 0x24, 0xAA)),
+        };
+
+    /// <summary>
+    /// 枠線の色。付与されたカラーラベルのうち enum 順で最初のもの。無ければ透明（枠スペースは確保）。
+    /// 複数ラベル時は下部の色ドットで全色を補完表示する。
+    /// </summary>
+    public Brush ColorLabelBorderBrush
+    {
+        get
+        {
+            foreach (var label in ColorLabelOrder)
+                if (Eval.HasColorLabel(label))
+                    return ColorLabelBrushes[label];
+            return TransparentBrush;
+        }
+    }
+
     // 評価操作（永続化込み）
     public void SetRating(int value)
     {
@@ -73,6 +117,7 @@ public partial class PhotoItemViewModel : ObservableObject
         _store.SaveRating(FileName, Eval.PersistedRating);
         OnPropertyChanged(nameof(RatingStars));
         OnPropertyChanged(nameof(RatingForeground)); // EXIF由来→ユーザー変更で色が変わる
+        OnPropertyChanged(nameof(RatingVisibility));
     }
 
     public void RatingUp() => SetRating(Eval.Rating + 1);
@@ -96,6 +141,7 @@ public partial class PhotoItemViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(PickVisibility));
         OnPropertyChanged(nameof(RejectVisibility));
+        OnPropertyChanged(nameof(FlagVisibility));
     }
 
     public void ToggleColorLabel(ColorLabel label)
@@ -103,6 +149,8 @@ public partial class PhotoItemViewModel : ObservableObject
         Eval.ToggleColorLabel(label);
         _store.SaveColorLabel(FileName, label, Eval.GetPersistedColorLabel(label));
         OnPropertyChanged($"{label}Visibility");
+        OnPropertyChanged(nameof(ColorLabelBorderBrush));
+        OnPropertyChanged(nameof(ColorDotsVisibility));
     }
 
     /// <summary>OS のシェルサムネイルを非同期取得して <see cref="Thumbnail"/> に設定する。</summary>

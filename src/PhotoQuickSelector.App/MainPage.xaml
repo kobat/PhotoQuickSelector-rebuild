@@ -226,47 +226,64 @@
                 DoubleTapped="PhotoGrid_DoubleTapped">
                 <GridView.ItemTemplate>
                     <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                        <Grid Width="200" Height="200" Margin="2"
-                              Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                            <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="Uniform" />
+                        <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
+                        <Border Width="200" Height="200" Margin="2"
+                                CornerRadius="6" BorderThickness="3"
+                                BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
+                            <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="Uniform" />
 
-                            <!-- 上部: レーティング / フラグ -->
-                            <Grid VerticalAlignment="Top" Padding="4"
-                                  Background="#80000000">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" FontSize="14"
-                                           Foreground="{x:Bind RatingForeground, Mode=OneWay}"
-                                           Text="{x:Bind RatingStars, Mode=OneWay}" />
-                                <FontIcon Grid.Column="1" Glyph="&#xE7C1;" FontSize="14"
-                                          Foreground="LimeGreen"
-                                          Visibility="{x:Bind PickVisibility, Mode=OneWay}" />
-                                <FontIcon Grid.Column="1" Glyph="&#xE711;" FontSize="14"
-                                          Foreground="OrangeRed"
-                                          Visibility="{x:Bind RejectVisibility, Mode=OneWay}" />
-                            </Grid>
+                                <!-- 旗バッジ（左上）：採用=旗 / 拒否=×。正方形 -->
+                                <Border VerticalAlignment="Top" HorizontalAlignment="Left"
+                                        Margin="6" Width="30" Height="30" CornerRadius="4"
+                                        Background="#99000000"
+                                        Visibility="{x:Bind FlagVisibility, Mode=OneWay}">
+                                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE7C1;" FontSize="16" Foreground="LimeGreen"
+                                                  Visibility="{x:Bind PickVisibility, Mode=OneWay}" />
+                                        <FontIcon Glyph="&#xE711;" FontSize="16" Foreground="OrangeRed"
+                                                  Visibility="{x:Bind RejectVisibility, Mode=OneWay}" />
+                                    </Grid>
+                                </Border>
 
-                            <!-- 下部: ファイル名 / カラーラベル -->
-                            <StackPanel VerticalAlignment="Bottom" Padding="4" Spacing="2"
-                                        Background="#80000000">
-                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <Ellipse Width="10" Height="10" Fill="#E53935"
-                                             Visibility="{x:Bind RedVisibility, Mode=OneWay}" />
-                                    <Ellipse Width="10" Height="10" Fill="#FDD835"
-                                             Visibility="{x:Bind YellowVisibility, Mode=OneWay}" />
-                                    <Ellipse Width="10" Height="10" Fill="#43A047"
-                                             Visibility="{x:Bind GreenVisibility, Mode=OneWay}" />
-                                    <Ellipse Width="10" Height="10" Fill="#1E88E5"
-                                             Visibility="{x:Bind BlueVisibility, Mode=OneWay}" />
-                                    <Ellipse Width="10" Height="10" Fill="#8E24AA"
-                                             Visibility="{x:Bind PurpleVisibility, Mode=OneWay}" />
+                                <!-- 色ドット（右上）：高さは旗と同じ、単一色は正方形 -->
+                                <Border VerticalAlignment="Top" HorizontalAlignment="Right"
+                                        Margin="6" Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
+                                        Background="#99000000"
+                                        Visibility="{x:Bind ColorDotsVisibility, Mode=OneWay}">
+                                    <StackPanel Orientation="Horizontal" Spacing="4"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Ellipse Width="15" Height="15" Fill="#E53935"
+                                                 Visibility="{x:Bind RedVisibility, Mode=OneWay}" />
+                                        <Ellipse Width="15" Height="15" Fill="#FDD835"
+                                                 Visibility="{x:Bind YellowVisibility, Mode=OneWay}" />
+                                        <Ellipse Width="15" Height="15" Fill="#43A047"
+                                                 Visibility="{x:Bind GreenVisibility, Mode=OneWay}" />
+                                        <Ellipse Width="15" Height="15" Fill="#1E88E5"
+                                                 Visibility="{x:Bind BlueVisibility, Mode=OneWay}" />
+                                        <Ellipse Width="15" Height="15" Fill="#8E24AA"
+                                                 Visibility="{x:Bind PurpleVisibility, Mode=OneWay}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- 下部: ★レーティング（中央, 色ドットと同形の黒バッジ）／ファイル名（黒帯, 常時） -->
+                                <StackPanel VerticalAlignment="Bottom" Spacing="2">
+                                    <Border HorizontalAlignment="Center"
+                                            Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
+                                            Background="#99000000"
+                                            Visibility="{x:Bind RatingVisibility, Mode=OneWay}">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   FontSize="14"
+                                                   Foreground="{x:Bind RatingForeground, Mode=OneWay}"
+                                                   Text="{x:Bind RatingStars, Mode=OneWay}" />
+                                    </Border>
+                                    <Border Background="#80000000" Padding="6,4">
+                                        <TextBlock Text="{x:Bind FileName}" Foreground="White"
+                                                   FontSize="11" TextTrimming="CharacterEllipsis" />
+                                    </Border>
                                 </StackPanel>
-                                <TextBlock Text="{x:Bind FileName}" Foreground="White"
-                                           FontSize="11" TextTrimming="CharacterEllipsis" />
-                            </StackPanel>
-                        </Grid>
+                            </Grid>
+                        </Border>
                     </DataTemplate>
                 </GridView.ItemTemplate>
             </GridView>
