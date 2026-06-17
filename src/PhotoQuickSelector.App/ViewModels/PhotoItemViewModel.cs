@@ -37,6 +37,53 @@ public partial class PhotoItemViewModel : ObservableObject
             Meta.ExposureTimeDescription, Meta.IsoDescription
         }.Where(s => !string.IsNullOrEmpty(s)));
 
+    // --- メタ情報オーバーレイ（案B）用の表示プロパティ ---
+
+    public string ImageSizeText => Meta.ImageSizeDescription;
+
+    public string FileSizeText => $"{Meta.FileSize / 1024.0 / 1024.0:0.0}MB";
+
+    public string TakenDateTimeText => Meta.TakenDateTimeDescription;
+
+    /// <summary>カメラ・レンズ名（"SONY ILCE-1 / FE 50mm…"）。空要素は省く。</summary>
+    public string CameraLensText
+    {
+        get
+        {
+            var body = string.Join(" ", new[] { Meta.CameraMaker, Meta.CameraModel }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
+            if (string.IsNullOrWhiteSpace(Meta.LensModel)) return body;
+            return string.IsNullOrWhiteSpace(body) ? Meta.LensModel : $"{body} / {Meta.LensModel}";
+        }
+    }
+
+    /// <summary>EXIF 撮影設定チップ（焦点距離/絞り/SS/露出補正/ISO、空は除外）。</summary>
+    public IReadOnlyList<string> ExifChips =>
+        new[]
+        {
+            Meta.FocalLengthDescription, Meta.ApertureDescription,
+            Meta.ExposureTimeDescription, Meta.ExposureBiasDescription, Meta.IsoDescription
+        }.Where(s => !string.IsNullOrEmpty(s)).ToList();
+
+    // --- GPS（撮影位置）。地図ボタンの表示出し分けとツールチップ／地図リンクに使う ---
+
+    /// <summary>GPS 位置情報を持つか。地図ボタンの表示可否。</summary>
+    public bool HasGps => Meta.HasGpsLocation;
+
+    public Visibility GpsVisibility => HasGps ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>地図ボタンのツールチップ（DMS 座標）。</summary>
+    public string GpsTooltip =>
+        HasGps ? $"地図で表示（{Meta.GpsLocationDescription}）" : "";
+
+    /// <summary>撮影位置を開く地図 URL。十進緯度経度が無ければ null。</summary>
+    public Uri? MapUri =>
+        Meta is { GpsLatitude: { } lat, GpsLongitude: { } lon }
+            ? new Uri(string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "https://www.google.com/maps/search/?api=1&query={0},{1}", lat, lon))
+            : null;
+
     [ObservableProperty]
     public partial BitmapImage? Thumbnail { get; set; }
 

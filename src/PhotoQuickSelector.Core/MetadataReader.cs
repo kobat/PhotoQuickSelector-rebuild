@@ -47,7 +47,7 @@ public static class MetadataReader
 
         var (takenOffset, takenDescription) = ReadTakenDateTime(subIfd);
         var (focusPoint, focusSize, focusReferenceSize) = ReadSonyFocus(sony);
-        var (hasGps, gpsDescription) = ReadGps(gps);
+        var (hasGps, gpsDescription, gpsLat, gpsLon) = ReadGps(gps);
 
         return new ImageMetadata
         {
@@ -87,6 +87,8 @@ public static class MetadataReader
 
             HasGpsLocation = hasGps,
             GpsLocationDescription = gpsDescription,
+            GpsLatitude = gpsLat,
+            GpsLongitude = gpsLon,
         };
     }
 
@@ -174,11 +176,11 @@ public static class MetadataReader
         return (point, size, referenceSize);
     }
 
-    private static (bool, string) ReadGps(GpsDirectory? gps)
+    private static (bool HasGps, string Description, double? Latitude, double? Longitude) ReadGps(GpsDirectory? gps)
     {
         if (gps != null && gps.TryGetGeoLocation(out var location))
-            return (true, location.ToDmsString());
-        return (false, "");
+            return (true, location.ToDmsString(), location.Latitude, location.Longitude);
+        return (false, "", null, null);
     }
 
     private static int ReadXmpRating(XmpDirectory? xmp)

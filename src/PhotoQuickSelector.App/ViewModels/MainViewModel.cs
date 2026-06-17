@@ -88,6 +88,13 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial PhotoItemViewModel? SelectedPhoto { get; set; }
 
+    /// <summary>ステータスバーのメタ情報パネル表示（写真選択時のみ）。</summary>
+    public Visibility PhotoInfoVisibility =>
+        SelectedPhoto != null ? Visibility.Visible : Visibility.Collapsed;
+
+    partial void OnSelectedPhotoChanged(PhotoItemViewModel? value) =>
+        OnPropertyChanged(nameof(PhotoInfoVisibility));
+
     // --- プレビュー画面（右ペインのサムネイル一覧 ⇄ 大画面プレビュー切替） ---
 
     [ObservableProperty]
@@ -96,6 +103,16 @@ public partial class MainViewModel : ObservableObject
     /// <summary>三分割グリッド線オーバーレイの表示（SPEC §3-6 / §3-7 の G キー）。</summary>
     [ObservableProperty]
     public partial bool ShowGrid { get; set; }
+
+    /// <summary>プレビュー左上のメタ情報オーバーレイ（案B / I キーでトグル）。</summary>
+    [ObservableProperty]
+    public partial bool ShowInfoOverlay { get; set; } = true;
+
+    public Visibility InfoOverlayVisibility =>
+        ShowInfoOverlay ? Visibility.Visible : Visibility.Collapsed;
+
+    partial void OnShowInfoOverlayChanged(bool value) =>
+        OnPropertyChanged(nameof(InfoOverlayVisibility));
 
     public Visibility ThumbnailVisibility => IsPreviewMode ? Visibility.Collapsed : Visibility.Visible;
     public Visibility PreviewVisibility => IsPreviewMode ? Visibility.Visible : Visibility.Collapsed;

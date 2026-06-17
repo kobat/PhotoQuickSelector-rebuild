@@ -70,4 +70,10 @@ public sealed class ImageMetadata
     // GPS
     public bool HasGpsLocation { get; init; }
     public string GpsLocationDescription { get; init; } = "";
+
+    /// <summary>十進緯度（北緯正）。GPS 情報がないときは null。地図リンク生成に使う。</summary>
+    public double? GpsLatitude { get; init; }
+
+    /// <summary>十進経度（東経正）。GPS 情報がないときは null。地図リンク生成に使う。</summary>
+    public double? GpsLongitude { get; init; }
 }

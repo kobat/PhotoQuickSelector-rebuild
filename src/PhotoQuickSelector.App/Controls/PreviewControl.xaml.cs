@@ -522,6 +522,13 @@ public sealed partial class PreviewControl : UserControl
             return true;
         }
 
+        // I : メタ情報オーバーレイ（案B）トグル
+        if (KeyboardModifiers.None && key == VirtualKey.I)
+        {
+            _viewModel.ShowInfoOverlay = !_viewModel.ShowInfoOverlay;
+            return true;
+        }
+
         // 評価キー（rating / flag / colorlabel）はサムネイル一覧と共通化（SPEC §3-7）。
         if (_viewModel.SelectedPhoto is { } photo && PhotoKeyCommands.TryHandleEvaluation(key, photo))
             return true;

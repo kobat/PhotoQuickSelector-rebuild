@@ -240,6 +240,13 @@ public sealed partial class MainPage : Page
         }
     }
 
+    /// <summary>GPS 地図ボタン。撮影位置をブラウザの地図で開く（十進緯度経度がある場合）。</summary>
+    private async void GpsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is PhotoItemViewModel { MapUri: { } uri })
+            await Launcher.LaunchUriAsync(uri);
+    }
+
     // --- 右ペイン: 選択とキー操作 ---
 
     private void PhotoGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)

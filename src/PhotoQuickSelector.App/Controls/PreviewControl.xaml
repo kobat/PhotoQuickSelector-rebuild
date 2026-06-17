@@ -40,6 +40,80 @@
                 PointerWheelChanged="MainCanvas_PointerWheelChanged"
                 DoubleTapped="MainCanvas_DoubleTapped" />
 
+            <!-- メタ情報オーバーレイ（案B / I キーでトグル）。画像領域を狭めず左上に半透明で重畳。
+                 ポインタは透過させてズーム/パン操作を妨げない。
+                 DataContext=選択写真。内部はクラシック Binding（null セーフ＝WUI2010 回避、評価のライブ更新も追従）。 -->
+            <Border Grid.Row="0"
+                    VerticalAlignment="Top" HorizontalAlignment="Left"
+                    Margin="12" Padding="12,9" CornerRadius="8"
+                    Background="#A6000000" IsHitTestVisible="False"
+                    DataContext="{x:Bind ViewModel.SelectedPhoto, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.InfoOverlayVisibility, Mode=OneWay}">
+                <StackPanel Spacing="6" MaxWidth="440">
+                    <!-- 1行目: ファイル名 ＋ 画像サイズ ＋ ファイルサイズ -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding FileName}"
+                                   Foreground="White" FontSize="13" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding ImageSizeText}"
+                                   Foreground="#BFFFFFFF" FontSize="11" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding FileSizeText}"
+                                   Foreground="#BFFFFFFF" FontSize="11" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- 2行目: EXIF 撮影設定チップ（焦点距離/絞り/SS/露出補正/ISO） -->
+                    <ItemsControl ItemsSource="{Binding ExifChips}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="5" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#1FFFFFFF" CornerRadius="9" Padding="7,2">
+                                    <TextBlock Text="{Binding}" Foreground="#E8FFFFFF" FontSize="11" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- 3行目: カメラ / レンズ -->
+                    <TextBlock Text="{Binding CameraLensText}"
+                               Foreground="#9AFFFFFF" FontSize="11"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <!-- 4行目: 評価（★/旗/カラー） ＋ 撮影日時 -->
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding RatingStars}"
+                                   Foreground="{Binding RatingForeground}"
+                                   FontSize="12" VerticalAlignment="Center"
+                                   Visibility="{Binding RatingVisibility}" />
+                        <Grid VerticalAlignment="Center"
+                              Visibility="{Binding FlagVisibility}">
+                            <FontIcon Glyph="&#xE7C1;" FontSize="12" Foreground="LimeGreen"
+                                      Visibility="{Binding PickVisibility}" />
+                            <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="OrangeRed"
+                                      Visibility="{Binding RejectVisibility}" />
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center"
+                                    Visibility="{Binding ColorDotsVisibility}">
+                            <Ellipse Width="9" Height="9" Fill="#E53935"
+                                     Visibility="{Binding RedVisibility}" />
+                            <Ellipse Width="9" Height="9" Fill="#FDD835"
+                                     Visibility="{Binding YellowVisibility}" />
+                            <Ellipse Width="9" Height="9" Fill="#43A047"
+                                     Visibility="{Binding GreenVisibility}" />
+                            <Ellipse Width="9" Height="9" Fill="#1E88E5"
+                                     Visibility="{Binding BlueVisibility}" />
+                            <Ellipse Width="9" Height="9" Fill="#8E24AA"
+                                     Visibility="{Binding PurpleVisibility}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding TakenDateTimeText}"
+                                   Foreground="#8AFFFFFF" FontSize="11" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
         <!-- フィルムストリップ（横スクロール） -->
         <ListView
             x:Name="FilmStrip"
