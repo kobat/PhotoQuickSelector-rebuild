@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="PhotoQuickSelector_App.Controls.ColorLabelDots"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!-- カラーラベルの色ドット列。DataContext=PhotoItemViewModel、各色の表示可否は VM に束縛。
+         サイズは DotSize/Spacing(DependencyProperty)で呼び出し側から指定。
+         可視性ラッパー(ColorDotsVisibility)は呼び出し側が付ける（本部品は中身のみ）。 -->
+    <StackPanel Orientation="Horizontal" Spacing="{x:Bind Spacing, Mode=OneWay}">
+        <Ellipse Width="{x:Bind DotSize, Mode=OneWay}" Height="{x:Bind DotSize, Mode=OneWay}"
+                 Fill="#E53935" Visibility="{Binding RedVisibility}" />
+        <Ellipse Width="{x:Bind DotSize, Mode=OneWay}" Height="{x:Bind DotSize, Mode=OneWay}"
+                 Fill="#FDD835" Visibility="{Binding YellowVisibility}" />
+        <Ellipse Width="{x:Bind DotSize, Mode=OneWay}" Height="{x:Bind DotSize, Mode=OneWay}"
+                 Fill="#43A047" Visibility="{Binding GreenVisibility}" />
+        <Ellipse Width="{x:Bind DotSize, Mode=OneWay}" Height="{x:Bind DotSize, Mode=OneWay}"
+                 Fill="#1E88E5" Visibility="{Binding BlueVisibility}" />
+        <Ellipse Width="{x:Bind DotSize, Mode=OneWay}" Height="{x:Bind DotSize, Mode=OneWay}"
+                 Fill="#8E24AA" Visibility="{Binding PurpleVisibility}" />
+    </StackPanel>
+</UserControl>

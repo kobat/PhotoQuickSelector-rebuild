@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:PhotoQuickSelector_App.ViewModels"
+    xmlns:ctl="using:PhotoQuickSelector_App.Controls"
     xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     mc:Ignorable="d">
@@ -88,26 +89,10 @@
                                    Foreground="{Binding RatingForeground}"
                                    FontSize="12" VerticalAlignment="Center"
                                    Visibility="{Binding RatingVisibility}" />
-                        <Grid VerticalAlignment="Center"
-                              Visibility="{Binding FlagVisibility}">
-                            <FontIcon Glyph="&#xE7C1;" FontSize="12" Foreground="LimeGreen"
-                                      Visibility="{Binding PickVisibility}" />
-                            <FontIcon Glyph="&#xE711;" FontSize="12" Foreground="OrangeRed"
-                                      Visibility="{Binding RejectVisibility}" />
-                        </Grid>
-                        <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center"
-                                    Visibility="{Binding ColorDotsVisibility}">
-                            <Ellipse Width="9" Height="9" Fill="#E53935"
-                                     Visibility="{Binding RedVisibility}" />
-                            <Ellipse Width="9" Height="9" Fill="#FDD835"
-                                     Visibility="{Binding YellowVisibility}" />
-                            <Ellipse Width="9" Height="9" Fill="#43A047"
-                                     Visibility="{Binding GreenVisibility}" />
-                            <Ellipse Width="9" Height="9" Fill="#1E88E5"
-                                     Visibility="{Binding BlueVisibility}" />
-                            <Ellipse Width="9" Height="9" Fill="#8E24AA"
-                                     Visibility="{Binding PurpleVisibility}" />
-                        </StackPanel>
+                        <ctl:FlagGlyph GlyphSize="12" VerticalAlignment="Center"
+                                       Visibility="{Binding FlagVisibility}" />
+                        <ctl:ColorLabelDots DotSize="9" Spacing="3" VerticalAlignment="Center"
+                                            Visibility="{Binding ColorDotsVisibility}" />
                         <TextBlock Text="{Binding TakenDateTimeText}"
                                    Foreground="#8AFFFFFF" FontSize="11" VerticalAlignment="Center" />
                     </StackPanel>
@@ -154,12 +139,8 @@
                                         Margin="3" Width="20" Height="20" CornerRadius="3"
                                         Background="#99000000"
                                         Visibility="{x:Bind FlagVisibility, Mode=OneWay}">
-                                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <FontIcon Glyph="&#xE7C1;" FontSize="11" Foreground="LimeGreen"
-                                                  Visibility="{x:Bind PickVisibility, Mode=OneWay}" />
-                                        <FontIcon Glyph="&#xE711;" FontSize="11" Foreground="OrangeRed"
-                                                  Visibility="{x:Bind RejectVisibility, Mode=OneWay}" />
-                                    </Grid>
+                                    <ctl:FlagGlyph GlyphSize="11"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
 
                                 <!-- 色ドット（右上）：高さは旗と同じ、単一色は正方形 -->
@@ -167,19 +148,8 @@
                                         Margin="3" Height="20" MinWidth="20" Padding="4,0" CornerRadius="3"
                                         Background="#99000000"
                                         Visibility="{x:Bind ColorDotsVisibility, Mode=OneWay}">
-                                    <StackPanel Orientation="Horizontal" Spacing="2"
-                                                HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <Ellipse Width="8" Height="8" Fill="#E53935"
-                                                 Visibility="{x:Bind RedVisibility, Mode=OneWay}" />
-                                        <Ellipse Width="8" Height="8" Fill="#FDD835"
-                                                 Visibility="{x:Bind YellowVisibility, Mode=OneWay}" />
-                                        <Ellipse Width="8" Height="8" Fill="#43A047"
-                                                 Visibility="{x:Bind GreenVisibility, Mode=OneWay}" />
-                                        <Ellipse Width="8" Height="8" Fill="#1E88E5"
-                                                 Visibility="{x:Bind BlueVisibility, Mode=OneWay}" />
-                                        <Ellipse Width="8" Height="8" Fill="#8E24AA"
-                                                 Visibility="{x:Bind PurpleVisibility, Mode=OneWay}" />
-                                    </StackPanel>
+                                    <ctl:ColorLabelDots DotSize="8" Spacing="2"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
 
                                 <!-- 下部中央：★レーティング（色ドットと同形の黒バッジ） -->

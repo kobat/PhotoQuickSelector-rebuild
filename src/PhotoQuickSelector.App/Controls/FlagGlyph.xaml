@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="PhotoQuickSelector_App.Controls.FlagGlyph"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!-- 評価フラグのグリフ（採用=旗 / 拒否=×）。DataContext=PhotoItemViewModel、
+         採用/拒否の出し分けは Pick/RejectVisibility に束縛。フォントサイズは GlyphSize で指定。
+         可視性ラッパー(FlagVisibility)は呼び出し側が付ける（本部品は中身のみ）。 -->
+    <Grid>
+        <FontIcon Glyph="&#xE7C1;" Foreground="LimeGreen"
+                  FontSize="{x:Bind GlyphSize, Mode=OneWay}"
+                  Visibility="{Binding PickVisibility}" />
+        <FontIcon Glyph="&#xE711;" Foreground="OrangeRed"
+                  FontSize="{x:Bind GlyphSize, Mode=OneWay}"
+                  Visibility="{Binding RejectVisibility}" />
+    </Grid>
+</UserControl>
