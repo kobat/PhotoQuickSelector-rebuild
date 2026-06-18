@@ -221,19 +221,43 @@
   - トレードオフ: Mica 一体型のカスタムタイトルバー意匠は失うが×は確実。診断ログは撤去済み（差分は
     `MainWindow.xaml`/`.xaml.cs` の2ファイルのみ）。`BUILD SUCCEEDED`／`dotnet test` 47 件緑。
     実機で見た目・×の1クリック終了をユーザー確認済み（2026-06-19）。
+- **Phase 4-A 完了（`c073853`、`origin/main` プッシュ済み・2026-06-19）**: フィルタ＋クリップボード出力（SPEC §3-4/§3-5）。
+  - **Core（UI 非依存・テスト付き）**: `PhotoFilter`（レーティング `≧/＝`＋`NoRating`／フラグ3種／カラー5色 **AND** の
+    `Matches`、`@rem` 用 `DescribeConditions`。旧 `GraterEqual`→`GreaterEqual` に改名＝SPEC §6-6）／
+    `ClipboardExport`（ファイル名一覧 ／ 移動 `.bat` 生成。`@rem` ヘッダ＋`set FROMDIR=..`＋
+    `move %FROMDIR%\<拡張子なし>* %TODIR%`）。**テスト 21 件追加＝計 68 件緑**。
+  - **App**: `ViewModels/FilterViewModel`（各入力を Core モデルへ反映し `Changed` 発火。**初期状態＝有効**＝
+    条件未指定で全件表示）。`MainViewModel` を **`AllPhotos`（全件・恒久）/`Photos`（絞込ビュー）の二層**化し
+    `ApplyFilter()`（選択維持／外れたら解除）・`FilteredCountText`・コピー用テキスト生成を追加。
+    **サムネイルは `AllPhotos` 全件を先読み**するのでフィルタ変更で再ロード不要。
+  - **UI**: `Controls/FilterBar.xaml(.cs)`＝**ステータスバー内**（開閉ボタンと件数 TextBlock の間）の漏斗ボタン＋
+    フライアウト。条件入力は **`DataContext={x:Bind ViewModel.Filter}`＋クラシック `{Binding}`（null セーフ）**、
+    コピーは **`DropDownButton` の明示メニュー**（"ファイル名一覧をコピー"／"移動batを生成してコピー"。旧の
+    "Ctrl 押下で .bat" 隠し挙動を改善）。`RatingControl` は値型不一致のためコードビハインド（`ValueChanged`/開く時同期）。
+    `PhotoStatusBar` は `ViewModel` 注入を内包 `FilterBar` へ転送。
+  - **キー**: `Ctrl+L` でフィルタ ON/OFF トグル（フライアウトは開かない。`MainPage.HandleGlobalKeyDown` で両モード共通）。
+  - 既知の割り切り: プレビュー中に `Ctrl+L`/条件変更で表示中の写真が絞り込みから外れると選択解除→プレビューが空になる
+    （通常はサムネイル時に使う想定。必要なら 4-B で抑止）。ユーザー画面確認済み（2026-06-19）。
+  - 変更/新規: `Core/PhotoFilter.cs`・`Core/ClipboardExport.cs`、`ViewModels/FilterViewModel.cs`・`MainViewModel.cs`、
+    `Controls/FilterBar.xaml(.cs)`・`PhotoStatusBar.xaml(.cs)`、`MainPage.xaml(.cs)`、テスト 2 ファイル。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
   残微調整: ルーペのロード時センタリングは初期レイアウト未確定だと AF 点がやや上寄りになる場合あり（軽微）。
   AF 枠の正確な位置（回転画像）はユーザー最終確認推奨。
-- Phase 4: フィルタ／クリップボード出力（.bat 生成）／外部連携／設定。
+- ~~Phase 4-A: フィルタ／クリップボード出力~~ → **完了（`c073853`）。** 上の「現在の進捗」参照。
+- Phase 4-B: 外部連携（`Ctrl+E`=エクスプローラ `/select`／`Alt+E`=既定アプリ／`Ctrl+Alt+E`=パスをコピー／
+  `Alt+S`=共有）＋設定（**共有先パスを `AppSettings.SharePath` に設定化**＝SPEC §6-3。歯車ボタン→設定ダイアログ）。
+  実装方針: `PhotoFileCommands.TryHandle(key, modifiers, item, settings)` を共有し `MainPage.HandleGlobalKeyDown`
+  （サムネイル）と `PreviewControl.HandleKeyDown`（プレビュー）の両方から呼ぶ。`M`（デバッグ GC）は実装しない（SPEC §3-7）。
 - パッケージング: 素の自己完結 EXE の publish 構成を組み込み＋発行確認。
   注: csproj の Release は現状 `PublishTrimmed=true`。**WinUI/Win2D はトリミング不可**のため
   パッケージング時に `false` へ要修正（SPEC §0）。
 
 ## キー操作（右ペイン・写真選択時）
 - `0`–`5` レーティング / `6`–`9`＋`P` カラーラベル（赤橙緑青紫）/ `[` `]` レーティング増減 / `Ctrl+↑/↓` フラグ
+- `Ctrl+L` フィルタ ON/OFF トグル（両モード共通、フライアウトは開かない）
 - プレビュー中: `I` メタ情報オーバーレイ（案B）トグル / `G` 三分割グリッド線
 
 ## 既知の注意点
