@@ -28,152 +28,21 @@
             ResizeBehavior="BasedOnAlignment"
             ResizeDirection="Auto" />
 
-        <!-- 右ペイン: サムネイル一覧 -->
+        <!-- 右ペイン: ステータスバー＋サムネイルグリッド／大画面プレビュー（行1で排他表示） -->
         <Grid Grid.Column="2" Padding="8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- ステータスバー（2段組）。左=開閉ボタン＋件数、右=選択写真のメタ情報を右寄せで密集表示。 -->
-            <Grid Grid.Row="0" Margin="0,0,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Click="ToggleLeftPaneButton_Click" Margin="0,0,8,0"
-                        VerticalAlignment="Center"
-                        ToolTipService.ToolTip="左ペインの表示/非表示">
-                    <FontIcon Glyph="&#xE700;" FontSize="14" />
-                </Button>
-                <TextBlock Grid.Column="1" VerticalAlignment="Center"
-                           Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                           TextTrimming="CharacterEllipsis" />
+            <!-- ステータスバー（FolderNavigationView 同様の独立コントロール。開閉は ToggleLeftPaneRequested で受ける） -->
+            <ctl:PhotoStatusBar Grid.Row="0" x:Name="StatusBar" Margin="0,0,0,8" />
 
-                <!-- メタ情報パネル（2段・右寄せ）。DataContext=選択写真、内部はクラシック Binding（null セーフ）。 -->
-                <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3" Margin="12,0"
-                            DataContext="{x:Bind ViewModel.SelectedPhoto, Mode=OneWay}"
-                            Visibility="{x:Bind ViewModel.PhotoInfoVisibility, Mode=OneWay}">
-                    <!-- 上段: ファイル名 · 画像サイズ · ファイルサイズ ＋ EXIFチップ -->
-                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold"
-                                   VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding ImageSizeText}" VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <TextBlock Text="{Binding FileSizeText}" VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <ItemsControl ItemsSource="{Binding ExifChips}" VerticalAlignment="Center">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" Spacing="4" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                            BorderThickness="1" CornerRadius="9" Padding="7,1">
-                                        <TextBlock Text="{Binding}" FontSize="12" />
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-
-                    <!-- 下段: カメラ/レンズ · 評価 · GPS · 撮影日時 -->
-                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                        <TextBlock Text="{Binding CameraLensText}" VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding RatingStars}" VerticalAlignment="Center"
-                                       Foreground="{Binding RatingForeground}"
-                                       Visibility="{Binding RatingVisibility}" />
-                            <ctl:FlagGlyph GlyphSize="12" VerticalAlignment="Center"
-                                           Visibility="{Binding FlagVisibility}" />
-                            <ctl:ColorLabelDots DotSize="10" Spacing="3" VerticalAlignment="Center"
-                                                Visibility="{Binding ColorDotsVisibility}" />
-                        </StackPanel>
-                        <!-- GPS 地図ボタン（位置情報があるときだけ表示。クリックで地図を開く） -->
-                        <Button Click="GpsButton_Click" Padding="7,1" MinWidth="0"
-                                VerticalAlignment="Center"
-                                Visibility="{Binding GpsVisibility}"
-                                ToolTipService.ToolTip="{Binding GpsTooltip}">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <FontIcon Glyph="&#xE81D;" FontSize="13"
-                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                                <TextBlock Text="GPS" FontSize="12"
-                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                            </StackPanel>
-                        </Button>
-                        <TextBlock Text="{Binding TakenDateTimeText}" VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                </StackPanel>
-
-                <ProgressRing Grid.Column="3" Width="20" Height="20" VerticalAlignment="Center"
-                              IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
-            </Grid>
-
-            <!-- サムネイルグリッド -->
-            <GridView
-                x:Name="PhotoGrid"
+            <!-- サムネイルグリッド（プレビューとは Visibility で排他） -->
+            <ctl:PhotoGridView
+                x:Name="ThumbnailGrid"
                 Grid.Row="1"
-                Visibility="{x:Bind ViewModel.ThumbnailVisibility, Mode=OneWay}"
-                ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
-                SelectionMode="Single"
-                IsItemClickEnabled="False"
-                SelectionChanged="PhotoGrid_SelectionChanged"
-                DoubleTapped="PhotoGrid_DoubleTapped">
-                <GridView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                        <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
-                        <Border Width="200" Height="200" Margin="2"
-                                CornerRadius="6" BorderThickness="3"
-                                BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
-                            <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                                <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="Uniform" />
-
-                                <!-- 旗バッジ（左上）：採用=旗 / 拒否=×。正方形 -->
-                                <Border VerticalAlignment="Top" HorizontalAlignment="Left"
-                                        Margin="6" Width="30" Height="30" CornerRadius="4"
-                                        Background="#99000000"
-                                        Visibility="{x:Bind FlagVisibility, Mode=OneWay}">
-                                    <ctl:FlagGlyph GlyphSize="16"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-
-                                <!-- 色ドット（右上）：高さは旗と同じ、単一色は正方形 -->
-                                <Border VerticalAlignment="Top" HorizontalAlignment="Right"
-                                        Margin="6" Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
-                                        Background="#99000000"
-                                        Visibility="{x:Bind ColorDotsVisibility, Mode=OneWay}">
-                                    <ctl:ColorLabelDots DotSize="15" Spacing="4"
-                                                        HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-
-                                <!-- 下部: ★レーティング（中央, 色ドットと同形の黒バッジ）／ファイル名（黒帯, 常時） -->
-                                <StackPanel VerticalAlignment="Bottom" Spacing="2">
-                                    <Border HorizontalAlignment="Center"
-                                            Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
-                                            Background="#99000000"
-                                            Visibility="{x:Bind RatingVisibility, Mode=OneWay}">
-                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   FontSize="14"
-                                                   Foreground="{x:Bind RatingForeground, Mode=OneWay}"
-                                                   Text="{x:Bind RatingStars, Mode=OneWay}" />
-                                    </Border>
-                                    <Border Background="#80000000" Padding="6,4">
-                                        <TextBlock Text="{x:Bind FileName}" Foreground="White"
-                                                   FontSize="11" TextTrimming="CharacterEllipsis" />
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </GridView.ItemTemplate>
-            </GridView>
+                Visibility="{x:Bind ViewModel.ThumbnailVisibility, Mode=OneWay}" />
 
             <!-- 大画面プレビュー（サムネイルとは Visibility で排他） -->
             <ctl:PreviewControl

@@ -2,12 +2,12 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using PhotoQuickSelector_App.ViewModels;
-using Windows.System;
 
 namespace PhotoQuickSelector_App;
 
 /// <summary>
-/// メイン画面。左=フォルダツリー / 右=サムネイル一覧の左右分割レイアウト。
+/// メイン画面の骨組み。3カラム（左ナビ／スプリッター／右）配置と、ペイン間調停
+/// （左ペイン開閉・幅の永続化、MainWindow からのキー委譲）を担う。中身は各ペインの独立コントロールへ委譲。
 /// </summary>
 public sealed partial class MainPage : Page
 {
@@ -20,19 +20,13 @@ public sealed partial class MainPage : Page
         InitializeComponent();
         Loaded += MainPage_Loaded;
 
-        // 左ペイン（フォルダナビ）とプレビュー（大画面）に共有ビューモデルを注入する。
+        // 各ペイン（左ナビ／ステータスバー／サムネイルグリッド／大画面プレビュー）に共有ビューモデルを注入する。
         LeftNav.ViewModel = ViewModel;
+        StatusBar.ViewModel = ViewModel;
+        ThumbnailGrid.ViewModel = ViewModel;
         Preview.ViewModel = ViewModel;
-        // 選択変更でサムネイル側の選択も同期する。
-        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
-    }
-
-    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName != nameof(MainViewModel.SelectedPhoto)) return;
-        // プレビューでの前後移動・フィルムストリップ選択をサムネイルグリッドへ反映。
-        if (!ReferenceEquals(PhotoGrid.SelectedItem, ViewModel.SelectedPhoto))
-            PhotoGrid.SelectedItem = ViewModel.SelectedPhoto;
+        // ステータスバーの開閉ボタンは LeftColumn（骨組み）を操作するので MainPage が受ける。
+        StatusBar.ToggleLeftPaneRequested += (_, _) => ToggleLeftPane();
     }
 
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
@@ -68,9 +62,9 @@ public sealed partial class MainPage : Page
         s.Save();
     }
 
-    // --- 左ペインの折りたたみ ---
+    // --- 左ペインの折りたたみ（ステータスバーの ToggleLeftPaneRequested から呼ばれる） ---
 
-    private void ToggleLeftPaneButton_Click(object sender, RoutedEventArgs e)
+    private void ToggleLeftPane()
     {
         if (LeftColumn.ActualWidth > 0)
         {
@@ -83,25 +77,7 @@ public sealed partial class MainPage : Page
         }
     }
 
-    /// <summary>GPS 地図ボタン。撮影位置をブラウザの地図で開く（十進緯度経度がある場合）。</summary>
-    private async void GpsButton_Click(object sender, RoutedEventArgs e)
-    {
-        if ((sender as FrameworkElement)?.DataContext is PhotoItemViewModel { MapUri: { } uri })
-            await Launcher.LaunchUriAsync(uri);
-    }
-
-    // --- 右ペイン: 選択とキー操作 ---
-
-    private void PhotoGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        ViewModel.SelectedPhoto = PhotoGrid.SelectedItem as PhotoItemViewModel;
-    }
-
-    private void PhotoGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
-    {
-        // サムネイルのダブルクリックで大画面プレビューへ（SPEC §2）。
-        ViewModel.EnterPreview();
-    }
+    // --- キー操作（MainWindow ルートから委譲） ---
 
     /// <summary>
     /// Window 直下のルート要素（<see cref="MainWindow"/> の RootGrid）の <c>PreviewKeyDown</c> から

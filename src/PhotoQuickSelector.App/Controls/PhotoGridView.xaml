@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="PhotoQuickSelector_App.Controls.PhotoGridView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:vm="using:PhotoQuickSelector_App.ViewModels"
+    xmlns:ctl="using:PhotoQuickSelector_App.Controls"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!-- サムネイルグリッド。選択は ViewModel.SelectedPhoto と双方向同期（コードビハインド）。
+         表示/非表示（プレビューとの排他）は呼び出し側が Visibility で制御する。 -->
+    <GridView
+        x:Name="PhotoGrid"
+        ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
+        SelectionMode="Single"
+        IsItemClickEnabled="False"
+        SelectionChanged="PhotoGrid_SelectionChanged"
+        DoubleTapped="PhotoGrid_DoubleTapped">
+        <GridView.ItemTemplate>
+            <DataTemplate x:DataType="vm:PhotoItemViewModel">
+                <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
+                <Border Width="200" Height="200" Margin="2"
+                        CornerRadius="6" BorderThickness="3"
+                        BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
+                    <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                        <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="Uniform" />
+
+                        <!-- 旗バッジ（左上）：採用=旗 / 拒否=×。正方形 -->
+                        <Border VerticalAlignment="Top" HorizontalAlignment="Left"
+                                Margin="6" Width="30" Height="30" CornerRadius="4"
+                                Background="#99000000"
+                                Visibility="{x:Bind FlagVisibility, Mode=OneWay}">
+                            <ctl:FlagGlyph GlyphSize="16"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+
+                        <!-- 色ドット（右上）：高さは旗と同じ、単一色は正方形 -->
+                        <Border VerticalAlignment="Top" HorizontalAlignment="Right"
+                                Margin="6" Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
+                                Background="#99000000"
+                                Visibility="{x:Bind ColorDotsVisibility, Mode=OneWay}">
+                            <ctl:ColorLabelDots DotSize="15" Spacing="4"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+
+                        <!-- 下部: ★レーティング（中央, 色ドットと同形の黒バッジ）／ファイル名（黒帯, 常時） -->
+                        <StackPanel VerticalAlignment="Bottom" Spacing="2">
+                            <Border HorizontalAlignment="Center"
+                                    Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
+                                    Background="#99000000"
+                                    Visibility="{x:Bind RatingVisibility, Mode=OneWay}">
+                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           FontSize="14"
+                                           Foreground="{x:Bind RatingForeground, Mode=OneWay}"
+                                           Text="{x:Bind RatingStars, Mode=OneWay}" />
+                            </Border>
+                            <Border Background="#80000000" Padding="6,4">
+                                <TextBlock Text="{x:Bind FileName}" Foreground="White"
+                                           FontSize="11" TextTrimming="CharacterEllipsis" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </GridView.ItemTemplate>
+    </GridView>
+</UserControl>

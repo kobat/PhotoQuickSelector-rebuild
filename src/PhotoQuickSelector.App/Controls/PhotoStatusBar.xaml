@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="PhotoQuickSelector_App.Controls.PhotoStatusBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:ctl="using:PhotoQuickSelector_App.Controls"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!-- ステータスバー（2段組）。左=開閉ボタン＋件数、右=選択写真のメタ情報を右寄せで密集表示。
+         開閉ボタンは LeftColumn（骨組み側）を操作するため ToggleLeftPaneRequested イベントで MainPage へ委譲。 -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Button Grid.Column="0" Click="ToggleButton_Click" Margin="0,0,8,0"
+                VerticalAlignment="Center"
+                ToolTipService.ToolTip="左ペインの表示/非表示">
+            <FontIcon Glyph="&#xE700;" FontSize="14" />
+        </Button>
+        <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                   Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                   TextTrimming="CharacterEllipsis" />
+
+        <!-- メタ情報パネル（2段・右寄せ）。DataContext=選択写真、内部はクラシック Binding（null セーフ）。 -->
+        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3" Margin="12,0"
+                    DataContext="{x:Bind ViewModel.SelectedPhoto, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.PhotoInfoVisibility, Mode=OneWay}">
+            <!-- 上段: ファイル名 · 画像サイズ · ファイルサイズ ＋ EXIFチップ -->
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                <TextBlock Text="{Binding FileName}" FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+                <TextBlock Text="{Binding ImageSizeText}" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="{Binding FileSizeText}" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <ItemsControl ItemsSource="{Binding ExifChips}" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="4" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="9" Padding="7,1">
+                                <TextBlock Text="{Binding}" FontSize="12" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- 下段: カメラ/レンズ · 評価 · GPS · 撮影日時 -->
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                <TextBlock Text="{Binding CameraLensText}" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding RatingStars}" VerticalAlignment="Center"
+                               Foreground="{Binding RatingForeground}"
+                               Visibility="{Binding RatingVisibility}" />
+                    <ctl:FlagGlyph GlyphSize="12" VerticalAlignment="Center"
+                                   Visibility="{Binding FlagVisibility}" />
+                    <ctl:ColorLabelDots DotSize="10" Spacing="3" VerticalAlignment="Center"
+                                        Visibility="{Binding ColorDotsVisibility}" />
+                </StackPanel>
+                <!-- GPS 地図ボタン（位置情報があるときだけ表示。クリックで地図を開く） -->
+                <Button Click="GpsButton_Click" Padding="7,1" MinWidth="0"
+                        VerticalAlignment="Center"
+                        Visibility="{Binding GpsVisibility}"
+                        ToolTipService.ToolTip="{Binding GpsTooltip}">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon Glyph="&#xE81D;" FontSize="13"
+                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        <TextBlock Text="GPS" FontSize="12"
+                                   Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                    </StackPanel>
+                </Button>
+                <TextBlock Text="{Binding TakenDateTimeText}" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </StackPanel>
+
+        <ProgressRing Grid.Column="3" Width="20" Height="20" VerticalAlignment="Center"
+                      IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
+    </Grid>
+</UserControl>
