@@ -17,8 +17,14 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
+        // システム標準タイトルバーを使う（ExtendsContentIntoTitleBar=false）。
+        // カスタムタイトルバー（ExtendsContentIntoTitleBar=true）にすると、×/最小化/最大化が
+        // XAML の非クライアント入力経路＝フォーカス機構と同じ土俵で処理され、画像操作後に
+        // フォーカスが GridViewItem/CanvasControl へ乗った状態だと、×の押下がフォーカス後退に
+        // 消費されて「1回で閉じない（時々2回必要）」レースが起きる。診断ログ＋実機実験で確定済み
+        // （TitleBar コントロール／旧来 SetTitleBar の双方で再現、false でのみ100%確実）。
+        // 詳細はメモリ close-button-titlebar-focus-race を参照。
+        ExtendsContentIntoTitleBar = false;
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
 

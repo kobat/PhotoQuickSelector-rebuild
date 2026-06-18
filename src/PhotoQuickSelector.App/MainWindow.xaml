@@ -12,23 +12,13 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
+    <!--
+        システム標準タイトルバーを使用（コードビハインドで ExtendsContentIntoTitleBar=false）。
+        ×が画像操作後に1回で閉じない問題を避けるため、カスタムタイトルバーは採用しない。
+        RootGrid はキー入力集約（RootGrid_PreviewKeyDown）の土台として残す。
+        Frame がアプリ本体（MainPage）をホストする。
+    -->
     <Grid x:Name="RootGrid">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <TitleBar x:Name="AppTitleBar" Title="PhotoQuickSelector.App">
-            <TitleBar.IconSource>
-                <ImageIconSource ImageSource="Assets/AppIcon.ico" />
-            </TitleBar.IconSource>
-        </TitleBar>
-
-        <!--
-            The Frame hosts pages for your application content. Add your UI to
-            MainPage.xaml rather than here so you can use Page features such as
-            navigation events and the Loaded lifecycle.
-        -->
-        <Frame x:Name="RootFrame" Grid.Row="1" />
+        <Frame x:Name="RootFrame" />
     </Grid>
 </Window>
