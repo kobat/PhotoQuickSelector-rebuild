@@ -13,6 +13,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
@@ -22,12 +23,14 @@
                 ToolTipService.ToolTip="左ペインの表示/非表示">
             <FontIcon Glyph="&#xE700;" FontSize="14" />
         </Button>
-        <TextBlock Grid.Column="1" VerticalAlignment="Center"
+        <!-- フィルタボタン（開閉ボタンと件数テキストの間） -->
+        <ctl:FilterBar Grid.Column="1" x:Name="FilterControl" Margin="0,0,8,0" />
+        <TextBlock Grid.Column="2" VerticalAlignment="Center"
                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
                    TextTrimming="CharacterEllipsis" />
 
         <!-- メタ情報パネル（2段・右寄せ）。DataContext=選択写真、内部はクラシック Binding（null セーフ）。 -->
-        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="3" Margin="12,0"
+        <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="3" Margin="12,0"
                     DataContext="{x:Bind ViewModel.SelectedPhoto, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.PhotoInfoVisibility, Mode=OneWay}">
             <!-- 上段: ファイル名 · 画像サイズ · ファイルサイズ ＋ EXIFチップ -->
@@ -86,7 +89,7 @@
             </StackPanel>
         </StackPanel>
 
-        <ProgressRing Grid.Column="3" Width="20" Height="20" VerticalAlignment="Center"
+        <ProgressRing Grid.Column="4" Width="20" Height="20" VerticalAlignment="Center"
                       IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
     </Grid>
 </UserControl>

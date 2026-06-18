@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="PhotoQuickSelector_App.Controls.FilterBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!-- フィルタボタン（SPEC §3-4 / §3-5）。クリックで条件＋クリップボード出力のフライアウトを開く。
+         フライアウト内の入力は DataContext=ViewModel.Filter に対するクラシック Binding（null セーフ）、
+         件数・コピー操作は x:Bind / コードビハインドで処理する。 -->
+    <Button x:Name="FilterButton" VerticalAlignment="Center"
+            ToolTipService.ToolTip="フィルタ (Ctrl+L)">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+            <FontIcon Glyph="&#xE71C;" FontSize="14" />
+            <TextBlock Text="{x:Bind ViewModel.FilteredCountText, Mode=OneWay}"
+                       VerticalAlignment="Center" />
+        </StackPanel>
+
+        <Button.Flyout>
+            <Flyout x:Name="FilterFlyout" Opening="FilterFlyout_Opening">
+                <StackPanel Width="280" Spacing="12"
+                            DataContext="{x:Bind ViewModel.Filter, Mode=OneWay}">
+
+                    <Grid>
+                        <TextBlock Text="フィルタ" Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                   VerticalAlignment="Center" />
+                        <ToggleSwitch HorizontalAlignment="Right" MinWidth="0"
+                                      OnContent="有効" OffContent="無効"
+                                      IsOn="{Binding Enabled, Mode=TwoWay}" />
+                    </Grid>
+
+                    <!-- レーティング -->
+                    <StackPanel Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="レーティング" VerticalAlignment="Center" />
+                            <Button x:Name="CompareButton" Click="CompareButton_Click"
+                                    MinWidth="36" Padding="6,2"
+                                    Content="{Binding RatingCompareGlyph}"
+                                    ToolTipService.ToolTip="≧ / ＝ を切り替え" />
+                        </StackPanel>
+                        <RatingControl x:Name="RatingPicker" MaxRating="5" IsClearEnabled="True"
+                                       ValueChanged="RatingPicker_ValueChanged" />
+                        <CheckBox Content="未評価 (NoRating)"
+                                  IsChecked="{Binding NoRating, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <!-- フラグ -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="フラグ" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <CheckBox Content="採用" MinWidth="0" IsChecked="{Binding FlagAccept, Mode=TwoWay}" />
+                            <CheckBox Content="中立" MinWidth="0" IsChecked="{Binding FlagNeutral, Mode=TwoWay}" />
+                            <CheckBox Content="拒否" MinWidth="0" IsChecked="{Binding FlagReject, Mode=TwoWay}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- カラーラベル -->
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="カラーラベル" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <CheckBox MinWidth="0" VerticalContentAlignment="Center" IsChecked="{Binding Red, Mode=TwoWay}">
+                                <Border Width="16" Height="16" CornerRadius="8"
+                                        Background="#E53935" />
+                            </CheckBox>
+                            <CheckBox MinWidth="0" VerticalContentAlignment="Center" IsChecked="{Binding Yellow, Mode=TwoWay}">
+                                <Border Width="16" Height="16" CornerRadius="8"
+                                        Background="#FDD835" />
+                            </CheckBox>
+                            <CheckBox MinWidth="0" VerticalContentAlignment="Center" IsChecked="{Binding Green, Mode=TwoWay}">
+                                <Border Width="16" Height="16" CornerRadius="8"
+                                        Background="#43A047" />
+                            </CheckBox>
+                            <CheckBox MinWidth="0" VerticalContentAlignment="Center" IsChecked="{Binding Blue, Mode=TwoWay}">
+                                <Border Width="16" Height="16" CornerRadius="8"
+                                        Background="#1E88E5" />
+                            </CheckBox>
+                            <CheckBox MinWidth="0" VerticalContentAlignment="Center" IsChecked="{Binding Purple, Mode=TwoWay}">
+                                <Border Width="16" Height="16" CornerRadius="8"
+                                        Background="#8E24AA" />
+                            </CheckBox>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 件数＋クリップボード出力（明示メニュー） -->
+                    <StackPanel Spacing="8">
+                        <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="{x:Bind ViewModel.FilteredCountText, Mode=OneWay}" />
+                        <DropDownButton Content="クリップボードへコピー" HorizontalAlignment="Stretch">
+                            <DropDownButton.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="ファイル名一覧をコピー"
+                                                    Click="CopyFileNames_Click" />
+                                    <MenuFlyoutItem Text="移動batを生成してコピー"
+                                                    Click="CopyMoveBatch_Click" />
+                                </MenuFlyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                    </StackPanel>
+                </StackPanel>
+            </Flyout>
+        </Button.Flyout>
+    </Button>
+</UserControl>

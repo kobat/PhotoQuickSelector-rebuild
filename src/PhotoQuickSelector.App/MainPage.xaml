@@ -35,7 +35,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- ステータスバー（FolderNavigationView 同様の独立コントロール。開閉は ToggleLeftPaneRequested で受ける） -->
+            <!-- ステータスバー（フィルタボタンを内包。開閉は ToggleLeftPaneRequested で受ける） -->
             <ctl:PhotoStatusBar Grid.Row="0" x:Name="StatusBar" Margin="0,0,0,8" />
 
             <!-- サムネイルグリッド（プレビューとは Visibility で排他） -->

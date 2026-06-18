@@ -16,7 +16,17 @@ public partial class MainViewModel : ObservableObject
     /// <summary>アプリ設定（最近フォルダ・お気に入り・左ペイン状態）。</summary>
     public AppSettings Settings { get; } = AppSettings.Load();
 
+    /// <summary>読み込んだ全写真（恒久。サムネイル等の状態を保持する）。</summary>
+    public ObservableCollection<PhotoItemViewModel> AllPhotos { get; } = new();
+
+    /// <summary>絞り込み結果（<see cref="AllPhotos"/> から <see cref="Filter"/> を通した表示用ビュー）。</summary>
     public ObservableCollection<PhotoItemViewModel> Photos { get; } = new();
+
+    /// <summary>絞り込み条件（SPEC §3-4）。変更で <see cref="ApplyFilter"/> を再実行する。</summary>
+    public FilterViewModel Filter { get; } = new();
+
+    /// <summary>フィルタフライアウトの件数表示 "絞込件数 / 全件数"。</summary>
+    public string FilteredCountText => $"{Photos.Count} / {AllPhotos.Count}";
 
     /// <summary>左ペイン上部「お気に入り」一覧（<see cref="AppSettings.Favorites"/> の投影）。</summary>
     public ObservableCollection<FolderShortcut> Favorites { get; } = new();
@@ -33,7 +43,40 @@ public partial class MainViewModel : ObservableObject
     public MainViewModel()
     {
         RebuildShortcuts();
+        Filter.Changed += (_, _) => ApplyFilter();
     }
+
+    /// <summary>
+    /// <see cref="AllPhotos"/> を <see cref="Filter"/> に通して <see cref="Photos"/> を作り直す。
+    /// 絞り込み後もフォーカス中の写真が結果に残っていれば選択を維持する（SPEC §3-4）。
+    /// </summary>
+    public void ApplyFilter()
+    {
+        var previous = SelectedPhoto;
+
+        Photos.Clear();
+        foreach (var item in AllPhotos)
+            if (Filter.Model.Matches(item.Eval))
+                Photos.Add(item);
+
+        OnPropertyChanged(nameof(FilteredCountText));
+
+        // 絞り込みで対象から外れた場合は選択を解除（残っていればそのまま）。
+        SelectedPhoto = (previous != null && Photos.Contains(previous)) ? previous : null;
+    }
+
+    /// <summary>絞込結果のファイル名一覧テキスト（クリップボード用、SPEC §3-5）。</summary>
+    public string BuildFileNameListText() =>
+        ClipboardExport.BuildFileNameList(Photos.Select(p => p.FileName));
+
+    /// <summary>採用（絞込結果）写真を移動する .bat スクリプト（クリップボード用、SPEC §3-5）。</summary>
+    public string BuildMoveBatchText() =>
+        ClipboardExport.BuildMoveBatch(
+            CurrentFolder ?? "",
+            Photos.Count,
+            AllPhotos.Count,
+            Filter.Model.DescribeConditions(),
+            Photos.Select(p => p.FileName));
 
     /// <summary>設定の最近/お気に入りから表示用コレクションを作り直す。</summary>
     private void RebuildShortcuts()
@@ -158,7 +201,9 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsLoading) return;
         IsLoading = true;
+        AllPhotos.Clear();
         Photos.Clear();
+        OnPropertyChanged(nameof(FilteredCountText));
         CurrentFolder = folderPath;
         StatusText = $"読み込み中: {folderPath}";
 
@@ -205,10 +250,11 @@ public partial class MainViewModel : ObservableObject
             foreach (var meta in metas)
             {
                 var eval = _store.LoadEvaluation(meta.FileName, meta.ExifRating);
-                Photos.Add(new PhotoItemViewModel(meta, eval, _store));
+                AllPhotos.Add(new PhotoItemViewModel(meta, eval, _store));
             }
 
-            StatusText = $"{Photos.Count} 枚  ({folderPath})";
+            ApplyFilter();
+            StatusText = $"{AllPhotos.Count} 枚  ({folderPath})";
 
             // 4) サムネイルを順次読み込み（UI を塞がない）。世代トークンで古い読込を中断。
             _ = LoadThumbnailsAsync(++_loadGeneration);
@@ -228,7 +274,8 @@ public partial class MainViewModel : ObservableObject
     private async Task LoadThumbnailsAsync(int generation)
     {
         // スナップショットを順次ロード。別フォルダを開いて世代が進んだら中断。
-        foreach (var item in Photos.ToArray())
+        // 絞り込み中でも全件分を読むので、フィルタを変えても再ロード不要。
+        foreach (var item in AllPhotos.ToArray())
         {
             if (generation != _loadGeneration) break;
             await item.LoadThumbnailAsync();

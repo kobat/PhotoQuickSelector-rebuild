@@ -90,6 +90,14 @@ public sealed partial class MainPage : Page
     /// </summary>
     public void HandleGlobalKeyDown(KeyRoutedEventArgs e)
     {
+        // Ctrl+L: フィルタ ON/OFF（両モード共通、SPEC §3-7）。フライアウトは開かずトグルのみ。
+        if (KeyboardModifiers.Ctrl && e.Key == Windows.System.VirtualKey.L)
+        {
+            ViewModel.Filter.Enabled = !ViewModel.Filter.Enabled;
+            e.Handled = true;
+            return;
+        }
+
         if (ViewModel.IsPreviewMode)
         {
             if (Preview.HandleKeyDown(e.Key))

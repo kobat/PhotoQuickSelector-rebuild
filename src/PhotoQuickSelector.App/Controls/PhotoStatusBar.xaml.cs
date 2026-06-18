@@ -26,6 +26,7 @@ public sealed partial class PhotoStatusBar : UserControl
         {
             if (ReferenceEquals(_viewModel, value)) return;
             _viewModel = value;
+            FilterControl.ViewModel = value; // 内包するフィルタボタンへも注入
             Bindings.Update();
         }
     }
