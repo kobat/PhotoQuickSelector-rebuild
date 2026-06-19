@@ -42,6 +42,8 @@ BundleArtifacts/
 publish/
 *.pubxml
 PublishScripts/
+# ただし配布プロファイルは構成の一部なので追跡する（SPEC §0 unpackaged 自己完結 EXE）
+!Properties/PublishProfiles/*.pubxml
 
 # Code analysis and tooling
 _ReSharper*/

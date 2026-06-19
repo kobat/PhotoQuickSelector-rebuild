@@ -73,7 +73,10 @@
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <!--
+      WinUI 3 / Win2D はトリミング非対応のため常に無効。
+      （SPEC §0：トリミングすると XAML/Win2D が実行時に壊れる）
+    -->
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 </Project>
