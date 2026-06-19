@@ -34,15 +34,25 @@
         <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="3" Margin="12,0"
                     DataContext="{x:Bind ViewModel.SelectedPhoto, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.PhotoInfoVisibility, Mode=OneWay}">
-            <!-- 上段: ファイル名 · 画像サイズ · ファイルサイズ ＋ EXIFチップ -->
-            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                <TextBlock Text="{Binding FileName}" FontWeight="SemiBold"
-                           VerticalAlignment="Center" />
-                <TextBlock Text="{Binding ImageSizeText}" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <TextBlock Text="{Binding FileSizeText}" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <ItemsControl ItemsSource="{Binding ExifChips}" VerticalAlignment="Center">
+            <!-- 上段: 左=ファイル名 · 画像サイズ · ファイルサイズ（左寄せ）／右=EXIFチップ（右寄せ）。
+                 1 行内で左右に分離するため Grid（* + Auto）。* 列が間を押し広げ、左グループは左端・EXIF は右端へ。
+                 下段も同構造のため、どちらが広くても左端・右端が揃う。 -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                            HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ImageSizeText}" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{Binding FileSizeText}" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+                <ItemsControl Grid.Column="1" ItemsSource="{Binding ExifChips}"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="4" />
@@ -58,36 +68,45 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-            </StackPanel>
+            </Grid>
 
-            <!-- 下段: カメラ/レンズ · 評価 · GPS · 撮影日時 -->
-            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-                <TextBlock Text="{Binding CameraLensText}" VerticalAlignment="Center"
+            <!-- 下段: 左=カメラ/レンズ（左寄せ）／右=評価 · GPS · 撮影日時（右寄せ）。
+                 上段と同じ Grid（* + Auto）構造。上段が下段より広いケースでもカメラ/レンズは左端・評価から右端へ。 -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding CameraLensText}"
+                           HorizontalAlignment="Left" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding RatingStars}" VerticalAlignment="Center"
-                               Foreground="{Binding RatingForeground}"
-                               Visibility="{Binding RatingVisibility}" />
-                    <ctl:FlagGlyph GlyphSize="12" VerticalAlignment="Center"
-                                   Visibility="{Binding FlagVisibility}" />
-                    <ctl:ColorLabelDots DotSize="10" Spacing="3" VerticalAlignment="Center"
-                                        Visibility="{Binding ColorDotsVisibility}" />
-                </StackPanel>
-                <!-- GPS 地図ボタン（位置情報があるときだけ表示。クリックで地図を開く） -->
-                <Button Click="GpsButton_Click" Padding="7,1" MinWidth="0"
-                        VerticalAlignment="Center"
-                        Visibility="{Binding GpsVisibility}"
-                        ToolTipService.ToolTip="{Binding GpsTooltip}">
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <FontIcon Glyph="&#xE81D;" FontSize="13"
-                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-                        <TextBlock Text="GPS" FontSize="12"
-                                   Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding RatingStars}" VerticalAlignment="Center"
+                                   Foreground="{Binding RatingForeground}"
+                                   Visibility="{Binding RatingVisibility}" />
+                        <ctl:FlagGlyph GlyphSize="12" VerticalAlignment="Center"
+                                       Visibility="{Binding FlagVisibility}" />
+                        <ctl:ColorLabelDots DotSize="10" Spacing="3" VerticalAlignment="Center"
+                                            Visibility="{Binding ColorDotsVisibility}" />
                     </StackPanel>
-                </Button>
-                <TextBlock Text="{Binding TakenDateTimeText}" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
+                    <!-- GPS 地図ボタン（位置情報があるときだけ表示。クリックで地図を開く） -->
+                    <Button Click="GpsButton_Click" Padding="7,1" MinWidth="0"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding GpsVisibility}"
+                            ToolTipService.ToolTip="{Binding GpsTooltip}">
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <FontIcon Glyph="&#xE81D;" FontSize="13"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            <TextBlock Text="GPS" FontSize="12"
+                                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Text="{Binding TakenDateTimeText}" VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
         </StackPanel>
 
         <ProgressRing Grid.Column="4" Width="20" Height="20" VerticalAlignment="Center"
