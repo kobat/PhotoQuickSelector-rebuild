@@ -1,3 +1,4 @@
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 
@@ -47,7 +48,43 @@ public sealed partial class MainWindow : Window
     private void RootGrid_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (e.Handled) return;
+
+        // F11: フルスクリーン表示のトグル。AppWindow を所有する Window 側で完結させる。
+        // tunneling のルートで拾うのでフォーカス位置によらず確実に届く（評価/ナビキーと競合しない）。
+        if (e.Key == Windows.System.VirtualKey.F11)
+        {
+            ToggleFullScreen();
+            e.Handled = true;
+            return;
+        }
+
+        // Esc: フルスクリーン中のときだけ通常表示へ戻す。Esc は SPEC §3-7 で本来「選択リセット」用途
+        // なので、全画面でないときは未処理のまま通す（将来用途を潰さない）。PreviewKeyDown(tunneling)
+        // はフォーカス管理の Esc 消費より前に届くため、ここで拾えば確実（実キーボードで要確認）。
+        if (e.Key == Windows.System.VirtualKey.Escape &&
+            AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
+        {
+            AppWindow.SetPresenter(AppWindowPresenterKind.Default);
+            e.Handled = true;
+            return;
+        }
+
         (RootFrame.Content as MainPage)?.HandleGlobalKeyDown(e);
+    }
+
+    /// <summary>
+    /// フルスクリーン表示と通常表示を切り替える。WinAppSDK 標準の
+    /// <see cref="AppWindowPresenterKind.FullScreen"/>（枠・タイトルバー・タスクバーごと非表示）を使う。
+    /// 通常へ戻すとシステム標準タイトルバー（<c>ExtendsContentIntoTitleBar=false</c>）が復活するため、
+    /// ×ボタンのフォーカスレース対策（close-button-titlebar-focus-race）はそのまま維持される。
+    /// F11 キーとステータスバーの全画面ボタンの両方から呼ばれる。
+    /// </summary>
+    public void ToggleFullScreen()
+    {
+        var kind = AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen
+            ? AppWindowPresenterKind.Default
+            : AppWindowPresenterKind.FullScreen;
+        AppWindow.SetPresenter(kind);
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)

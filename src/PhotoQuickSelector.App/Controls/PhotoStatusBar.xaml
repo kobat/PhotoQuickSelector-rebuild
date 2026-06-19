@@ -17,6 +17,7 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Button Grid.Column="0" Click="ToggleButton_Click" Margin="0,0,8,0"
                 VerticalAlignment="Center"
@@ -91,5 +92,12 @@
 
         <ProgressRing Grid.Column="4" Width="20" Height="20" VerticalAlignment="Center"
                       IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
+
+        <!-- 全画面表示の切替ボタン（F11 と同じ。AppWindow を操作するため MainWindow へ委譲） -->
+        <Button Grid.Column="5" Click="FullScreenButton_Click" Margin="8,0,0,0"
+                VerticalAlignment="Center"
+                ToolTipService.ToolTip="全画面表示の切替 (F11)">
+            <FontIcon Glyph="&#xE740;" FontSize="14" />
+        </Button>
     </Grid>
 </UserControl>

@@ -34,8 +34,14 @@ public sealed partial class PhotoStatusBar : UserControl
     /// <summary>左ペインの表示/非表示ボタンが押されたとき発火する（開閉は <see cref="MainPage"/> が担う）。</summary>
     public event EventHandler? ToggleLeftPaneRequested;
 
+    /// <summary>全画面表示ボタンが押されたとき発火する（切替は AppWindow を持つ <see cref="MainWindow"/> が担う）。</summary>
+    public event EventHandler? ToggleFullScreenRequested;
+
     private void ToggleButton_Click(object sender, RoutedEventArgs e)
         => ToggleLeftPaneRequested?.Invoke(this, EventArgs.Empty);
+
+    private void FullScreenButton_Click(object sender, RoutedEventArgs e)
+        => ToggleFullScreenRequested?.Invoke(this, EventArgs.Empty);
 
     /// <summary>GPS 地図ボタン。撮影位置をブラウザの地図で開く（十進緯度経度がある場合）。</summary>
     private async void GpsButton_Click(object sender, RoutedEventArgs e)

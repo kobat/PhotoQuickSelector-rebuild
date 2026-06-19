@@ -27,6 +27,8 @@ public sealed partial class MainPage : Page
         Preview.ViewModel = ViewModel;
         // ステータスバーの開閉ボタンは LeftColumn（骨組み）を操作するので MainPage が受ける。
         StatusBar.ToggleLeftPaneRequested += (_, _) => ToggleLeftPane();
+        // 全画面ボタンは AppWindow を持つ MainWindow で切り替える（F11 と同じ経路）。
+        StatusBar.ToggleFullScreenRequested += (_, _) => (App.Window as MainWindow)?.ToggleFullScreen();
     }
 
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
