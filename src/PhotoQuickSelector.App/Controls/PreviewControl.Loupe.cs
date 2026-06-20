@@ -1,5 +1,4 @@
 using System;
-using System.Numerics;
 using Microsoft.Graphics.Canvas.UI;
 using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI.Xaml;
@@ -44,9 +43,7 @@ public sealed partial class PreviewControl
         if (_bitmap == null) return;  // 空/読み込み中は ClearColor（テーマ背景）を見せる
         var ds = args.DrawingSession;
         ds.Clear(PhotoBackdropColor); // 写真表示中は暗い余白にする
-        ds.Transform = Matrix3x2.CreateScale((float)_zoomViewport.Scale)
-                       * Matrix3x2.CreateTranslation((float)_zoomViewport.OffsetX, (float)_zoomViewport.OffsetY);
-        ds.DrawImage(_bitmap);
+        DrawScaledBitmap(ds, _zoomViewport); // 100% ルーペは実質常に NearestNeighbor（縮小時のみ Linear）
     }
 
     private void ZoomCanvas_SizeChanged(object sender, SizeChangedEventArgs e)

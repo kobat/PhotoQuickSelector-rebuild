@@ -168,7 +168,22 @@ public partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(ThumbnailVisibility));
         OnPropertyChanged(nameof(PreviewVisibility));
+        OnPropertyChanged(nameof(ZoomVisibility));
     }
+
+    /// <summary>プレビューの現在倍率（物理px / 画像px ＝ <c>PreviewViewport.DeviceScale</c>）。
+    /// プレビュー側がズーム/パン/ロードのたびに更新する。ピクセル等倍で 1.0（＝100%）。</summary>
+    [ObservableProperty]
+    public partial double ZoomScale { get; set; } = 1.0;
+
+    /// <summary>ステータスバーに出す倍率テキスト（ピクセル等倍＝100%）。</summary>
+    public string ZoomText => $"{ZoomScale * 100:0}%";
+
+    /// <summary>倍率表示はプレビュー時のみ。</summary>
+    public Visibility ZoomVisibility =>
+        IsPreviewMode ? Visibility.Visible : Visibility.Collapsed;
+
+    partial void OnZoomScaleChanged(double value) => OnPropertyChanged(nameof(ZoomText));
 
     /// <summary>サムネイルをダブルクリック等でプレビュー（大画面）へ遷移する。</summary>
     public void EnterPreview()

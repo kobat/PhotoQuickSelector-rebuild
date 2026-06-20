@@ -1,8 +1,9 @@
-using System.Numerics;
+using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.UI;
 using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
+using Windows.Foundation;
 
 namespace PhotoQuickSelector_App.Controls;
 
@@ -28,15 +29,27 @@ public sealed partial class PreviewControl
 
         var ds = args.DrawingSession;
         ds.Clear(PhotoBackdropColor); // 写真表示中は暗い余白（レターボックス）にする
-        // ビットマップは Orientation 適用済み（正立）なので回転は加えず、スケール＋平行移動のみ。
-        var saved = ds.Transform;
-        ds.Transform = Matrix3x2.CreateScale((float)_viewport.Scale)
-                       * Matrix3x2.CreateTranslation((float)_viewport.OffsetX, (float)_viewport.OffsetY);
-        ds.DrawImage(_bitmap);
-        ds.Transform = saved; // オーバーレイはキャンバス空間（固定線幅）で描画
+        DrawScaledBitmap(ds, _viewport);
 
+        // オーバーレイはキャンバス空間（ImageToCanvas 経由・固定線幅）で描く。
         if (_viewModel?.ShowGrid == true) DrawGrid(ds);
         DrawFocusFrame(ds);
+    }
+
+    /// <summary>
+    /// ビットマップを現在のビューポート（スケール＋平行移動）でキャンバスへ描く。
+    /// ビットマップは Orientation 適用済み（正立）なので回転は加えない。
+    /// ピクセル等倍以上（<see cref="PreviewViewport.DeviceScale"/> ≥ 1）では補間を NearestNeighbor にして
+    /// にじみのないくっきりした拡大表示にし、縮小時は Linear で滑らかに保つ。
+    /// </summary>
+    private void DrawScaledBitmap(CanvasDrawingSession ds, PreviewViewport vp)
+    {
+        if (_bitmap == null) return;
+        var interp = vp.DeviceScale >= 1.0 - 1e-6
+            ? CanvasImageInterpolation.NearestNeighbor   // 等倍以上はくっきり（補間なし）
+            : CanvasImageInterpolation.Linear;           // 縮小は滑らかに
+        var dest = new Rect(vp.OffsetX, vp.OffsetY, vp.DrawWidth, vp.DrawHeight);
+        ds.DrawImage(_bitmap, dest, _bitmap.Bounds, 1.0f, interp);
     }
 
     private void MainCanvas_SizeChanged(object sender, SizeChangedEventArgs e)

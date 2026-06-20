@@ -7,7 +7,7 @@ public enum ZoomMode
 {
     /// <summary>キャンバスに収まるようフィット。</summary>
     Fit,
-    /// <summary>等倍（画像 1px = 1 描画単位）。SPEC §6-5 の 100%。</summary>
+    /// <summary>等倍（画像 1px = 1 物理 px、DPI 考慮）。SPEC §6-5 の 100%。</summary>
     ActualSize,
     /// <summary>任意倍率（ホイール等で変更）。</summary>
     Custom,
@@ -34,12 +34,26 @@ public sealed class PreviewViewport
     /// <summary>現在の倍率（画像 px → 描画単位）。DrawWidth = ImageWidth * Scale。</summary>
     public double Scale { get; private set; } = 1.0;
 
+    /// <summary>
+    /// DPI スケール（物理 px / DIP ＝ Dpi/96）。Win2D は DIP 座標で描画し最終的に
+    /// 物理px = DIP × Dpi/96 でラスタライズされるため、等倍（1 画像px = 1 物理px）の倍率は
+    /// 1.0 ではなく <c>1.0 / DpiScale</c> になる。コントロール側が <c>MainCanvas.Dpi/96</c> を与える。
+    /// </summary>
+    public double DpiScale { get; set; } = 1.0;
+
+    /// <summary>等倍（1 画像px = 1 物理px）に対応する Scale。SPEC §6-5 の 100%。</summary>
+    private double ActualScale => DpiScale > 0 ? 1.0 / DpiScale : 1.0;
+
     /// <summary>描画先の左上オフセット（DrawOffsetX/Y, 単位 DIP）。</summary>
     public double OffsetX { get; private set; }
     public double OffsetY { get; private set; }
 
     public double DrawWidth => ImageWidth * Scale;
     public double DrawHeight => ImageHeight * Scale;
+
+    /// <summary>デバイスピクセル等倍率（物理px / 画像px ＝ Scale × DpiScale）。
+    /// 1.0 以上ならピクセル等倍以上に拡大されている（補間を NearestNeighbor に切り替える判定に使う）。</summary>
+    public double DeviceScale => Scale * DpiScale;
 
     private const double MinScale = 0.02;
     private const double MaxScale = 16.0;
@@ -79,10 +93,10 @@ public sealed class PreviewViewport
         ApplyMode();
     }
 
-    /// <summary>等倍（100%）表示にする。中心を維持。</summary>
+    /// <summary>等倍（1 画像px = 1 物理px）表示にする。中心を維持。</summary>
     public void SetActualSize()
     {
-        SetScaleAround(1.0, CanvasWidth / 2, CanvasHeight / 2);
+        SetScaleAround(ActualScale, CanvasWidth / 2, CanvasHeight / 2);
         Mode = ZoomMode.ActualSize;
     }
 
@@ -114,7 +128,7 @@ public sealed class PreviewViewport
         Scale = Mode switch
         {
             ZoomMode.Fit => FitScale,
-            ZoomMode.ActualSize => 1.0,
+            ZoomMode.ActualSize => ActualScale,
             _ => Scale,
         };
         Center();

@@ -234,6 +234,8 @@ public sealed partial class PreviewControl : UserControl
             // CanvasBitmap.LoadAsync は EXIF Orientation を適用済みのビットマップを返す（既に正立）。
             // よって SizeInPixels がそのまま表示サイズになる（回転は描画側で加えない）。
             // Size は DPI 依存（高 DPI で縮む）ため、寸法基準は SizeInPixels に統一する。
+            // 等倍（100%）を 1 画像px = 1 物理px にするため、現在の DPI を両ビューポートへ供給。
+            UpdateDpiScale();
             _viewport.SetCanvasSize(MainCanvas.ActualWidth, MainCanvas.ActualHeight);
             _viewport.SetImage(w, h);
 
@@ -255,6 +257,7 @@ public sealed partial class PreviewControl : UserControl
         MainCanvas.Invalidate();
         ZoomCanvas.Invalidate();
         NavCanvas.Invalidate();
+        UpdateZoomDisplay();
     }
 
     /// <summary>メイン操作（ズーム/パン）後に呼ぶ。メインとナビ（表示領域矩形が追従）を再描画する。</summary>
@@ -262,6 +265,25 @@ public sealed partial class PreviewControl : UserControl
     {
         MainCanvas.Invalidate();
         NavCanvas.Invalidate();
+        UpdateZoomDisplay();
+    }
+
+    /// <summary>現在のメイン倍率（<see cref="PreviewViewport.DeviceScale"/>）をステータスバー表示用に VM へ反映する。</summary>
+    private void UpdateZoomDisplay()
+    {
+        if (_viewModel != null) _viewModel.ZoomScale = _viewport.DeviceScale;
+    }
+
+    /// <summary>
+    /// 現在の DPI（<c>MainCanvas.Dpi/96</c>＝物理px/DIP）を両ビューポートへ供給する。
+    /// 等倍（100%）を 1 画像px = 1 物理px にするために使う。別モニタ移動など DPI 変化時にも更新する。
+    /// </summary>
+    private void UpdateDpiScale()
+    {
+        double s = MainCanvas.Dpi / 96.0;
+        if (s <= 0) s = 1.0;
+        _viewport.DpiScale = s;
+        _zoomViewport.DpiScale = s;
     }
 
     /// <summary>デバイス再生成・ロスト復帰時はキャッシュを破棄して再ロードする。</summary>
