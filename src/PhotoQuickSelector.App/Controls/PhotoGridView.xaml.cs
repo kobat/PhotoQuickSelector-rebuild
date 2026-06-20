@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.ComponentModel;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -14,7 +15,16 @@ public sealed partial class PhotoGridView : UserControl
 {
     private MainViewModel? _viewModel;
 
-    public PhotoGridView() => InitializeComponent();
+    // サムネイルのデコード/破棄＋デコード済み LRU。アンカーは背景先読みの中心として VM へ通知。
+    private readonly ThumbnailContainerLoader _loader;
+
+    public PhotoGridView()
+    {
+        InitializeComponent();
+        _loader = new ThumbnailContainerLoader(
+            "ThumbImage", decodePixelWidth: 200, capacity: 150,
+            onAnchor: i => _viewModel?.NotePrefetchAnchor(i));
+    }
 
     /// <summary>表示対象のビューモデル。<see cref="MainPage"/> が生成後に注入する。</summary>
     public MainViewModel? ViewModel
@@ -23,11 +33,25 @@ public sealed partial class PhotoGridView : UserControl
         set
         {
             if (ReferenceEquals(_viewModel, value)) return;
-            if (_viewModel != null) _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            if (_viewModel != null)
+            {
+                _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+                ((INotifyCollectionChanged)_viewModel.Photos).CollectionChanged -= OnPhotosChanged;
+            }
             _viewModel = value;
-            if (_viewModel != null) _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            if (_viewModel != null)
+            {
+                _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+                ((INotifyCollectionChanged)_viewModel.Photos).CollectionChanged += OnPhotosChanged;
+            }
             Bindings.Update();
         }
+    }
+
+    // フォルダ再読込（Photos リセット）で旧フォルダのデコード済み画像を解放。
+    private void OnPhotosChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action == NotifyCollectionChangedAction.Reset) _loader.Clear();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -52,5 +76,5 @@ public sealed partial class PhotoGridView : UserControl
 
     // 可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
     private void PhotoGrid_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
-        => ThumbnailContainerLoader.Handle(args, "ThumbImage", decodePixelWidth: 200);
+        => _loader.Handle(args);
 }

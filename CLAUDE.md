@@ -302,7 +302,7 @@
     `BitmapImage`）を追加。
   - **`MainViewModel.LoadThumbnailsAsync`**: 先読みを `EnsureThumbnailBytesAsync()` に変更（BitmapImage 化しない＝軽量・高速）。
     世代トークンと中断ロジックは不変。
-  - **可視分デコード**: 新規 `Controls/ThumbnailContainerLoader.cs`（静的ヘルパ）。`ContainerContentChanging` で
+  - **可視分デコード**: 新規 `Controls/ThumbnailContainerLoader.cs`（当初は静的ヘルパ。後述のフリーズ対策でインスタンス化）。`ContainerContentChanging` で
     `InRecycleQueue`→`Image.Source=null`（解放）／実体化時→`img.Tag=vm` トークン付きで `CreateThumbnailImageAsync` を
     await し、Tag が一致する時だけ Source 設定（リサイクル先取り対策）。グリッド（`PhotoGridView`、幅 200）と
     フィルムストリップ（`PreviewControl`、幅 90）の両方から呼ぶ。両 XAML の `<Image>` は **Source バインドを外し
@@ -311,6 +311,33 @@
   - **Core・選択同期・評価バッジ部品は非変更**。`BUILD SUCCEEDED`／`dotnet test` 68 件緑。
     実機（テストフォルダ 71 枚・x64 ビルド）で グリッド表示／スクロール再デコード／プレビュー入場／フィルムストリップ表示を
     目視確認済み（2026-06-20）。大量枚数フォルダでのメモリ頭打ちはユーザー確認推奨。
+- **サムネイル・スクロール時の一瞬フリーズ対策 完了（2026-06-20）**: 上記メモリ削減後、「フォルダ選択直後にスクロール／
+  スクロールバーで中央へジャンプすると一瞬固まる」現象を解消。原因＝オンデマンドデコード経路の **I/O＋デコードが UI スレッドに集中**
+  （特に冷えたシェルキャッシュの高解像度デコードが重い）＋再デコードの無駄＋多重ロード。A〜D で対処:
+  - **A. `ConfigureAwait(false)`**: `EnsureThumbnailBytesAsync` を `LoadBytesCoreAsync`（private）へ分離し、シェル呼び出し
+    （`GetFileFromPathAsync`/`GetThumbnailAsync`/`reader.LoadAsync` を `.AsTask().ConfigureAwait(false)`）とバイトコピーを UI
+    スレッドから外す。先読みループ（`MainViewModel.LoadThumbnailsAsync`）の await も `.ConfigureAwait(false)` でバックグラウンド化。
+    **`CreateThumbnailImageAsync` は据え置き**（UI 起点・await 後 UI 復帰＝`BitmapImage`/`SetSourceAsync` は UI スレッドで実行）。
+  - **B. in-flight 共有**: `PhotoItemViewModel._loadBytesTask` で同一写真の同時取得を 1 本に集約（`finally` で null＝失敗時再試行可）。
+  - **C. デコード済み BitmapImage の容量上限つき LRU**: `ThumbnailContainerLoader` を **静的→インスタンス化**（デコード幅を保持）。
+    実体化時に LRU ヒットなら即表示（再デコードなし）、ミスなら async デコード→LRU 登録。リサイクル時は `Image.Source=null`（参照解放）だが
+    **LRU には残す**＝戻りスクロールで即表示。容量固定（グリッド150≈16MB／フィルム60≈1.3MB）でメモリは枚数非依存。
+    `PhotoGridView`/`PreviewControl` が各 1 個生成し、`Photos` の `CollectionChanged(Reset)` 購読で `Clear()`（フォルダ切替で解放）。
+  - **D. ビューポート近傍からの先読み**: グリッド実体化時に `MainViewModel.NotePrefetchAnchor(args.ItemIndex)` でアンカー通知。
+    `LoadThumbnailsAsync` は 0..N 固定順をやめ、アンカーから外側（anchor,+1,-1,+2,-2…）へ未ロード項目を選ぶ（`NearestUnattempted`）。
+    中央ジャンプでも近傍バイトが優先的に揃う。可視範囲自体はオンデマンド経路が従来どおり最優先。
+  - **E.（重要・クラッシュ修正）シェルサムネイル抽出を直列化**: A で先読みループをバックグラウンド化した結果、
+    `GetThumbnailAsync`（Windows シェル/WIC のサムネイル抽出）が **先読み（スレッドプール）とオンデマンド（UI）から同時に**
+    呼ばれ、imaging 層が `Microsoft.UI.Xaml.dll` 経由で **fail-fast（`0xc000027b`/E_UNEXPECTED）してアプリが異常終了**した
+    （4000 枚フォルダで「お気に入り選択→グリッド表示中」に再現）。`PhotoItemViewModel` に **静的 `SemaphoreSlim(1,1)` `_shellGate`** を
+    追加し `LoadBytesCoreAsync` のシェル抽出を1本に直列化＝同時アクセスを防止。I/O はバックグラウンドのままなので UI は固まらない。
+    （デコード `SetSourceAsync` は in-memory ストリームからで shell 非経由のため対象外。）
+  - **Core・選択同期・評価バッジ・XAML は非変更**。`BUILD SUCCEEDED`／`dotnet test` 68 件緑。
+    **検証経緯（重要な落とし穴）**: `winapp run` の **AppX ステージング（`…\win-x64\AppX`）はインクリメンタルビルドで更新されず**、
+    `winapp` は古いステージ（さらに二重 `AppX\AppX`）を実行するため、当初の「実機確認」は古いバイナリを動かしていた。
+    フォルダ自動読込＋ファイルログを仕込み **`dotnet run`** で再現させて初めて E の真因を特定・修正を確認
+    （4000 枚で 325 デコード・無クラッシュ＝修正前は ~131 で異常終了）。実機目視の最終確認はユーザー推奨。
+  - 教訓: 検証は `dotnet run`（毎回フレッシュにビルド）が確実。`winapp run` 経由は AppX ステージングの鮮度に注意。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

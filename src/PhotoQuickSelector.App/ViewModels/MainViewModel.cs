@@ -272,14 +272,46 @@ public partial class MainViewModel : ObservableObject
 
     private int _loadGeneration;
 
+    /// <summary>背景先読みの中心（最後に画面へ実体化されたサムネイルのインデックス）。</summary>
+    private int _prefetchAnchor;
+
+    /// <summary>
+    /// グリッドが項目を実体化したときに呼ぶ。背景先読みをこの近傍から進めるためのアンカー。
+    /// 中央へジャンプしてもその周辺のバイトが優先的に揃う。
+    /// </summary>
+    public void NotePrefetchAnchor(int index) => _prefetchAnchor = index;
+
     private async Task LoadThumbnailsAsync(int generation)
     {
-        // スナップショットを順次ロード。別フォルダを開いて世代が進んだら中断。
-        // 絞り込み中でも全件分を読むので、フィルタを変えても再ロード不要。
-        foreach (var item in AllPhotos.ToArray())
+        // 全件分のバイトを先読み（デコードはしない）。別フォルダを開いて世代が進んだら中断。
+        // 0..N の固定順ではなく、現在のアンカー（可視範囲）から外側へ広げて読むので、
+        // 直後に中央へジャンプしても近傍が優先される。絞り込み中でも全件読む（フィルタ変更で再ロード不要）。
+        var items = AllPhotos.ToArray();
+        int n = items.Length;
+        if (n == 0) return;
+
+        var attempted = new bool[n];
+        for (int done = 0; done < n; done++)
         {
             if (generation != _loadGeneration) break;
-            await item.EnsureThumbnailBytesAsync();
+            int anchor = Math.Clamp(_prefetchAnchor, 0, n - 1);
+            int idx = NearestUnattempted(attempted, anchor, n);
+            if (idx < 0) break;
+            attempted[idx] = true;
+            await items[idx].EnsureThumbnailBytesAsync().ConfigureAwait(false);
         }
+    }
+
+    /// <summary>アンカーから外側（anchor, +1, -1, +2, -2 …）へ広げ、未試行で最も近い添字を返す。無ければ -1。</summary>
+    private static int NearestUnattempted(bool[] attempted, int anchor, int n)
+    {
+        for (int r = 0; r < n; r++)
+        {
+            int hi = anchor + r;
+            if (hi < n && !attempted[hi]) return hi;
+            int lo = anchor - r;
+            if (r > 0 && lo >= 0 && !attempted[lo]) return lo;
+        }
+        return -1;
     }
 }

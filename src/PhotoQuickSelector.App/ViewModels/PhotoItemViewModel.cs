@@ -93,6 +93,9 @@ public partial class PhotoItemViewModel : ObservableObject
     /// </summary>
     private byte[]? _thumbnailBytes;
 
+    /// <summary>バイト取得中の共有タスク（in-flight 重複排除）。完了後は <see cref="_thumbnailBytes"/> がガード。</summary>
+    private Task? _loadBytesTask;
+
     // レーティング★のブラシ（不透明のまま RGB で濃淡を表現）
     private static readonly Brush NormalRatingBrush = new SolidColorBrush(Colors.Gold);            // #FFD700
     private static readonly Brush ExifRatingBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xF2, 0xE2, 0xA8)); // 淡い金
@@ -209,26 +212,53 @@ public partial class PhotoItemViewModel : ObservableObject
     /// <summary>
     /// OS のシェルサムネイル（JPEG）を一度だけ取得し、圧縮バイトのまま常駐させる。
     /// デコード（BitmapImage 化）はしないので軽量。再呼び出しは何もしない。
+    /// 同一写真への同時呼び出しは 1 本の取得タスクを共有する（in-flight 重複排除）。
     /// </summary>
-    public async Task EnsureThumbnailBytesAsync()
+    public Task EnsureThumbnailBytesAsync()
     {
-        if (_thumbnailBytes != null) return;
+        if (_thumbnailBytes != null) return Task.CompletedTask;
+        // 呼び出しは UI スレッドからのみ（先読みループ／コンテナ実体化）なのでロック不要。
+        return _loadBytesTask ??= LoadBytesCoreAsync();
+    }
+
+    /// <summary>
+    /// シェルサムネイル抽出（<see cref="StorageFile.GetThumbnailAsync"/>）を **アプリ全体で直列化**するゲート。
+    /// この抽出は内部で Windows シェル/WIC を使うが、UI スレッドとバックグラウンド（先読み）から
+    /// **同時に**呼ぶと imaging 層が `Microsoft.UI.Xaml.dll` 経由で fail-fast する（実機で確認）。
+    /// 1 本に直列化して同時アクセスを防ぐ。I/O 自体はバックグラウンドのままなので UI は固まらない。
+    /// </summary>
+    private static readonly System.Threading.SemaphoreSlim _shellGate = new(1, 1);
+
+    private async Task LoadBytesCoreAsync()
+    {
         try
         {
-            var file = await StorageFile.GetFileFromPathAsync(Meta.Path);
-            using var thumbnail = await file.GetThumbnailAsync(ThumbnailMode.PicturesView, 320);
-            if (thumbnail == null || thumbnail.Size == 0) return;
+            await _shellGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                // I/O（特に冷えたシェルキャッシュの高解像度デコード）は UI スレッドへ戻さない。
+                var file = await StorageFile.GetFileFromPathAsync(Meta.Path).AsTask().ConfigureAwait(false);
+                using var thumbnail = await file.GetThumbnailAsync(ThumbnailMode.PicturesView, 320)
+                    .AsTask().ConfigureAwait(false);
+                if (thumbnail == null || thumbnail.Size == 0) return;
 
-            var size = (uint)thumbnail.Size;
-            using var reader = new DataReader(thumbnail.GetInputStreamAt(0));
-            await reader.LoadAsync(size);
-            var bytes = new byte[size];
-            reader.ReadBytes(bytes);
-            _thumbnailBytes = bytes;
+                var size = (uint)thumbnail.Size;
+                using var reader = new DataReader(thumbnail.GetInputStreamAt(0));
+                await reader.LoadAsync(size).AsTask().ConfigureAwait(false);
+                var bytes = new byte[size];
+                reader.ReadBytes(bytes);
+                _thumbnailBytes = bytes;
+            }
+            finally { _shellGate.Release(); }
         }
         catch
         {
             // サムネイル取得失敗は無視（画像なしで表示）
+        }
+        finally
+        {
+            // 成功時は _thumbnailBytes が以後のガード。失敗時は次回再試行できるよう解放。
+            _loadBytesTask = null;
         }
     }
 

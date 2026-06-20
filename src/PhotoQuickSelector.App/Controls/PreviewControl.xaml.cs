@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using Microsoft.Graphics.Canvas;
 using Microsoft.UI.Xaml;
@@ -55,6 +56,10 @@ public sealed partial class PreviewControl : UserControl
     /// <summary>キャッシュ中の画像ファイル名一覧（デバッグオーバーレイ用。C キーでトグル）。</summary>
     public ObservableCollection<string> CachedFileNames { get; } = new();
 
+    // フィルムストリップのサムネイル・デコード/破棄＋デコード済み LRU（小さめ容量）。
+    private readonly ThumbnailContainerLoader _filmLoader =
+        new("FilmThumbImage", decodePixelWidth: 90, capacity: 60);
+
     public PreviewControl()
     {
         InitializeComponent();
@@ -76,7 +81,7 @@ public sealed partial class PreviewControl : UserControl
 
     // フィルムストリップも可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
     private void FilmStrip_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
-        => ThumbnailContainerLoader.Handle(args, "FilmThumbImage", decodePixelWidth: 90);
+        => _filmLoader.Handle(args);
 
     /// <summary>
     /// 表示対象のビューモデル。<see cref="MainPage"/> が生成後に注入する。
@@ -88,11 +93,25 @@ public sealed partial class PreviewControl : UserControl
         set
         {
             if (ReferenceEquals(_viewModel, value)) return;
-            if (_viewModel != null) _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            if (_viewModel != null)
+            {
+                _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+                ((INotifyCollectionChanged)_viewModel.Photos).CollectionChanged -= OnPhotosChanged;
+            }
             _viewModel = value;
-            if (_viewModel != null) _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            if (_viewModel != null)
+            {
+                _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+                ((INotifyCollectionChanged)_viewModel.Photos).CollectionChanged += OnPhotosChanged;
+            }
             Bindings.Update();
         }
+    }
+
+    // フォルダ再読込（Photos リセット）でフィルムストリップのデコード済み画像を解放。
+    private void OnPhotosChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action == NotifyCollectionChangedAction.Reset) _filmLoader.Clear();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
