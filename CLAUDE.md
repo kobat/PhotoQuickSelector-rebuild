@@ -411,6 +411,27 @@
     未使用化した `MainViewModel.FavoritesVisibility`/`RecentVisibility`（宣言＋`RebuildShortcuts` の自分への `OnPropertyChanged`）も削除
     （`using Microsoft.UI.Xaml;` は他プロパティで使用中のため残置）。
   - **Core・コードビハインド（`FolderNavigationView.xaml.cs`）は非変更**。`BUILD SUCCEEDED`。実機目視はユーザー確認推奨。
+- **フィルムストリップの選択強調 完了（2026-06-21）**: 「選択中の画像が分かりづらい」を解消。フィルムストリップは
+  既定の `ListViewItem` 選択ビジュアル任せで、画像がセル全面を覆い細いアクセント縁しか見えなかった。**案1（非選択を
+  ディミング）＋案2（アクセント外枠）の併用**で対処（モックアップで 4 案比較しユーザー選択）。
+  - **`PhotoItemViewModel`**: `[ObservableProperty] bool IsSelected`＋派生 `SelectionOpacity`（選択 1.0／非選択 0.9＝
+    濃いめ。ユーザー調整で 0.45→0.7→0.9 と上げ最終 0.9）と `SelectionFrameOpacity`（選択 1.0／非選択 0.0）。
+    `[NotifyPropertyChangedFor]` で派生を通知。
+  - **`MainViewModel`**: `OnSelectedPhotoChanged(old,new)`（2 引数 partial）で旧セル `IsSelected=false`／新セル `=true`。
+    既存 1 引数版（`PhotoInfoVisibility` 通知）はそのまま残置（両方呼ばれる）。
+  - **テンプレート**（`PreviewControl.xaml` フィルムストリップ）: 案1＝ルート `StackPanel.Opacity` を `SelectionOpacity` に束縛。
+    案2＝セル本体（カラーラベル枠＋画像＋バッジ）を `Grid` で包み、その上に**子を持たない空のアクセントリング** `Border`
+    （`CornerRadius=6`/`BorderThickness=3`/枠色 `#FF333333`＝濃いグレー固定/`IsHitTestVisible=False`）を重ね、`Opacity` を
+    `SelectionFrameOpacity` に束縛。カラーラベル枠に `Margin=3` を付け最外周をアクセント枠ぶん空ける（同心配置）。
+    **枠は常設で Opacity だけ切替＝レイアウト無変動**。枠色は当初 `AccentFillColorDefaultBrush`（青）だったが
+    **カラーラベルの青と紛らわしい**ためユーザー要望で濃いグレー固定へ変更。
+    - **重要な落とし穴（実機で発覚→修正）**: 当初はアクセント枠で画像コンテンツを**内包**し `Opacity` を切替えたが、
+      WinUI の `Opacity` は子へ乗算されるため非選択時（`Opacity=0`）に**画像ごと不可視**になった。→ 枠を「内包」から
+      「上に重ねる空リング」へ変更して解決（枠だけ消え画像は残る）。
+  - **寸法調整**: アクセント枠ぶん上下左右 各 3px を反映。`FilmStripMetrics.ItemWidth` を `Edge+4`→`Edge+12`、
+    `PreviewControl.FilmChromeHeight` を `36`→`42`。
+  - **グリッド（`PhotoGridView`）は非変更**（既定の選択ビジュアルで十分に見えるため。`IsSelected` は VM に立つが
+    グリッドテンプレートは参照しない）。**Core は非変更**。`BUILD SUCCEEDED`／`dotnet test` 73 件緑。実機目視はユーザー確認推奨。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

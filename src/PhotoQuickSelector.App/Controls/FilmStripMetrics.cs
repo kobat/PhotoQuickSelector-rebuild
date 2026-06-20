@@ -30,8 +30,8 @@ public sealed class FilmStripMetrics : INotifyPropertyChanged
         }
     }
 
-    /// <summary>セル外側（ファイル名行）の幅。枠線(3px×左右)ぶんを足す。</summary>
-    public double ItemWidth => _edge + 4;
+    /// <summary>セル外側（ファイル名行）の幅。アクセント外枠＋カラーラベル枠(各 3px×左右=12)ぶんを足す。</summary>
+    public double ItemWidth => _edge + 12;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

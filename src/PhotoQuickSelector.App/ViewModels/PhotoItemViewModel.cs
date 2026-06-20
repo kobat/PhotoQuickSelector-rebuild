@@ -166,6 +166,26 @@ public partial class PhotoItemViewModel : ObservableObject
         }
     }
 
+    // --- フィルムストリップの選択強調（案1 ディミング ＋ 案2 アクセント外枠） ---
+
+    /// <summary>
+    /// このセルが現在の選択写真かどうか。<see cref="MainViewModel.SelectedPhoto"/> 変更時に
+    /// 旧／新セルへ設定される。フィルムストリップのテンプレートが不透明度の切替に使う。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectionOpacity))]
+    [NotifyPropertyChangedFor(nameof(SelectionFrameOpacity))]
+    public partial bool IsSelected { get; set; }
+
+    /// <summary>非選択セルを淡くして選択を際立たせる不透明度（案1）。選択=1.0／非選択=0.9（濃いめ）。</summary>
+    public double SelectionOpacity => IsSelected ? 1.0 : 0.9;
+
+    /// <summary>
+    /// アクセント外枠の不透明度（案2）。枠はレイアウトを動かさないよう常設し、可視性だけ切替える。
+    /// 選択=1.0／非選択=0.0。
+    /// </summary>
+    public double SelectionFrameOpacity => IsSelected ? 1.0 : 0.0;
+
     // 評価操作（永続化込み）
     public void SetRating(int value)
     {

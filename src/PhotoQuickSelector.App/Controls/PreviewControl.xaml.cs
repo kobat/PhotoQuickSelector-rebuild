@@ -71,8 +71,9 @@ public sealed partial class PreviewControl : UserControl
     // フィルムストリップのセル寸法（XAML リソース）。高さ調節時に Edge を更新して各セルを追従させる。
     private readonly FilmStripMetrics _filmMetrics;
 
-    // ListView 高 → セル一辺へ変換するときの内訳分（Padding 8 ＋ 項目 Margin 4 ＋ 枠線 6 ＋ ファイル名行 ≒ 18）。
-    private const double FilmChromeHeight = 36;
+    // ListView 高 → セル一辺へ変換するときの内訳分
+    // （Padding 8 ＋ 項目 Margin 4 ＋ アクセント外枠 6 ＋ カラーラベル枠 6 ＋ ファイル名行 ≒ 18）。
+    private const double FilmChromeHeight = 42;
     private const double MinThumbEdge = 40;
 
     public PreviewControl()

@@ -214,9 +214,15 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                    <StackPanel Width="{Binding ItemWidth, Source={StaticResource FilmMetrics}}">
-                        <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
-                        <Border CornerRadius="4" BorderThickness="3"
+                    <!-- 案1: 非選択セルを SelectionOpacity(0.45) で淡くし、選択セルだけ全不透明にする -->
+                    <StackPanel Width="{Binding ItemWidth, Source={StaticResource FilmMetrics}}"
+                                Opacity="{x:Bind SelectionOpacity, Mode=OneWay}">
+                        <!-- セル本体（カラーラベル枠＋画像＋バッジ）に、最外周のアクセント外枠を重ねる。
+                             外枠は子を持たない空リングなので Opacity=0（非選択）でも画像は消えない。 -->
+                        <Grid>
+                        <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる。
+                             Margin=3 でアクセント外枠ぶんを外周に空ける。 -->
+                        <Border Margin="3" CornerRadius="4" BorderThickness="3"
                                 BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
                             <Grid Width="{Binding Edge, Source={StaticResource FilmMetrics}}"
                                   Height="{Binding Edge, Source={StaticResource FilmMetrics}}"
@@ -254,6 +260,14 @@
                                 </Border>
                             </Grid>
                         </Border>
+                        <!-- 案2: アクセント外枠（空リング）。セル本体に重ね最外周へ描画。
+                             選択時のみ SelectionFrameOpacity(1.0) で可視。子が無いので Opacity=0 でも画像は残る。
+                             枠は常設しレイアウト不変。カラーラベル枠（内側）とは別レイヤで併存。 -->
+                        <Border CornerRadius="6" BorderThickness="3"
+                                BorderBrush="#FF333333"
+                                IsHitTestVisible="False"
+                                Opacity="{x:Bind SelectionFrameOpacity, Mode=OneWay}" />
+                        </Grid>
 
                         <!-- ファイル名（画像の下の独立行） -->
                         <TextBlock Text="{x:Bind FileName}" FontSize="10"

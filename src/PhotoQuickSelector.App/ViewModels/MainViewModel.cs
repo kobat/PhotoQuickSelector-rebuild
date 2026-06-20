@@ -130,6 +130,13 @@ public partial class MainViewModel : ObservableObject
     partial void OnSelectedPhotoChanged(PhotoItemViewModel? value) =>
         OnPropertyChanged(nameof(PhotoInfoVisibility));
 
+    // 旧／新セルの選択フラグを更新（フィルムストリップのディミング＋アクセント外枠の駆動）。
+    partial void OnSelectedPhotoChanged(PhotoItemViewModel? oldValue, PhotoItemViewModel? newValue)
+    {
+        if (oldValue != null) oldValue.IsSelected = false;
+        if (newValue != null) newValue.IsSelected = true;
+    }
+
     // --- プレビュー画面（右ペインのサムネイル一覧 ⇄ 大画面プレビュー切替） ---
 
     [ObservableProperty]
