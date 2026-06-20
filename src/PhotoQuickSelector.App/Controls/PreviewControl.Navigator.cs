@@ -50,7 +50,12 @@ public sealed partial class PreviewControl
     }
 
     private void NavCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
-        => NavCanvas.Invalidate();
+    {
+        NavCanvas.Invalidate();
+        // ナビゲーター高さの変更（スプリッター/復元）を設定へ控える（実保存は終了時）。
+        if (_viewModel != null && NavRow.ActualHeight > 0)
+            _viewModel.Settings.NavigatorHeight = NavRow.ActualHeight;
+    }
 
     private void NavCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
     {

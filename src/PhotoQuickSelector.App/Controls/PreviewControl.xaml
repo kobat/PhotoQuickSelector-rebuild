@@ -134,7 +134,8 @@
                 ResizeDirection="Auto" />
 
             <!-- 右カラム: 上=ズームプレビュー(ルーペ) / 下=ナビゲーター -->
-            <Grid Grid.Column="2" Background="#252525">
+            <Grid x:Name="RightPanel" Grid.Column="2" Background="#252525"
+                  SizeChanged="RightPanel_SizeChanged">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" MinHeight="80" />
                     <RowDefinition Height="Auto" />

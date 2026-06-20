@@ -113,6 +113,23 @@ public sealed partial class PreviewControl : UserControl
         UpdateFilmMetrics();
     }
 
+    // ViewModel 注入時に右パネルの幅／ナビゲーター高さを復元する（フィルムストリップと同じ要領）。
+    private void RestoreRightPanelLayout()
+    {
+        if (_viewModel == null) return;
+        double w = _viewModel.Settings.RightPanelWidth;
+        if (w >= RightPanelColumn.MinWidth) RightPanelColumn.Width = new GridLength(w);
+        double h = _viewModel.Settings.NavigatorHeight;
+        if (h >= NavRow.MinHeight) NavRow.Height = new GridLength(h);
+    }
+
+    // 右パネルの幅変更（スプリッター/復元）に合わせて現在幅を設定へ控える（実保存は終了時）。
+    private void RightPanel_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_viewModel != null && RightPanelColumn.ActualWidth > 0)
+            _viewModel.Settings.RightPanelWidth = RightPanelColumn.ActualWidth;
+    }
+
     /// <summary>
     /// 表示対象のビューモデル。<see cref="MainPage"/> が生成後に注入する。
     /// 設定時に x:Bind を更新し、選択写真の変更を購読する。
@@ -134,6 +151,7 @@ public sealed partial class PreviewControl : UserControl
                 _viewModel.PropertyChanged += OnViewModelPropertyChanged;
                 ((INotifyCollectionChanged)_viewModel.Photos).CollectionChanged += OnPhotosChanged;
                 RestoreFilmStripHeight();
+                RestoreRightPanelLayout();
             }
             Bindings.Update();
         }

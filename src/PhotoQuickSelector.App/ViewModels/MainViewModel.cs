@@ -44,6 +44,7 @@ public partial class MainViewModel : ObservableObject
     {
         RebuildShortcuts();
         Filter.Changed += (_, _) => ApplyFilter();
+        ShowInfoOverlay = Settings.ShowInfoOverlay;
     }
 
     /// <summary>
@@ -149,13 +150,16 @@ public partial class MainViewModel : ObservableObject
 
     /// <summary>プレビュー左上のメタ情報オーバーレイ（案B / I キーでトグル）。</summary>
     [ObservableProperty]
-    public partial bool ShowInfoOverlay { get; set; } = true;
+    public partial bool ShowInfoOverlay { get; set; }
 
     public Visibility InfoOverlayVisibility =>
         ShowInfoOverlay ? Visibility.Visible : Visibility.Collapsed;
 
-    partial void OnShowInfoOverlayChanged(bool value) =>
+    partial void OnShowInfoOverlayChanged(bool value)
+    {
+        Settings.ShowInfoOverlay = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
         OnPropertyChanged(nameof(InfoOverlayVisibility));
+    }
 
     public Visibility ThumbnailVisibility => IsPreviewMode ? Visibility.Collapsed : Visibility.Visible;
     public Visibility PreviewVisibility => IsPreviewMode ? Visibility.Visible : Visibility.Collapsed;

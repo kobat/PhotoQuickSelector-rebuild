@@ -29,6 +29,15 @@ public sealed class AppSettings
     /// <summary>フィルムストリップ（プレビュー下部）の高さ(px)。</summary>
     public double FilmStripHeight { get; set; } = 118;
 
+    /// <summary>プレビュー右パネル（ズームルーペ/ナビゲーター）の幅(px)。</summary>
+    public double RightPanelWidth { get; set; } = 260;
+
+    /// <summary>右パネル内ナビゲーターの高さ(px)。ズームルーペはこの残り(*)。</summary>
+    public double NavigatorHeight { get; set; } = 220;
+
+    /// <summary>プレビューのメタ情報オーバーレイ（案B / I キー）を表示するか。</summary>
+    public bool ShowInfoOverlay { get; set; } = true;
+
     /// <summary>最近フォルダの保持件数。</summary>
     private const int MaxRecentFolders = 15;
 
