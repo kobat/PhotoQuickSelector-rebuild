@@ -26,6 +26,9 @@ public sealed class AppSettings
     /// <summary>左ペインが折りたたまれているか。</summary>
     public bool LeftPaneCollapsed { get; set; }
 
+    /// <summary>フィルムストリップ（プレビュー下部）の高さ(px)。</summary>
+    public double FilmStripHeight { get; set; } = 118;
+
     /// <summary>最近フォルダの保持件数。</summary>
     private const int MaxRecentFolders = 15;
 

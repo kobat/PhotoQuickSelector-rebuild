@@ -57,12 +57,21 @@ public sealed partial class PreviewControl : UserControl
     public ObservableCollection<string> CachedFileNames { get; } = new();
 
     // フィルムストリップのサムネイル・デコード/破棄＋デコード済み LRU（小さめ容量）。
+    // 高さ調節で大きめに広げてもボケないよう、デコード幅は最大セル一辺ぶんを見込む。
     private readonly ThumbnailContainerLoader _filmLoader =
-        new("FilmThumbImage", decodePixelWidth: 90, capacity: 60);
+        new("FilmThumbImage", decodePixelWidth: 140, capacity: 60);
+
+    // フィルムストリップのセル寸法（XAML リソース）。高さ調節時に Edge を更新して各セルを追従させる。
+    private readonly FilmStripMetrics _filmMetrics;
+
+    // ListView 高 → セル一辺へ変換するときの内訳分（Padding 8 ＋ 項目 Margin 4 ＋ 枠線 6 ＋ ファイル名行 ≒ 18）。
+    private const double FilmChromeHeight = 36;
+    private const double MinThumbEdge = 40;
 
     public PreviewControl()
     {
         InitializeComponent();
+        _filmMetrics = (FilmStripMetrics)Resources["FilmMetrics"];
         _cache = new PreviewBitmapCache(MainCanvas);
         _cache.Changed += RefreshCacheOverlay;
 
@@ -82,6 +91,27 @@ public sealed partial class PreviewControl : UserControl
     // フィルムストリップも可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
     private void FilmStrip_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         => _filmLoader.Handle(args);
+
+    // フィルムストリップの高さ変更（スプリッター/復元）に合わせてセル一辺を再計算し、現在高を設定へ控える。
+    private void FilmStrip_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateFilmMetrics();
+        if (_viewModel != null && FilmStripRow.ActualHeight > 0)
+            _viewModel.Settings.FilmStripHeight = FilmStripRow.ActualHeight;
+    }
+
+    private void UpdateFilmMetrics()
+        => _filmMetrics.Edge = Math.Max(MinThumbEdge, FilmStrip.ActualHeight - FilmChromeHeight);
+
+    // ViewModel 注入時に保存済みの高さを復元する（行の高さ＝GridLength を直接設定。SizeChanged で再計算される）。
+    private void RestoreFilmStripHeight()
+    {
+        if (_viewModel == null) return;
+        double h = _viewModel.Settings.FilmStripHeight;
+        if (h >= FilmStripRow.MinHeight && h <= FilmStripRow.MaxHeight)
+            FilmStripRow.Height = new GridLength(h);
+        UpdateFilmMetrics();
+    }
 
     /// <summary>
     /// 表示対象のビューモデル。<see cref="MainPage"/> が生成後に注入する。
@@ -103,6 +133,7 @@ public sealed partial class PreviewControl : UserControl
             {
                 _viewModel.PropertyChanged += OnViewModelPropertyChanged;
                 ((INotifyCollectionChanged)_viewModel.Photos).CollectionChanged += OnPhotosChanged;
+                RestoreFilmStripHeight();
             }
             Bindings.Update();
         }

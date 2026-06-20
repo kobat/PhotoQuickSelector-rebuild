@@ -338,6 +338,23 @@
     フォルダ自動読込＋ファイルログを仕込み **`dotnet run`** で再現させて初めて E の真因を特定・修正を確認
     （4000 枚で 325 デコード・無クラッシュ＝修正前は ~131 で異常終了）。実機目視の最終確認はユーザー推奨。
   - 教訓: 検証は `dotnet run`（毎回フレッシュにビルド）が確実。`winapp run` 経由は AppX ステージングの鮮度に注意。
+- **フィルムストリップの高さ調節 完了（2026-06-20）**: プレビュー下部フィルムストリップの高さをスプリッターでドラッグ調節可能に。
+  方式＝**GridSplitter ドラッグ＋セルの高さ追従＋永続化**（操作手段は右パネル/ナビの既存スプリッターと同パターン）。
+  - **① GridSplitter**: `PreviewControl.xaml` 外側 Grid を 2 行→3 行化（`*` / スプリッター `Auto` / `FilmStripRow`
+    可変・`MinHeight=80` `MaxHeight=220`）。上段とストリップの境界に横 `controls:GridSplitter`（既存と同設定
+    `BasedOnAlignment`/`Auto`）。ListView は固定 `Height="118"` を撤去し行いっぱいに `Stretch`。
+  - **② セル追従**: **`DataTemplate` 内からはコントロール側プロパティへ `x:Bind` できない**（テンプレ DataType＝
+    `PhotoItemViewModel`）ため、観測可能な小クラス **`Controls/FilmStripMetrics.cs`（新規・`Edge`/`ItemWidth`）** を
+    `UserControl.Resources` に置き、各セルは `{Binding Edge, Source={StaticResource FilmMetrics}}` で参照（Source 指定＝
+    DataContext/namescope 非依存）。`FilmStrip.SizeChanged` で `Edge = ListView高 − 内訳分36px`（Padding8＋Margin4＋
+    枠線6＋ファイル名行≒18）を再計算し全セル一括追従。デコード幅は `90→140` に引き上げ（拡大時のボケ対策。`MaxHeight=220`
+    内なら概ね鮮明。メモリ増は数MB で無視可）。
+  - **③ 永続化**: `AppSettings.FilmStripHeight`（既定 118）を追加。共有 `ViewModel.Settings` 経由で**左ペイン幅と同じく
+    ウィンドウ終了時の `Settings.Save()` で一緒に保存**。高さ変更時に in-memory へ控え、ViewModel 注入時に
+    `RestoreFilmStripHeight()`（行の `GridLength` を直接設定→`SizeChanged` で再計算）で復元。
+  - **Core・選択同期・評価バッジ部品は非変更**。変更/新規: `AppSettings.cs`、`Controls/FilmStripMetrics.cs`（新規）、
+    `Controls/PreviewControl.xaml(.cs)`。`BUILD SUCCEEDED`／`dotnet test` 68 件緑。実機目視（ドラッグでサムネイル連動拡縮・
+    再起動で高さ復元・拡大時のボケ）はユーザー確認推奨。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

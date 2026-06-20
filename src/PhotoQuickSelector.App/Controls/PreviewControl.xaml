@@ -11,10 +11,16 @@
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     mc:Ignorable="d">
 
+    <UserControl.Resources>
+        <!-- フィルムストリップのサムネイル寸法（高さ調節に追従）。各セルが Source バインドで参照する。 -->
+        <ctl:FilmStripMetrics x:Key="FilmMetrics" />
+    </UserControl.Resources>
+
     <Grid Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition x:Name="FilmStripRow" Height="118" MinHeight="80" MaxHeight="220" />
         </Grid.RowDefinitions>
 
         <!-- 上段: メイン大画面（左）＋ ズームプレビュー/ナビゲーター（右） -->
@@ -170,12 +176,20 @@
             </Grid>
         </Grid>
 
-        <!-- 下段: フィルムストリップ（横スクロール・右端まで全幅） -->
+        <!-- 上段とフィルムストリップの境界リサイズ用スプリッター（高さ調節） -->
+        <controls:GridSplitter
+            Grid.Row="1"
+            Height="8"
+            HorizontalAlignment="Stretch"
+            ResizeBehavior="BasedOnAlignment"
+            ResizeDirection="Auto" />
+
+        <!-- 下段: フィルムストリップ（横スクロール・右端まで全幅・高さは行に追従） -->
         <ListView
             x:Name="FilmStrip"
-            Grid.Row="1"
-            Height="118"
+            Grid.Row="2"
             Padding="4"
+            SizeChanged="FilmStrip_SizeChanged"
             ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
             SelectedItem="{x:Bind ViewModel.SelectedPhoto, Mode=TwoWay}"
             SelectionMode="Single"
@@ -198,11 +212,12 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                    <StackPanel Width="88">
+                    <StackPanel Width="{Binding ItemWidth, Source={StaticResource FilmMetrics}}">
                         <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
                         <Border CornerRadius="4" BorderThickness="3"
                                 BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
-                            <Grid Width="84" Height="84"
+                            <Grid Width="{Binding Edge, Source={StaticResource FilmMetrics}}"
+                                  Height="{Binding Edge, Source={StaticResource FilmMetrics}}"
                                   Background="{ThemeResource SubtleFillColorSecondaryBrush}">
                                 <!-- Source はバインドせず、ContainerContentChanging で可視分だけ生成/破棄する -->
                                 <Image x:Name="FilmThumbImage" Stretch="Uniform" />
@@ -241,7 +256,8 @@
                         <!-- ファイル名（画像の下の独立行） -->
                         <TextBlock Text="{x:Bind FileName}" FontSize="10"
                                    HorizontalAlignment="Center" TextAlignment="Center"
-                                   MaxWidth="88" Margin="0,2,0,0"
+                                   MaxWidth="{Binding ItemWidth, Source={StaticResource FilmMetrics}}"
+                                   Margin="0,2,0,0"
                                    TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                 </DataTemplate>
