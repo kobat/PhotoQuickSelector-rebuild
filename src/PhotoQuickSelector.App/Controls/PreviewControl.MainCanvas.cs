@@ -24,9 +24,10 @@ public sealed partial class PreviewControl
 
     private void MainCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
     {
-        if (_bitmap == null) return;
+        if (_bitmap == null) return;  // 空/読み込み中は ClearColor（テーマ背景）を見せる
 
         var ds = args.DrawingSession;
+        ds.Clear(PhotoBackdropColor); // 写真表示中は暗い余白（レターボックス）にする
         // ビットマップは Orientation 適用済み（正立）なので回転は加えず、スケール＋平行移動のみ。
         var saved = ds.Transform;
         ds.Transform = Matrix3x2.CreateScale((float)_viewport.Scale)

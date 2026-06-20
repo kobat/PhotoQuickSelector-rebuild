@@ -37,7 +37,7 @@
                 Grid.Column="0"
                 IsTabStop="True"
                 UseSystemFocusVisuals="False"
-                ClearColor="#1E1E1E"
+                ClearColor="Transparent"
                 Draw="MainCanvas_Draw"
                 CreateResources="MainCanvas_CreateResources"
                 SizeChanged="MainCanvas_SizeChanged"
@@ -134,7 +134,8 @@
                 ResizeDirection="Auto" />
 
             <!-- 右カラム: 上=ズームプレビュー(ルーペ) / 下=ナビゲーター -->
-            <Grid x:Name="RightPanel" Grid.Column="2" Background="#252525"
+            <Grid x:Name="RightPanel" Grid.Column="2"
+                  Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
                   SizeChanged="RightPanel_SizeChanged">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" MinHeight="80" />
@@ -146,7 +147,7 @@
                 <canvas:CanvasControl
                     x:Name="ZoomCanvas"
                     Grid.Row="0"
-                    ClearColor="#1E1E1E"
+                    ClearColor="Transparent"
                     Draw="ZoomCanvas_Draw"
                     CreateResources="SubCanvas_CreateResources"
                     SizeChanged="ZoomCanvas_SizeChanged"
@@ -167,7 +168,7 @@
                 <canvas:CanvasControl
                     x:Name="NavCanvas"
                     Grid.Row="2"
-                    ClearColor="#2A2A2A"
+                    ClearColor="Transparent"
                     Draw="NavCanvas_Draw"
                     CreateResources="SubCanvas_CreateResources"
                     SizeChanged="NavCanvas_SizeChanged"

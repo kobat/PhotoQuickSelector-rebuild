@@ -32,6 +32,13 @@ namespace PhotoQuickSelector_App.Controls;
 /// </summary>
 public sealed partial class PreviewControl : UserControl
 {
+    // 写真表示中の余白（レターボックス）背景。空/読み込み中はキャンバスの ClearColor
+    // （テーマ背景＝目立たない色）を見せ、ビットマップがある時だけ各 Draw でこの暗色に塗る。
+    private static readonly Windows.UI.Color PhotoBackdropColor =
+        Windows.UI.Color.FromArgb(0xFF, 0x1E, 0x1E, 0x1E);
+    private static readonly Windows.UI.Color NavBackdropColor =
+        Windows.UI.Color.FromArgb(0xFF, 0x2A, 0x2A, 0x2A);
+
     private readonly PreviewViewport _viewport = new();
     private readonly PreviewViewport _zoomViewport = new();  // 右上ズームプレビュー（100% ルーペ）の独立ビューポート
     private readonly PreviewBitmapCache _cache;              // 前後 N 枚先読みキャッシュ（SPEC §4）

@@ -31,6 +31,7 @@ public sealed partial class PreviewControl
         if (scale <= 0) return;
 
         var ds = args.DrawingSession;
+        ds.Clear(NavBackdropColor); // 写真表示中は暗い余白にする（空/読み込み中は ClearColor＝テーマ背景）
         ds.Transform = Matrix3x2.CreateScale((float)scale)
                        * Matrix3x2.CreateTranslation((float)ox, (float)oy);
         ds.DrawImage(_bitmap);
