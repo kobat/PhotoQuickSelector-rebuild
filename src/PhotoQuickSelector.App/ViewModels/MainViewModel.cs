@@ -34,12 +34,6 @@ public partial class MainViewModel : ObservableObject
     /// <summary>左ペイン上部「最近開いたフォルダ」一覧（<see cref="AppSettings.RecentFolders"/> の投影）。</summary>
     public ObservableCollection<FolderShortcut> RecentFolders { get; } = new();
 
-    public Visibility FavoritesVisibility =>
-        Favorites.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-    public Visibility RecentVisibility =>
-        RecentFolders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-
     public MainViewModel()
     {
         RebuildShortcuts();
@@ -89,9 +83,6 @@ public partial class MainViewModel : ObservableObject
         RecentFolders.Clear();
         foreach (var path in Settings.RecentFolders)
             RecentFolders.Add(new FolderShortcut(path));
-
-        OnPropertyChanged(nameof(FavoritesVisibility));
-        OnPropertyChanged(nameof(RecentVisibility));
     }
 
     public bool IsFavorite(string path) => Settings.IsFavorite(path);

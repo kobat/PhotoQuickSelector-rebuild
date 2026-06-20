@@ -44,6 +44,7 @@ public sealed partial class PreviewControl
         var ds = args.DrawingSession;
         ds.Clear(PhotoBackdropColor); // 写真表示中は暗い余白にする
         DrawScaledBitmap(ds, _zoomViewport); // 100% ルーペは実質常に NearestNeighbor（縮小時のみ Linear）
+        DrawFocusFrame(ds, _zoomViewport.ImageToCanvas, 2f); // AF 枠はメインでなくここに表示
     }
 
     private void ZoomCanvas_SizeChanged(object sender, SizeChangedEventArgs e)

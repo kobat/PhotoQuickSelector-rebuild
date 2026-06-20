@@ -397,6 +397,20 @@
     `Controls/PreviewControl.xaml.cs`、`tests/…/PhotoQuickSelector.Core.Tests.csproj`＋`PreviewViewportTests.cs`（新規）。
     `BUILD SUCCEEDED`（App x64 Release・警告0）／`dotnet test` **73 件緑**（68→+5）。実機目視（前後移動でのズーム維持・
     サイズ違いフォルダでの中心追従）はユーザー確認推奨。
+- **デザイン微修正（AF枠の表示場所＋左ペイン配置）完了（2026-06-21）**: ユーザー依頼の 3 点を挙動の根幹を変えずに調整。
+  - **① AF フォーカス枠をメイン → ルーペへ**: メイン大画面（`MainCanvas`）は AF 枠が邪魔なので非表示にし、**右上ルーペ
+    （`ZoomCanvas`）に表示**。`MainCanvas_Draw` から `DrawFocusFrame(ds)` を削除（グリッド線描画は残置）、`ZoomCanvas_Draw` に
+    `DrawFocusFrame(ds, _zoomViewport.ImageToCanvas, 2f)` を追加。汎用化済みの `DrawFocusFrame(ds, toCanvas, thickness)` を
+    ルーペ用ビューポートの `ImageToCanvas` で呼ぶだけ（生センサー座標→Orientation→キャンバスの既存パイプラインを流用）。
+    **ナビゲーター（`NavCanvas`）の緑枠は従来どおり**。変更: `Controls/PreviewControl.{MainCanvas.cs,Loupe.cs}`。
+  - **② 左ペインの「読み込み」「更新」ボタンを最下部へ**: `FolderNavigationView.xaml` の `LeftPane` Grid を
+    お気に入り(Row0 Auto)／最近(Row1 Auto)／**TreeView(Row2 `*`)**／**ボタン StackPanel(Row3 Auto)** に組み替え。
+    TreeView 行を `*` にして残り高さを占めさせ、ボタンをペイン最下部に固定（最初の組み替えで `Grid.Row` だけ付け替え
+    `RowDefinitions` の `*` 位置を直し忘れ、ボタンが星サイズ行の上端で「浮く」不具合を出したのを修正＝**行の高さ定義も併せて入替える**）。
+  - **③ お気に入り/最近を空でも常時表示**: 2 つの `Expander` から `Visibility="{x:Bind ViewModel.*Visibility}"` を削除（既定 Visible）。
+    未使用化した `MainViewModel.FavoritesVisibility`/`RecentVisibility`（宣言＋`RebuildShortcuts` の自分への `OnPropertyChanged`）も削除
+    （`using Microsoft.UI.Xaml;` は他プロパティで使用中のため残置）。
+  - **Core・コードビハインド（`FolderNavigationView.xaml.cs`）は非変更**。`BUILD SUCCEEDED`。実機目視はユーザー確認推奨。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
