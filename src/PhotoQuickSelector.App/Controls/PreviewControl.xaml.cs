@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Microsoft.Graphics.Canvas;
 using Microsoft.UI.Xaml;
@@ -51,10 +52,14 @@ public sealed partial class PreviewControl : UserControl
 
     private MainViewModel? _viewModel;
 
+    /// <summary>キャッシュ中の画像ファイル名一覧（デバッグオーバーレイ用。C キーでトグル）。</summary>
+    public ObservableCollection<string> CachedFileNames { get; } = new();
+
     public PreviewControl()
     {
         InitializeComponent();
         _cache = new PreviewBitmapCache(MainCanvas);
+        _cache.Changed += RefreshCacheOverlay;
 
         // Esc は WinUI のフォーカス管理に先取りされ KeyDown へ届かないため、
         // フォーカスを持つキャンバスにアクセラレータを付けてサムネイル一覧へ戻す。
@@ -187,6 +192,22 @@ public sealed partial class PreviewControl : UserControl
         _bitmap = null;
         _currentMeta = null;
         LoadCurrentAsync();
+    }
+
+    /// <summary>
+    /// キャッシュ内容のデバッグオーバーレイ（<see cref="CacheOverlay"/>）を最新化する。
+    /// キャッシュ変更通知（<see cref="PreviewBitmapCache.Changed"/>）から呼ばれ、表示中のときだけ更新する。
+    /// 通知は非同期ロード継続（UI スレッド）から来るが、安全のため UI スレッドへ束ねる。
+    /// </summary>
+    private void RefreshCacheOverlay()
+    {
+        if (CacheOverlay.Visibility != Visibility.Visible) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            CachedFileNames.Clear();
+            foreach (var name in _cache.SnapshotFileNames())
+                CachedFileNames.Add(name);
+        });
     }
 
     /// <summary>現在位置を中心とした保持窓 [index-backward, index+forward] のファイルパス。</summary>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Graphics.Canvas;
@@ -23,7 +24,23 @@ internal sealed class PreviewBitmapCache
     private readonly Dictionary<string, Task<CanvasBitmap?>> _inflight = new(StringComparer.OrdinalIgnoreCase);
     private int _generation; // デバイス再生成でキャッシュを無効化する世代
 
+    /// <summary>キャッシュ内容（デコード済み / 読込中）が変化したときに発火する（デバッグオーバーレイ用）。</summary>
+    public event Action? Changed;
+
     public PreviewBitmapCache(ICanvasResourceCreator device) => _device = device;
+
+    /// <summary>
+    /// 現在キャッシュ中の画像のファイル名一覧（デバッグオーバーレイ用）。
+    /// デコード済みに続けて、読込中（inflight）のものを <c>(loading)</c> 付きで列挙する。
+    /// </summary>
+    public IReadOnlyList<string> SnapshotFileNames()
+    {
+        var list = _cache.Keys.Select(Path.GetFileName).ToList();
+        foreach (var path in _inflight.Keys)
+            if (!_cache.ContainsKey(path))
+                list.Add(Path.GetFileName(path) + " (loading)");
+        return list!;
+    }
 
     /// <summary>キャッシュ優先で <see cref="CanvasBitmap"/> を取得する。読み込み中なら同一タスクを共有。</summary>
     public Task<CanvasBitmap?> GetAsync(string path)
@@ -33,6 +50,7 @@ internal sealed class PreviewBitmapCache
 
         var task = LoadCoreAsync(path, _generation);
         _inflight[path] = task;
+        Changed?.Invoke(); // 読込中エントリが増えた
         return task;
     }
 
@@ -56,6 +74,7 @@ internal sealed class PreviewBitmapCache
         finally
         {
             _inflight.Remove(path);
+            Changed?.Invoke(); // 読込完了（成功=cached へ昇格 / 失敗=消滅）
         }
     }
 
@@ -73,13 +92,16 @@ internal sealed class PreviewBitmapCache
     public void Trim(IEnumerable<string> keep, CanvasBitmap? current)
     {
         var keepSet = new HashSet<string>(keep, StringComparer.OrdinalIgnoreCase);
+        bool removed = false;
         foreach (var key in _cache.Keys.ToList())
         {
             if (keepSet.Contains(key)) continue;
             if (ReferenceEquals(_cache[key], current)) continue;
             _cache[key].Dispose();
             _cache.Remove(key);
+            removed = true;
         }
+        if (removed) Changed?.Invoke();
     }
 
     /// <summary>全破棄し世代を進める。進行中の読み込みは完了時に世代不一致で自分を破棄する。</summary>
@@ -89,5 +111,6 @@ internal sealed class PreviewBitmapCache
         foreach (var bmp in _cache.Values)
             bmp.Dispose();
         _cache.Clear();
+        Changed?.Invoke();
     }
 }

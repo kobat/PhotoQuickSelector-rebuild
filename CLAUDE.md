@@ -280,6 +280,16 @@
     （bootstrap が同梱ランタイムを解決＝未インストール環境前提でも起動可）。`dotnet test` 68 件緑。
   - 残: 配布前にユーザー環境での実機目視（実際にフォルダ読込→評価→保存まで）を推奨。pdb は配布から外したい場合
     Release で `DebugType=none` を検討（クラッシュ解析性とのトレードオフ）。**Core/App のコードは非変更**（ビルド構成のみ）。
+- **先読みキャッシュのデバッグオーバーレイ 完了（2026-06-20）**: 先読みキャッシュ（`PreviewBitmapCache`）の挙動確認用に、
+  キャッシュ中の画像ファイル名一覧をプレビュー右上に重畳表示。**`C` キーでトグル（初期非表示）**。案B（`I`／左上）と被らない右上に配置。
+  - `PreviewBitmapCache` に `event Action? Changed`（`_cache`/`_inflight` 変化の4箇所＝`GetAsync` 読込開始／`LoadCoreAsync`
+    完了 `finally`／`Trim` 削除あり時／`Clear` で発火）＋`SnapshotFileNames()`（デコード済みをファイル名で列挙、読込中は
+    末尾に `(loading)` 付与）を追加。
+  - `PreviewControl`: `ObservableCollection<string> CachedFileNames`（x:Bind 用）＋`RefreshCacheOverlay()`（オーバーレイ表示中の
+    ときだけ `DispatcherQueue` 経由で再構築）。コンストラクタで `_cache.Changed` を購読。`Input.cs` に `C` トグル分岐。
+    XAML に `CacheOverlay` Border（`Visibility=Collapsed`／`IsHitTestVisible=False`／等幅フォント）。
+  - 移動（←/→）に合わせ `Prefetch`→`Trim` の結果をライブ反映。保持窓は前2/後1なので通常1〜4行。**Core 非変更**（App のみ）。
+    `BUILD SUCCEEDED`／`dotnet test` 68 件緑。実機目視は次セッションで推奨。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
@@ -298,7 +308,7 @@
 - `0`–`5` レーティング / `6`–`9`＋`P` カラーラベル（赤橙緑青紫）/ `[` `]` レーティング増減 / `Ctrl+↑/↓` フラグ
 - `Ctrl+L` フィルタ ON/OFF トグル（両モード共通、フライアウトは開かない）
 - `F11` フルスクリーン表示トグル（ステータスバー右端の全画面ボタンも同じ）/ `Esc` 全画面中なら通常表示へ復帰
-- プレビュー中: `I` メタ情報オーバーレイ（案B）トグル / `G` 三分割グリッド線
+- プレビュー中: `I` メタ情報オーバーレイ（案B）トグル / `G` 三分割グリッド線 / `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
 
 ## 既知の注意点
 - 検証で `DSC09432.JPG` の rating が null→0 に変わっている（実効値は同じ）。

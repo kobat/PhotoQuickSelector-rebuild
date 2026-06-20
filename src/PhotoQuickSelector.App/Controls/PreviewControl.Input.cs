@@ -1,10 +1,11 @@
+using Microsoft.UI.Xaml;
 using Windows.System;
 
 namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
 /// プレビューのキー処理。ナビ（←/→）/ ズーム（Z）/ スクロール（Alt+矢印）/ ルーペ（Ctrl+Alt+…）/
-/// グリッド（G）/ メタ情報（I）/ 評価キーを束ねる。Window 直下のルート集約ハンドラから呼ばれる。
+/// グリッド（G）/ メタ情報（I）/ キャッシュ一覧（C）/ 評価キーを束ねる。Window 直下のルート集約ハンドラから呼ばれる。
 /// </summary>
 public sealed partial class PreviewControl
 {
@@ -90,6 +91,15 @@ public sealed partial class PreviewControl
         if (KeyboardModifiers.None && key == VirtualKey.I)
         {
             _viewModel.ShowInfoOverlay = !_viewModel.ShowInfoOverlay;
+            return true;
+        }
+
+        // C : 先読みキャッシュ内容のデバッグオーバーレイ（右上）をトグル
+        if (KeyboardModifiers.None && key == VirtualKey.C)
+        {
+            bool show = CacheOverlay.Visibility == Visibility.Collapsed;
+            CacheOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (show) RefreshCacheOverlay();
             return true;
         }
 

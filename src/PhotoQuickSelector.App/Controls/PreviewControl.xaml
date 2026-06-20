@@ -99,6 +99,27 @@
                 </StackPanel>
             </Border>
 
+            <!-- 先読みキャッシュ内容のデバッグオーバーレイ（C キーでトグル / 初期非表示）。
+                 右上に半透明で重畳し、ポインタは透過させて操作を妨げない。 -->
+            <Border x:Name="CacheOverlay" Grid.Column="0"
+                    VerticalAlignment="Top" HorizontalAlignment="Right"
+                    Margin="12" Padding="10,8" CornerRadius="8"
+                    Background="#A6000000" IsHitTestVisible="False"
+                    Visibility="Collapsed">
+                <StackPanel Spacing="3" MaxWidth="280">
+                    <TextBlock Text="先読みキャッシュ" Foreground="#BFFFFFFF"
+                               FontSize="11" FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{x:Bind CachedFileNames, Mode=OneWay}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{x:Bind}" Foreground="#E8FFFFFF"
+                                           FontSize="11" FontFamily="Consolas" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
             <!-- 左カラムと右パネルのリサイズ用スプリッター -->
             <controls:GridSplitter
                 Grid.Column="1"
