@@ -49,4 +49,8 @@ public sealed partial class PhotoGridView : UserControl
         // サムネイルのダブルクリックで大画面プレビューへ（SPEC §2）。
         _viewModel?.EnterPreview();
     }
+
+    // 可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
+    private void PhotoGrid_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+        => ThumbnailContainerLoader.Handle(args, "ThumbImage", decodePixelWidth: 200);
 }

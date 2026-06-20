@@ -256,7 +256,8 @@ public partial class MainViewModel : ObservableObject
             ApplyFilter();
             StatusText = $"{AllPhotos.Count} 枚  ({folderPath})";
 
-            // 4) サムネイルを順次読み込み（UI を塞がない）。世代トークンで古い読込を中断。
+            // 4) サムネイル（圧縮バイト）を順次先読み（UI を塞がない）。世代トークンで古い読込を中断。
+            //    デコード（BitmapImage 化）は表示中のコンテナ分だけ行うのでここでは軽量。
             _ = LoadThumbnailsAsync(++_loadGeneration);
         }
         catch (Exception ex)
@@ -278,7 +279,7 @@ public partial class MainViewModel : ObservableObject
         foreach (var item in AllPhotos.ToArray())
         {
             if (generation != _loadGeneration) break;
-            await item.LoadThumbnailAsync();
+            await item.EnsureThumbnailBytesAsync();
         }
     }
 }

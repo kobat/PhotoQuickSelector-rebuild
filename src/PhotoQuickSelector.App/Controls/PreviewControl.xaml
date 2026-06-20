@@ -182,7 +182,8 @@
             ScrollViewer.HorizontalScrollMode="Enabled"
             ScrollViewer.HorizontalScrollBarVisibility="Auto"
             ScrollViewer.VerticalScrollMode="Disabled"
-            ScrollViewer.VerticalScrollBarVisibility="Disabled">
+            ScrollViewer.VerticalScrollBarVisibility="Disabled"
+            ContainerContentChanging="FilmStrip_ContainerContentChanging">
             <ListView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsStackPanel Orientation="Horizontal" />
@@ -203,7 +204,8 @@
                                 BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
                             <Grid Width="84" Height="84"
                                   Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                                <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="Uniform" />
+                                <!-- Source はバインドせず、ContainerContentChanging で可視分だけ生成/破棄する -->
+                                <Image x:Name="FilmThumbImage" Stretch="Uniform" />
 
                                 <!-- 旗バッジ（左上）：採用=旗 / 拒否=×。正方形 -->
                                 <Border VerticalAlignment="Top" HorizontalAlignment="Left"

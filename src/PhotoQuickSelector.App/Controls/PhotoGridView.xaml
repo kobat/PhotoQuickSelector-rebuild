@@ -17,7 +17,8 @@
         SelectionMode="Single"
         IsItemClickEnabled="False"
         SelectionChanged="PhotoGrid_SelectionChanged"
-        DoubleTapped="PhotoGrid_DoubleTapped">
+        DoubleTapped="PhotoGrid_DoubleTapped"
+        ContainerContentChanging="PhotoGrid_ContainerContentChanging">
         <GridView.ItemTemplate>
             <DataTemplate x:DataType="vm:PhotoItemViewModel">
                 <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
@@ -25,7 +26,8 @@
                         CornerRadius="6" BorderThickness="3"
                         BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
                     <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                        <Image Source="{x:Bind Thumbnail, Mode=OneWay}" Stretch="Uniform" />
+                        <!-- Source はバインドせず、ContainerContentChanging で可視分だけ生成/破棄する -->
+                        <Image x:Name="ThumbImage" Stretch="Uniform" />
 
                         <!-- 旗バッジ（左上）：採用=旗 / 拒否=×。正方形 -->
                         <Border VerticalAlignment="Top" HorizontalAlignment="Left"

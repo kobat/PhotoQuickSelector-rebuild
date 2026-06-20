@@ -74,6 +74,10 @@ public sealed partial class PreviewControl : UserControl
         MainCanvas.KeyboardAccelerators.Add(escape);
     }
 
+    // フィルムストリップも可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
+    private void FilmStrip_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+        => ThumbnailContainerLoader.Handle(args, "FilmThumbImage", decodePixelWidth: 90);
+
     /// <summary>
     /// 表示対象のビューモデル。<see cref="MainPage"/> が生成後に注入する。
     /// 設定時に x:Bind を更新し、選択写真の変更を購読する。

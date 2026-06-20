@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.WindowsRuntime;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -6,6 +7,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoQuickSelector.Core;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
+using Windows.Storage.Streams;
 using Windows.UI;
 
 namespace PhotoQuickSelector_App.ViewModels;
@@ -84,8 +86,12 @@ public partial class PhotoItemViewModel : ObservableObject
                 "https://www.google.com/maps/search/?api=1&query={0},{1}", lat, lon))
             : null;
 
-    [ObservableProperty]
-    public partial BitmapImage? Thumbnail { get; set; }
+    /// <summary>
+    /// 全件常駐させる圧縮サムネイル（シェルの JPEG バイトをそのまま保持＝1 枚 ~30KB）。
+    /// 重い非圧縮 <see cref="BitmapImage"/> は画面に見えているコンテナ分だけ
+    /// <see cref="CreateThumbnailImageAsync"/> で都度生成し、リサイクル時に破棄する。
+    /// </summary>
+    private byte[]? _thumbnailBytes;
 
     // レーティング★のブラシ（不透明のまま RGB で濃淡を表現）
     private static readonly Brush NormalRatingBrush = new SolidColorBrush(Colors.Gold);            // #FFD700
@@ -200,23 +206,55 @@ public partial class PhotoItemViewModel : ObservableObject
         OnPropertyChanged(nameof(ColorDotsVisibility));
     }
 
-    /// <summary>OS のシェルサムネイルを非同期取得して <see cref="Thumbnail"/> に設定する。</summary>
-    public async Task LoadThumbnailAsync()
+    /// <summary>
+    /// OS のシェルサムネイル（JPEG）を一度だけ取得し、圧縮バイトのまま常駐させる。
+    /// デコード（BitmapImage 化）はしないので軽量。再呼び出しは何もしない。
+    /// </summary>
+    public async Task EnsureThumbnailBytesAsync()
     {
-        if (Thumbnail != null) return;
+        if (_thumbnailBytes != null) return;
         try
         {
             var file = await StorageFile.GetFileFromPathAsync(Meta.Path);
             using var thumbnail = await file.GetThumbnailAsync(ThumbnailMode.PicturesView, 320);
-            if (thumbnail == null) return;
+            if (thumbnail == null || thumbnail.Size == 0) return;
 
-            var bitmap = new BitmapImage();
-            await bitmap.SetSourceAsync(thumbnail);
-            Thumbnail = bitmap;
+            var size = (uint)thumbnail.Size;
+            using var reader = new DataReader(thumbnail.GetInputStreamAt(0));
+            await reader.LoadAsync(size);
+            var bytes = new byte[size];
+            reader.ReadBytes(bytes);
+            _thumbnailBytes = bytes;
         }
         catch
         {
             // サムネイル取得失敗は無視（画像なしで表示）
+        }
+    }
+
+    /// <summary>
+    /// 常駐している圧縮バイトから表示用 <see cref="BitmapImage"/> を生成する。
+    /// 可視コンテナの分だけ呼ばれ、コンテナのリサイクル時に破棄される想定。
+    /// <paramref name="decodePixelWidth"/> で非圧縮サーフェスを表示サイズへ抑える。
+    /// </summary>
+    public async Task<BitmapImage?> CreateThumbnailImageAsync(int decodePixelWidth)
+    {
+        await EnsureThumbnailBytesAsync();
+        var bytes = _thumbnailBytes;
+        if (bytes == null) return null;
+        try
+        {
+            using var stream = new InMemoryRandomAccessStream();
+            await stream.WriteAsync(bytes.AsBuffer());
+            stream.Seek(0);
+
+            var bitmap = new BitmapImage { DecodePixelWidth = decodePixelWidth };
+            await bitmap.SetSourceAsync(stream);
+            return bitmap;
+        }
+        catch
+        {
+            return null;
         }
     }
 }
