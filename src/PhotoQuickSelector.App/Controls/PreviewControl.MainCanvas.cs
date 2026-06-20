@@ -37,20 +37,29 @@ public sealed partial class PreviewControl
     }
 
     /// <summary>
-    /// ビットマップを現在のビューポート（スケール＋平行移動）でキャンバスへ描く。
-    /// ビットマップは Orientation 適用済み（正立）なので回転は加えない。
-    /// ピクセル等倍以上（<see cref="PreviewViewport.DeviceScale"/> ≥ 1）では補間を NearestNeighbor にして
-    /// にじみのないくっきりした拡大表示にし、縮小時は Linear で滑らかに保つ。
+    /// デバイスピクセル等倍率に応じた補間モードを選ぶ。ピクセル等倍以上は NearestNeighbor で
+    /// くっきり（補間なし）、縮小時は HighQualityCubic で高品質に。メイン/ルーペ/ナビ共通。
     /// </summary>
-    private void DrawScaledBitmap(CanvasDrawingSession ds, PreviewViewport vp)
+    private static CanvasImageInterpolation PickInterpolation(double deviceScale)
+        => deviceScale >= 1.0 - 1e-6
+            ? CanvasImageInterpolation.NearestNeighbor   // 等倍以上はくっきり（補間なし）
+            : CanvasImageInterpolation.HighQualityCubic; // 縮小は高品質
+
+    /// <summary>
+    /// ビットマップを指定のオフセット/描画サイズでキャンバスへ描く（回転は加えない＝Orientation 適用済み）。
+    /// 補間は <see cref="PickInterpolation"/> で <paramref name="deviceScale"/>（物理px/画像px）に応じて選ぶ。
+    /// </summary>
+    private void DrawScaledBitmap(CanvasDrawingSession ds,
+        double offsetX, double offsetY, double drawW, double drawH, double deviceScale)
     {
         if (_bitmap == null) return;
-        var interp = vp.DeviceScale >= 1.0 - 1e-6
-            ? CanvasImageInterpolation.NearestNeighbor   // 等倍以上はくっきり（補間なし）
-            : CanvasImageInterpolation.Linear;           // 縮小は滑らかに
-        var dest = new Rect(vp.OffsetX, vp.OffsetY, vp.DrawWidth, vp.DrawHeight);
-        ds.DrawImage(_bitmap, dest, _bitmap.Bounds, 1.0f, interp);
+        var dest = new Rect(offsetX, offsetY, drawW, drawH);
+        ds.DrawImage(_bitmap, dest, _bitmap.Bounds, 1.0f, PickInterpolation(deviceScale));
     }
+
+    /// <summary>ビューポート（メイン/ルーペ）の現在状態でビットマップを描く薄いオーバーロード。</summary>
+    private void DrawScaledBitmap(CanvasDrawingSession ds, PreviewViewport vp)
+        => DrawScaledBitmap(ds, vp.OffsetX, vp.OffsetY, vp.DrawWidth, vp.DrawHeight, vp.DeviceScale);
 
     private void MainCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
     {

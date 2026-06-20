@@ -1,5 +1,4 @@
 using System;
-using System.Numerics;
 using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
@@ -30,12 +29,11 @@ public sealed partial class PreviewControl
         var (scale, ox, oy) = NavFit();
         if (scale <= 0) return;
 
+        double iw = _viewport.ImageWidth, ih = _viewport.ImageHeight;
         var ds = args.DrawingSession;
         ds.Clear(NavBackdropColor); // 写真表示中は暗い余白にする（空/読み込み中は ClearColor＝テーマ背景）
-        ds.Transform = Matrix3x2.CreateScale((float)scale)
-                       * Matrix3x2.CreateTranslation((float)ox, (float)oy);
-        ds.DrawImage(_bitmap);
-        ds.Transform = Matrix3x2.Identity; // 矩形はキャンバス空間（固定線幅）で描く
+        // 全体縮小表示。補間は共通ポリシー（縮小＝HighQualityCubic）。矩形はこの後キャンバス空間で描く。
+        DrawScaledBitmap(ds, ox, oy, iw * scale, ih * scale, scale * _viewport.DpiScale);
 
         // 青枠: メインプレビューの表示領域
         var (vx, vy, vw, vh) = _viewport.VisibleImageRect();
