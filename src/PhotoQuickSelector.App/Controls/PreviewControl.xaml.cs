@@ -175,13 +175,15 @@ public sealed partial class PreviewControl : UserControl
         switch (e.PropertyName)
         {
             case nameof(MainViewModel.SelectedPhoto):
-                LoadCurrentAsync();
+                // プレビュー中の写真切替はズーム状態（モード/フィット比/相対中心）を維持する。
+                LoadCurrentAsync(preserveView: true);
                 ScrollSelectedIntoView();
                 break;
             case nameof(MainViewModel.IsPreviewMode):
                 if (_viewModel?.IsPreviewMode == true)
                 {
-                    LoadCurrentAsync();
+                    // 入場時はフィット表示から始める。
+                    LoadCurrentAsync(preserveView: false);
                     FocusForKeys();
                     ScrollSelectedIntoView();
                 }
@@ -207,7 +209,11 @@ public sealed partial class PreviewControl : UserControl
 
     // --- 画像ロード ---
 
-    private async void LoadCurrentAsync()
+    /// <param name="preserveView">
+    /// true なら現在のズーム状態（モード/フィット比/相対中心）を維持して差し替える（写真切替）。
+    /// false なら新画像をフィット表示で初期化する（プレビュー入場時）。
+    /// </param>
+    private async void LoadCurrentAsync(bool preserveView = false)
     {
         if (_viewModel?.IsPreviewMode != true) return;
 
@@ -236,8 +242,16 @@ public sealed partial class PreviewControl : UserControl
             // Size は DPI 依存（高 DPI で縮む）ため、寸法基準は SizeInPixels に統一する。
             // 等倍（100%）を 1 画像px = 1 物理px にするため、現在の DPI を両ビューポートへ供給。
             UpdateDpiScale();
-            _viewport.SetCanvasSize(MainCanvas.ActualWidth, MainCanvas.ActualHeight);
-            _viewport.SetImage(w, h);
+            // 写真切替時はズーム状態を維持（モード/フィット比/相対中心）。入場時はフィット初期化。
+            if (preserveView && _viewport.ImageWidth > 0)
+            {
+                _viewport.SetImagePreservingView(w, h, MainCanvas.ActualWidth, MainCanvas.ActualHeight);
+            }
+            else
+            {
+                _viewport.SetCanvasSize(MainCanvas.ActualWidth, MainCanvas.ActualHeight);
+                _viewport.SetImage(w, h);
+            }
 
             // 右上ズームプレビューは 100% 表示で AF フォーカス点へ寄せる（旧アプリ準拠）。
             _zoomViewport.SetCanvasSize(ZoomCanvas.ActualWidth, ZoomCanvas.ActualHeight);
@@ -292,7 +306,8 @@ public sealed partial class PreviewControl : UserControl
         _cache.Clear();
         _bitmap = null;
         _currentMeta = null;
-        LoadCurrentAsync();
+        // デバイス再生成/DPI 変更時は現在のズーム状態を保ったまま再ロードする。
+        LoadCurrentAsync(preserveView: true);
     }
 
     /// <summary>

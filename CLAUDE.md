@@ -377,6 +377,26 @@
   - 変更: `Controls/PreviewViewport.cs`、`Controls/PreviewControl.{xaml.cs,MainCanvas.cs,Loupe.cs,Navigator.cs}`、
     `ViewModels/MainViewModel.cs`、`Controls/PhotoStatusBar.xaml`。**Core は非変更**。`BUILD SUCCEEDED`／`dotnet test` 68 件緑。
     実機（高DPI モニタ）で等倍=100%・拡大くっきり・縮小高品質・倍率追従をユーザー確認済み。
+- **写真切替時のズーム状態維持 完了（2026-06-21）**: プレビューで前後移動（`←`/`→`）したとき、従来は毎回
+  フィット表示に戻っていたのを、**ズームモード/倍率/中心を引き継いで「ズーム表示のまま」**切り替わるようにした。
+  切替前後で画像サイズが異なる場合の方針はユーザー選択（中心＝**相対位置で保持**／Custom 倍率＝**フィット比を保持**）。
+  - **`PreviewViewport.SetImagePreservingView(imgW, imgH, canvasW, canvasH)` を新設**: 変更前に「キャンバス中心が指す
+    画像上の相対位置(0..1)」と「フィット比(`Scale/FitScale`、Custom のみ)」をキャプチャ → 新サイズへ差し替え →
+    倍率を再決定（**Fit=再フィット／ActualSize=DPI基準の100%維持／Custom=フィット比維持**）→ 中心を相対位置で復元 → `Clamp`。
+    **`SetCanvasSize` を呼ぶと `ApplyMode→Center` が Custom でも再センタリングしてパンが消える罠**を避けるため、canvas
+    サイズも引数で受け取り（相対中心/フィット比キャプチャ後に）一括更新する。
+  - **動作**: 同サイズ画像（連写など最頻ケース）では相対=絶対でピクセル単位完全一致。サイズ違いでは同じ構図位置を中心に
+    維持し、Custom は見える構図範囲が一定（100% は 100% 固定で見える範囲は変わる）。
+  - **`PreviewControl.LoadCurrentAsync(bool preserveView)` 化**: `SelectedPhoto` 変更（写真切替）=`true`／`IsPreviewMode`
+    入場=`false`（従来どおりフィットから）／`ResetCacheAndReload`（デバイス再生成・DPI変更）=`true`（ズーム維持）。
+    保持パスは `_viewport.ImageWidth > 0` ガード付き（初回/空は安全にフィットへフォールバック）。
+  - **テスト**: `PreviewViewport` は UI 非依存（`System.Numerics` のみ）なので、WinUI な App を参照せず **ソースをリンク参照**
+    （`tests` csproj に `<Compile Include=... Link=...>`）して xUnit 化。`PreviewViewportTests.cs`（5 件）＝同サイズ完全一致／
+    サイズ違いでのフィット比・相対中心維持／100%維持／Fit 再フィット／空からのフォールバック。
+  - ルーペ・ナビは現状維持（ルーペは設計どおり毎回 100%＋AF 点へ）。変更: `Controls/PreviewViewport.cs`・
+    `Controls/PreviewControl.xaml.cs`、`tests/…/PhotoQuickSelector.Core.Tests.csproj`＋`PreviewViewportTests.cs`（新規）。
+    `BUILD SUCCEEDED`（App x64 Release・警告0）／`dotnet test` **73 件緑**（68→+5）。実機目視（前後移動でのズーム維持・
+    サイズ違いフォルダでの中心追従）はユーザー確認推奨。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

@@ -24,4 +24,11 @@
     <ProjectReference Include="..\..\src\PhotoQuickSelector.Core\PhotoQuickSelector.Core.csproj" />
   </ItemGroup>
 
+  <!-- PreviewViewport は UI 非依存（System.Numerics のみ）なので、WinUI な App を参照せず
+       ソースをリンクして xUnit でテストする。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PhotoQuickSelector.App\Controls\PreviewViewport.cs"
+             Link="Linked\PreviewViewport.cs" />
+  </ItemGroup>
+
 </Project>

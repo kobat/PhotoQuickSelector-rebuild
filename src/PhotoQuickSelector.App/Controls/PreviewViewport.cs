@@ -86,6 +86,63 @@ public sealed class PreviewViewport
         ApplyMode();
     }
 
+    /// <summary>
+    /// 現在のズームモード/倍率と「キャンバス中心が指す画像上の相対位置」を維持したまま画像を差し替える。
+    /// 写真切替（前後移動）でズーム表示のままにするために使う。
+    /// <list type="bullet">
+    ///   <item><see cref="ZoomMode.Fit"/> … 新サイズで再フィット（中央）。</item>
+    ///   <item><see cref="ZoomMode.ActualSize"/> … 100%（DPI 基準）を維持。相対中心を維持。</item>
+    ///   <item><see cref="ZoomMode.Custom"/> … 「フィットの何倍か」（フィット比）を維持。相対中心を維持。</item>
+    /// </list>
+    /// 切替前後で画像サイズが異なる場合、中心は相対位置（0..1）で保つので同じ構図位置が中心に来る
+    /// （同サイズなら絶対位置と完全一致）。<see cref="Clamp"/> で新サイズの範囲に収める。
+    /// <para>
+    /// 注意: <see cref="SetCanvasSize"/> は内部で <see cref="ApplyMode"/>→<see cref="Center"/> を呼び
+    /// Custom でも再センタリングしてしまうため、本メソッドは canvas サイズも引数で受け取り
+    /// （変更前の相対中心/フィット比をキャプチャした後に）一括で更新する。
+    /// </para>
+    /// </summary>
+    public void SetImagePreservingView(double imageWidth, double imageHeight,
+                                       double canvasWidth, double canvasHeight)
+    {
+        // ① 変更前にキャプチャ（旧 ImageWidth/Height・旧 CanvasWidth/Height・旧 Scale 基準）。
+        double relCx = 0.5, relCy = 0.5;
+        if (ImageWidth > 0 && ImageHeight > 0 && Scale > 0)
+        {
+            relCx = Math.Clamp(((CanvasWidth / 2 - OffsetX) / Scale) / ImageWidth, 0, 1);
+            relCy = Math.Clamp(((CanvasHeight / 2 - OffsetY) / Scale) / ImageHeight, 0, 1);
+        }
+        double zoomRatio = 1.0;
+        if (Mode == ZoomMode.Custom && FitScale > 0)
+            zoomRatio = Scale / FitScale; // フィットの何倍か（フィット比）を保持する
+
+        // ② 新しいキャンバス/画像サイズへ差し替え。
+        CanvasWidth = canvasWidth;
+        CanvasHeight = canvasHeight;
+        ImageWidth = imageWidth;
+        ImageHeight = imageHeight;
+
+        // ③ 倍率を再決定（モード別）。
+        Scale = Mode switch
+        {
+            ZoomMode.Fit => FitScale,
+            ZoomMode.ActualSize => ActualScale,
+            _ => Math.Clamp(zoomRatio * FitScale, MinScale, MaxScale),
+        };
+
+        // ④ 中心を相対位置で復元（Fit は中央）。
+        if (Mode == ZoomMode.Fit)
+        {
+            Center();
+        }
+        else
+        {
+            OffsetX = CanvasWidth / 2 - relCx * ImageWidth * Scale;
+            OffsetY = CanvasHeight / 2 - relCy * ImageHeight * Scale;
+        }
+        Clamp();
+    }
+
     /// <summary>フィット表示にする。</summary>
     public void SetFit()
     {
