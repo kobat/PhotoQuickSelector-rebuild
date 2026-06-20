@@ -355,6 +355,28 @@
   - **Core・選択同期・評価バッジ部品は非変更**。変更/新規: `AppSettings.cs`、`Controls/FilmStripMetrics.cs`（新規）、
     `Controls/PreviewControl.xaml(.cs)`。`BUILD SUCCEEDED`／`dotnet test` 68 件緑。実機目視（ドラッグでサムネイル連動拡縮・
     再起動で高さ復元・拡大時のボケ）はユーザー確認推奨。
+- **プレビューの DPI 考慮ズーム＋補間ポリシー＋倍率表示 完了（`c174232`＋`ae5f1a3`、`origin/main` プッシュ済み・2026-06-21）**:
+  プレビューのズーム表示を DPI 対応化し、拡大率に応じて補間を切り替え、現在倍率をステータスバーへ表示。ユーザー実機確認済み。
+  - **① DPI 考慮の等倍（`c174232`）**: 旧「等倍＝`Scale=1.0`（画像1px→1 DIP）」は高DPI（例150%）で画像1pxが1.5物理pxに
+    拡大されていた。`PreviewViewport.DpiScale`（物理px/DIP＝`Dpi/96`）と `ActualScale`（`1.0/DpiScale`）を追加し、
+    等倍を **`Scale=96/Dpi`** に変更＝**1 画像px = 1 物理px の真の等倍**に。`SetActualSize`/`ApplyMode` の `ActualSize` 分岐が
+    対象（`Z`/`Shift+Z`/`Shift+Alt+→`/ルーペ100% が一括対応）。`PreviewControl.UpdateDpiScale()` が `MainCanvas.Dpi/96` を
+    両ビューポートへ供給（`LoadCurrentAsync` 時＋DPI変更は既存 `CreateResources(DpiChanged)→ResetCacheAndReload` 経路で追従）。
+  - **② 拡大率で補間切替（`c174232`＋`ae5f1a3`）**: `DrawImage` は dest/source 矩形オーバーロードに変更し補間を明示指定。
+    判定は `PreviewViewport.DeviceScale`（=`Scale × DpiScale`＝物理px/画像px）。**`DeviceScale ≥ 1`（ピクセル等倍以上）＝
+    `NearestNeighbor`（くっきり・補間なし）／`< 1`（縮小）＝`HighQualityCubic`（高品質縮小）**。補間選択は
+    `PreviewControl.MainCanvas.cs` の `PickInterpolation(deviceScale)` に共通化、描画は `DrawScaledBitmap`（ジオメトリ明示
+    本体＋ビューポート用オーバーロード）に集約。**メイン/ルーペ/ナビ 3 キャンバスすべて**で適用（ナビは縮小なので実質常に
+    HighQualityCubic。Transform 方式をやめ `using System.Numerics;` を Loupe/Navigator から撤去）。ジオメトリは従来と同一。
+    - **重要**: 既存の `Transform×DrawImage(bitmap)` は「画像1px→1 DIP」で動いていた（Fit が画面いっぱいに収まる関係＝裏付け）。
+      dest 矩形は `DrawWidth/Height = SizeInPixels × Scale`（DIP）、source は `_bitmap.Bounds`（DPI 非依存全域）で同一ジオメトリ。
+  - **③ 倍率をステータスバー表示（`c174232`）**: `MainViewModel.ZoomScale`（=`DeviceScale`）＋`ZoomText`（`{ZoomScale*100:0}%`）
+    ＋`ZoomVisibility`（`IsPreviewMode` 連動＝プレビュー時のみ）。`PreviewControl.UpdateZoomDisplay()` を `InvalidateMain()`/
+    `InvalidateAll()` 末尾で呼び、ズーム/パン/ロード/ナビ移動すべてに追従。**ピクセル等倍＝100%**（DPI 考慮済みなので高DPIでも正しい）。
+    `PhotoStatusBar.xaml` の全画面ボタン直前に `Auto` 列を足して右端に表示。
+  - 変更: `Controls/PreviewViewport.cs`、`Controls/PreviewControl.{xaml.cs,MainCanvas.cs,Loupe.cs,Navigator.cs}`、
+    `ViewModels/MainViewModel.cs`、`Controls/PhotoStatusBar.xaml`。**Core は非変更**。`BUILD SUCCEEDED`／`dotnet test` 68 件緑。
+    実機（高DPI モニタ）で等倍=100%・拡大くっきり・縮小高品質・倍率追従をユーザー確認済み。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
@@ -373,6 +395,9 @@
 - `0`–`5` レーティング / `6`–`9`＋`P` カラーラベル（赤橙緑青紫）/ `[` `]` レーティング増減 / `Ctrl+↑/↓` フラグ
 - `Ctrl+L` フィルタ ON/OFF トグル（両モード共通、フライアウトは開かない）
 - `F11` フルスクリーン表示トグル（ステータスバー右端の全画面ボタンも同じ）/ `Esc` 全画面中なら通常表示へ復帰
+- プレビュー中: `Z` フィット⇄等倍トグル（等倍＝DPI考慮の1画像px=1物理px＝100%）/ `Shift+Z` 等倍 /
+  `Shift+Alt+←/→` フィット/等倍 / ホイール ズーム。倍率はステータスバー右端に表示（ピクセル等倍＝100%）。
+  拡大率により補間自動切替（等倍以上＝NearestNeighbor／縮小＝HighQualityCubic）
 - プレビュー中: `I` メタ情報オーバーレイ（案B）トグル / `G` 三分割グリッド線 / `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
 
 ## 既知の注意点
