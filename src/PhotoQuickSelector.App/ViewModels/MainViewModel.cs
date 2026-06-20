@@ -260,6 +260,9 @@ public partial class MainViewModel : ObservableObject
             ApplyFilter();
             StatusText = $"{AllPhotos.Count} 枚  ({folderPath})";
 
+            // 読み込み直後は大画面プレビューを初期表示にする（先頭写真を選択。空なら従来どおりグリッド）。
+            EnterPreview();
+
             // 4) サムネイル（圧縮バイト）を順次先読み（UI を塞がない）。世代トークンで古い読込を中断。
             //    デコード（BitmapImage 化）は表示中のコンテナ分だけ行うのでここでは軽量。
             _ = LoadThumbnailsAsync(++_loadGeneration);
