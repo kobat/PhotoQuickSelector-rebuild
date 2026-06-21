@@ -24,6 +24,40 @@ public partial class FilterViewModel : ObservableObject
         Enabled = true;
     }
 
+    /// <summary>現在の条件を永続化用スナップショットへ書き出す（終了時）。</summary>
+    public FilterState CaptureState() => new()
+    {
+        Enabled = Enabled,
+        RatingValue = RatingValue,
+        RatingGreaterEqual = RatingGreaterEqual,
+        NoRating = NoRating,
+        FlagAccept = FlagAccept,
+        FlagNeutral = FlagNeutral,
+        FlagReject = FlagReject,
+        Red = Red,
+        Yellow = Yellow,
+        Green = Green,
+        Blue = Blue,
+        Purple = Purple,
+    };
+
+    /// <summary>スナップショットから条件を復元する（起動時）。各 setter 経由で Core モデル・UI にも反映される。</summary>
+    public void ApplyState(FilterState s)
+    {
+        RatingValue = s.RatingValue;
+        RatingGreaterEqual = s.RatingGreaterEqual;
+        NoRating = s.NoRating;
+        FlagAccept = s.FlagAccept;
+        FlagNeutral = s.FlagNeutral;
+        FlagReject = s.FlagReject;
+        Red = s.Red;
+        Yellow = s.Yellow;
+        Green = s.Green;
+        Blue = s.Blue;
+        Purple = s.Purple;
+        Enabled = s.Enabled; // 最後に設定（Changed 発火で確定）
+    }
+
     [ObservableProperty]
     public partial bool Enabled { get; set; }
     partial void OnEnabledChanged(bool value) { Model.Enabled = value; Apply(); }

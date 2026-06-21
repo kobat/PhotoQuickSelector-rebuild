@@ -89,6 +89,11 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
-        (RootFrame.Content as MainPage)?.SaveLeftPaneLayout();
+        if (RootFrame.Content is MainPage page)
+        {
+            // セッション（フォルダ/選択/表示モード/フィルタ）を控えてから、左ペイン状態と一緒に保存。
+            page.ViewModel.CaptureSession();
+            page.SaveLeftPaneLayout(); // 末尾で Settings.Save() を1回呼ぶ
+        }
     }
 }

@@ -85,6 +85,21 @@ public partial class MainViewModel : ObservableObject
             RecentFolders.Add(new FolderShortcut(path));
     }
 
+    /// <summary>
+    /// 現在のセッション（開いていたフォルダ・選択ファイル・表示モード・フィルタ）を
+    /// <see cref="Settings"/> へ書き出す（実保存は終了時の <c>Settings.Save()</c> で一括）。
+    /// </summary>
+    public void CaptureSession()
+    {
+        Settings.LastSession = new SessionState
+        {
+            FolderPath = CurrentFolder,
+            SelectedFileName = SelectedPhoto?.FileName,
+            IsPreviewMode = IsPreviewMode,
+            Filter = Filter.CaptureState(),
+        };
+    }
+
     public bool IsFavorite(string path) => Settings.IsFavorite(path);
 
     /// <summary>お気に入りの登録/解除を切り替え、即時保存する。</summary>
@@ -214,7 +229,18 @@ public partial class MainViewModel : ObservableObject
     /// フォルダ内の JPEG を読み込み、メタデータを並列抽出してサムネイル一覧を構築する。
     /// 評価は既存の <see cref="MetadataStore"/>（フォルダ内 sqlite）からマージする。
     /// </summary>
-    public async Task LoadFolderAsync(string folderPath)
+    /// <param name="folderPath">読み込むフォルダ。</param>
+    /// <param name="restoreSelectedFile">
+    /// 復元したい選択ファイル名（フォルダ相対）。絞込結果に在れば選択する。
+    /// null（通常のフォルダ読み込み）なら従来どおり先頭を選ぶ。
+    /// </param>
+    /// <param name="restorePreviewMode">
+    /// 復元したい表示モード（true=プレビュー / false=グリッド）。null なら従来どおりプレビューへ。
+    /// </param>
+    public async Task LoadFolderAsync(
+        string folderPath,
+        string? restoreSelectedFile = null,
+        bool? restorePreviewMode = null)
     {
         if (IsLoading) return;
         IsLoading = true;
@@ -273,8 +299,20 @@ public partial class MainViewModel : ObservableObject
             ApplyFilter();
             StatusText = $"{AllPhotos.Count} 枚  ({folderPath})";
 
-            // 読み込み直後は大画面プレビューを初期表示にする（先頭写真を選択。空なら従来どおりグリッド）。
-            EnterPreview();
+            // 選択の復元: 指定ファイルが絞込結果に在れば選択する（消えた/絞り込みで外れた場合は下のフォールバック）。
+            if (restoreSelectedFile != null)
+            {
+                var target = Photos.FirstOrDefault(p =>
+                    string.Equals(p.FileName, restoreSelectedFile, StringComparison.OrdinalIgnoreCase));
+                if (target != null) SelectedPhoto = target;
+            }
+
+            // 表示モードの復元。既定（null）は従来どおりプレビュー初期表示。
+            // プレビュー指定時は EnterPreview() が SelectedPhoto 未設定なら先頭を選ぶ（空なら no-op でグリッドのまま）。
+            if (restorePreviewMode ?? true)
+                EnterPreview();
+            else if (SelectedPhoto == null && Photos.Count > 0)
+                SelectedPhoto = Photos[0]; // グリッド復元でも何か選んでおく
 
             // 4) サムネイル（圧縮バイト）を順次先読み（UI を塞がない）。世代トークンで古い読込を中断。
             //    デコード（BitmapImage 化）は表示中のコンテナ分だけ行うのでここでは軽量。

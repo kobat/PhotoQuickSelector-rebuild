@@ -151,8 +151,9 @@ public sealed partial class FolderNavigationView : UserControl
     /// WinUI の TreeView には「データ項目を指定して展開/選択する」API が無いため手動ウォークする。
     /// 子は <see cref="FolderNode.LoadChildren"/>（差分同期）で実体化し、コンテナは遅延 realize の
     /// ため <see cref="RealizeContainerAsync"/> でレイアウト確定を待ってから取得する。
+    /// 起動時のセッション復元（<see cref="MainPage"/>）からも呼ぶため public。
     /// </summary>
-    private async Task ExpandAndSelectFolderAsync(string targetPath)
+    public async Task ExpandAndSelectFolderAsync(string targetPath)
     {
         var node = RootFolders.FirstOrDefault(r =>
             targetPath.StartsWith(r.Path, StringComparison.OrdinalIgnoreCase));

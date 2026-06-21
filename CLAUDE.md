@@ -446,6 +446,28 @@
     `UpdateLayout()`＋`Task.Delay(16)`（1 フレーム待ち）でリトライ（最大 20 回）。
   - **`PathEquals`**（新規）: 末尾 `\`（ドライブルート `D:\` 等）を `TrimEnd('\\')` で無視した大小無視のパス比較。
   - `BUILD SUCCEEDED`。実機でお気に入り/最近クリック→ツリー展開・選択・スクロールをユーザー確認済み（2026-06-21）。
+- **セッション復元（終了時の状態を再起動時に復元）完了（2026-06-21）**: アプリ終了時に「開いていたフォルダ／選択ファイル／
+  表示モード（プレビュー⇄グリッド）／フィルタ条件」を保存し、再起動時に復元する。フォルダ/ファイル消失等のイレギュラーは
+  防御的に処理。**Core は非変更**（App のみ）。
+  - **保存先**: 既存 `AppSettings`（`settings.json`）に `SessionState`（`FolderPath`／`SelectedFileName`＝**ファイル名のみ**＝
+    リネーム/移動に頑健／`IsPreviewMode`／`Filter`）＋`FilterState`（`FilterViewModel` のスナップショット）を追加。
+    source-gen コンテキスト（`AppSettingsJsonContext`）に両型を登録（トリミング安全）。
+  - **保存タイミング**: `MainWindow_Closed` で `ViewModel.CaptureSession()`（VM 状態→`Settings.LastSession`）→`SaveLeftPaneLayout()`
+    （末尾の `Settings.Save()` で左ペイン状態と一括保存）。**保存 I/O は増やさない**（既存の終了時 1 回に相乗り）。
+  - **復元**（`MainPage.RestoreSessionAsync`／`MainPage_Loaded` から fire-and-forget）: ① `FolderPath` 空→何もしない
+    ② `Directory.Exists` 偽→中止＋「前回のフォルダが見つかりません」表示（最近一覧は残す）③ `Filter.ApplyState()` で
+    **フィルタを先に**復元（`LoadFolderAsync` 末尾の `ApplyFilter` が反映するため選択復元より前）④ `LoadFolderAsync(folder,
+    selectedFile, previewMode)` ⑤ `LeftNav.ExpandAndSelectFolderAsync(folder)` でツリーも展開＆選択（お気に入りクリックと同経路。
+    そのため同メソッドを private→**public** 化）。
+  - **`LoadFolderAsync` をオプション引数化**（`restoreSelectedFile`/`restorePreviewMode`、ともに既定 null）: **既定値は現行挙動と
+    完全一致**（通常のフォルダクリック＝末尾で必ず `EnterPreview()`）。復元時のみ、保存ファイルが**絞込結果 `Photos` 内に在れば**
+    選択し、表示モードを復元。見つからない/絞り込みで外れたら「プレビュー指定＝先頭選択／グリッド指定＝先頭 or 未選択」へフォールバック。
+  - **イレギュラー対応**: フォルダ消失・ファイル消失/リネーム・フィルタ除外・JPEG 0 枚・I/O 例外（`LoadFolderAsync` の `try/catch`）・
+    `settings.json` 破損（既存 `Load()` が既定値復帰）のいずれもクラッシュせず安全に既定状態へ。
+  - 変更/新規: `AppSettings.cs`（`SessionState`/`FilterState` 追加）、`ViewModels/FilterViewModel.cs`（`CaptureState`/`ApplyState`）、
+    `ViewModels/MainViewModel.cs`（`CaptureSession`＋`LoadFolderAsync` 引数）、`MainPage.xaml.cs`（`RestoreSessionAsync`）、
+    `MainWindow.xaml.cs`（`Closed` で `CaptureSession`）、`Controls/FolderNavigationView.xaml.cs`（`ExpandAndSelectFolderAsync` を public 化）。
+    `BUILD SUCCEEDED`（警告0）／`dotnet test` 73 件緑。実機目視（開く→選択→プレビュー→終了→再起動で復元）はユーザー確認推奨。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

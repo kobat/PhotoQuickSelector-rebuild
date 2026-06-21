@@ -38,6 +38,9 @@ public sealed class AppSettings
     /// <summary>プレビューのメタ情報オーバーレイ（案B / I キー）を表示するか。</summary>
     public bool ShowInfoOverlay { get; set; } = true;
 
+    /// <summary>前回終了時のセッション（開いていたフォルダ・選択・表示モード・フィルタ）。</summary>
+    public SessionState LastSession { get; set; } = new();
+
     /// <summary>最近フォルダの保持件数。</summary>
     private const int MaxRecentFolders = 15;
 
@@ -125,11 +128,52 @@ public sealed class AppSettings
 }
 
 /// <summary>
+/// 前回終了時のセッション状態。再起動時に「開いていたフォルダ／選択ファイル／表示モード／
+/// フィルタ条件」を復元するためのスナップショット。フォルダ/ファイル消失等のイレギュラーは
+/// 復元側（<see cref="MainViewModel"/>）が防御的に処理する。
+/// </summary>
+public sealed class SessionState
+{
+    /// <summary>開いていたフォルダ（絶対パス）。未設定なら復元しない。</summary>
+    public string? FolderPath { get; set; }
+
+    /// <summary>選択していたファイル（フォルダ相対の名前のみ。パスは持たない）。</summary>
+    public string? SelectedFileName { get; set; }
+
+    /// <summary>true=大画面プレビュー / false=サムネイルグリッド。</summary>
+    public bool IsPreviewMode { get; set; }
+
+    /// <summary>絞り込み条件のスナップショット。</summary>
+    public FilterState Filter { get; set; } = new();
+}
+
+/// <summary>
+/// 絞り込み条件（<see cref="ViewModels.FilterViewModel"/>）の永続化用スナップショット。
+/// </summary>
+public sealed class FilterState
+{
+    public bool Enabled { get; set; } = true;
+    public int RatingValue { get; set; }
+    public bool RatingGreaterEqual { get; set; } = true;
+    public bool NoRating { get; set; }
+    public bool FlagAccept { get; set; }
+    public bool FlagNeutral { get; set; }
+    public bool FlagReject { get; set; }
+    public bool Red { get; set; }
+    public bool Yellow { get; set; }
+    public bool Green { get; set; }
+    public bool Blue { get; set; }
+    public bool Purple { get; set; }
+}
+
+/// <summary>
 /// トリミング発行（Release は <c>PublishTrimmed=true</c>）でも安全なように、
 /// JSON を source generator で扱う。
 /// </summary>
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(AppSettings))]
+[JsonSerializable(typeof(SessionState))]
+[JsonSerializable(typeof(FilterState))]
 internal partial class AppSettingsJsonContext : JsonSerializerContext
 {
 }

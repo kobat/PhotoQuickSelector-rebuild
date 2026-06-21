@@ -1,3 +1,5 @@
+using System.IO;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -34,6 +36,35 @@ public sealed partial class MainPage : Page
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
     {
         RestoreLeftPaneLayout();
+        _ = RestoreSessionAsync();
+    }
+
+    // --- 前回セッションの復元（開いていたフォルダ／選択ファイル／表示モード／フィルタ） ---
+
+    /// <summary>
+    /// 起動時に <see cref="AppSettings.LastSession"/> を復元する。フォルダ/ファイルの消失や
+    /// 絞り込みで外れたケースは <see cref="MainViewModel.LoadFolderAsync"/> 側が防御的に処理する。
+    /// </summary>
+    private async Task RestoreSessionAsync()
+    {
+        var session = ViewModel.Settings.LastSession;
+        var folder = session.FolderPath;
+        if (string.IsNullOrEmpty(folder)) return;
+
+        // フォルダが存在しない（削除/未接続の外付け・ネットワーク等）→ 復元中止。最近一覧は残す。
+        if (!Directory.Exists(folder))
+        {
+            ViewModel.StatusText = $"前回のフォルダが見つかりません: {folder}";
+            return;
+        }
+
+        // フィルタを先に復元する（LoadFolderAsync 末尾の ApplyFilter が反映するため、選択復元より前に）。
+        ViewModel.Filter.ApplyState(session.Filter);
+
+        await ViewModel.LoadFolderAsync(folder, session.SelectedFileName, session.IsPreviewMode);
+
+        // 左ツリーも同フォルダへ展開＆選択（お気に入りクリックと同じ挙動）。
+        await LeftNav.ExpandAndSelectFolderAsync(folder);
     }
 
     // --- 左ペインの幅／折りたたみ状態の復元・保存（AppSettings） ---
