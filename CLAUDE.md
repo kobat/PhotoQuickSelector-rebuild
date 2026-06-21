@@ -551,6 +551,14 @@
     開始パスが無ければ**直近の存在する親へ遡り**、キャンセル/例外は握りつぶして null。発行時もトリミング無効なので従来型
     `[ComImport]` で安全。`Browse_Click` は WinRT → ネイティブに差し替え（同期化、`using Windows.Storage.Pickers;` 撤去）。
     変更/新規: `Controls/NativeFolderPicker.cs`（新規）、`Controls/CopyRenameDialog.xaml.cs`。Core/ViewModel/XAML 非変更。
+  - **モーダル表示中にグローバルキーが効かない問題を修正（追記・2026-06-21）**: ダイアログ（`ContentDialog`）の TextBox に
+    `z`・`←`・`→`・数字等を入力しようとしても、ルート集約 `RootGrid_PreviewKeyDown`(tunneling) が先取りして
+    「ズーム/前後移動/評価」として消費し入力できなかった。`RootGrid_PreviewKeyDown` 冒頭に
+    **`VisualTreeHelper.GetOpenPopupsForXamlRoot(RootGrid.XamlRoot).Count > 0` なら早期 return**（ポップアップ
+    ＝ダイアログ/フライアウト/メニュー/ComboBox ドロップダウン等が開いている間はグローバルキー集約を停止）を追加。
+    呼び出し側の変更不要で全ダイアログに自動適用。プレビューのオーバーレイ（`I`/`G`/`C`）はポップアップでないため非影響。
+    フライアウト/メニュー中もナビ/ズームが止まるが、その時はフォーカスがポップアップ側にあるのでむしろ正しい挙動。
+    変更: `MainWindow.xaml.cs` のみ。詳細はメモリ `winui-keyinput-gotchas`。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

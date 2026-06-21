@@ -49,6 +49,13 @@ public sealed partial class MainWindow : Window
     {
         if (e.Handled) return;
 
+        // ダイアログ/フライアウト等のポップアップが開いている間はグローバルキー集約を停止し、
+        // キー入力をそのモーダル（TextBox 等）へ委ねる。これをしないと、ルートの tunneling が
+        // Z や ←/→ を「ズーム/前後移動」として先取りして消費し、ダイアログ内で入力できない。
+        if (RootGrid.XamlRoot is { } xamlRoot &&
+            Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(xamlRoot).Count > 0)
+            return;
+
         // F11: フルスクリーン表示のトグル。AppWindow を所有する Window 側で完結させる。
         // tunneling のルートで拾うのでフォーカス位置によらず確実に届く（評価/ナビキーと競合しない）。
         if (e.Key == Windows.System.VirtualKey.F11)
