@@ -432,6 +432,20 @@
     `PreviewControl.FilmChromeHeight` を `36`→`42`。
   - **グリッド（`PhotoGridView`）は非変更**（既定の選択ビジュアルで十分に見えるため。`IsSelected` は VM に立つが
     グリッドテンプレートは参照しない）。**Core は非変更**。`BUILD SUCCEEDED`／`dotnet test` 73 件緑。実機目視はユーザー確認推奨。
+- **お気に入り/最近クリックでツリー展開＆選択 完了（2026-06-21）**: 左ペインの「お気に入り」「最近開いたフォルダ」を
+  クリックしたとき、従来は写真読込のみでツリー側は無反応だったのを、**フォルダツリーを同パスまで展開して末端ノードを
+  選択状態にする**よう拡張。`FolderNavigationView.xaml.cs` のみ変更（Core・XAML・ViewModel 非変更）。
+  - **`Shortcut_ItemClick`**: 存在チェック→`LoadFolderAsync`（写真読込）の後に新規 `ExpandAndSelectFolderAsync(path)` を呼ぶ。
+    お気に入り/最近は同一ハンドラ経由なので一括適用。消えたフォルダは従来どおり `RemoveRecentFolder` で除去し早期 return。
+  - **`ExpandAndSelectFolderAsync`**（新規）: WinUI の `TreeView` には「データ項目を指定して展開/選択する」API が無いため
+    **ドライブルートから目的パスへ 1 階層ずつ手動ウォーク**＝「コンテナ realize 待ち→`LoadChildren()`(差分同期)→
+    `IsExpanded=true`→`UpdateLayout()`→次の子を探索」を繰り返し、末端で `IsSelected=true`＋`FolderTree.SelectedItem` 同期＋
+    `StartBringIntoView()`。**既存の差分同期 `LoadChildren()` をそのまま使う**ので「TreeView は Clear→全件追加で壊れる」罠と
+    展開状態の喪失を回避。`SelectedItem` 同期で後続の「読み込み」「更新」「F5」も選択ノードへ正しく作用。
+  - **`RealizeContainerAsync`**（新規）: 仮想化で展開直後は `ContainerFromItem` が `null` のことがあるため、`null` の間
+    `UpdateLayout()`＋`Task.Delay(16)`（1 フレーム待ち）でリトライ（最大 20 回）。
+  - **`PathEquals`**（新規）: 末尾 `\`（ドライブルート `D:\` 等）を `TrimEnd('\\')` で無視した大小無視のパス比較。
+  - `BUILD SUCCEEDED`。実機でお気に入り/最近クリック→ツリー展開・選択・スクロールをユーザー確認済み（2026-06-21）。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

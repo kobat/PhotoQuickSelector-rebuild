@@ -136,11 +136,73 @@ public sealed partial class FolderNavigationView : UserControl
     private async void Shortcut_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (_viewModel == null || e.ClickedItem is not FolderShortcut shortcut) return;
-        if (Directory.Exists(shortcut.Path))
-            await _viewModel.LoadFolderAsync(shortcut.Path);
-        else
+        if (!Directory.Exists(shortcut.Path))
+        {
             _viewModel.RemoveRecentFolder(shortcut.Path); // 消えたフォルダは一覧から除去
+            return;
+        }
+        await _viewModel.LoadFolderAsync(shortcut.Path);
+        await ExpandAndSelectFolderAsync(shortcut.Path); // ツリーも同パスへ展開＆選択
     }
+
+    /// <summary>
+    /// フォルダツリーをルート（ドライブ）から <paramref name="targetPath"/> まで 1 階層ずつ
+    /// 展開し、末端ノードを選択状態にする。
+    /// WinUI の TreeView には「データ項目を指定して展開/選択する」API が無いため手動ウォークする。
+    /// 子は <see cref="FolderNode.LoadChildren"/>（差分同期）で実体化し、コンテナは遅延 realize の
+    /// ため <see cref="RealizeContainerAsync"/> でレイアウト確定を待ってから取得する。
+    /// </summary>
+    private async Task ExpandAndSelectFolderAsync(string targetPath)
+    {
+        var node = RootFolders.FirstOrDefault(r =>
+            targetPath.StartsWith(r.Path, StringComparison.OrdinalIgnoreCase));
+        if (node == null) return;
+
+        while (true)
+        {
+            var container = await RealizeContainerAsync(node);
+            if (container == null) return;
+
+            if (PathEquals(node.Path, targetPath))
+            {
+                container.IsSelected = true;       // TreeView 選択ビジュアル
+                FolderTree.SelectedItem = node;    // SelectedItem も同期（読み込み/更新ボタンが参照）
+                container.StartBringIntoView();    // スクロールして可視化
+                return;
+            }
+
+            node.LoadChildren();                   // 子を実体化（差分同期・既存ノード温存）
+            container.IsExpanded = true;           // 展開して子コンテナを realize させる
+            FolderTree.UpdateLayout();
+
+            var next = node.Children.FirstOrDefault(c =>
+                PathEquals(c.Path, targetPath) ||
+                targetPath.StartsWith(c.Path + System.IO.Path.DirectorySeparatorChar,
+                                      StringComparison.OrdinalIgnoreCase));
+            if (next == null) return;              // 階層が見つからない（権限/隠しフォルダ等）
+            node = next;
+        }
+    }
+
+    /// <summary>
+    /// 指定ノードの <see cref="TreeViewItem"/> コンテナが realize されるまで
+    /// レイアウトを回して待つ（仮想化により展開直後は <c>null</c> のことがある）。
+    /// </summary>
+    private async Task<TreeViewItem?> RealizeContainerAsync(FolderNode node)
+    {
+        for (int i = 0; i < 20; i++)
+        {
+            if (FolderTree.ContainerFromItem(node) is TreeViewItem container)
+                return container;
+            FolderTree.UpdateLayout();
+            await Task.Delay(16); // 1 フレーム程度待ってリトライ
+        }
+        return null;
+    }
+
+    /// <summary>末尾区切り（ドライブルート <c>D:\</c> 等）を無視した大小無視のパス比較。</summary>
+    private static bool PathEquals(string a, string b) =>
+        string.Equals(a.TrimEnd('\\'), b.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
 
     private void RemoveFavoriteMenuItem_Click(object sender, RoutedEventArgs e)
     {
