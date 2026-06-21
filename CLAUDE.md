@@ -538,6 +538,11 @@
   - 変更/新規: `Core/CopyRename.cs`（新規）・`tests/…/CopyRenameTests.cs`（新規）、`Core/RejectMove.cs`（`@echo off` 撤去）、
     `ViewModels/MainViewModel.cs`、`Controls/CopyRenameDialog.xaml(.cs)`（新規）、`Controls/FilterBar.xaml(.cs)`。
     `BUILD SUCCEEDED`（App x64・警告0）／`dotnet test` 87 件緑。実機で参照・プレビュー・同一フォルダ時のボタン無効・コピー実行をユーザー確認済み（2026-06-21）。
+  - **テンプレート永続化（追記・2026-06-21）**: 「リネームしてコピー」のファイル名テンプレートを `AppSettings.CopyRenameTemplate`
+    （**既定 `{name}`**）に保存し、次回起動以降の初期値に。保存は **バッチ生成（OK）時に `Settings.Save()`**（最近/お気に入りと同じ
+    変更時保存。キャンセルした打ちかけは記録しない）。`CopyRenameDialog.Configure` が開く際に保存値を `TemplateBox` へ復元
+    （非空のときのみ）。string プロパティ追加のみで source-gen コンテキストは変更不要。変更: `AppSettings.cs`、
+    `Controls/CopyRenameDialog.xaml(.cs)`（XAML 既定値も `{name}`）、`Controls/FilterBar.xaml.cs`。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

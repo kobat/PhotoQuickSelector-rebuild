@@ -38,6 +38,9 @@ public sealed class AppSettings
     /// <summary>プレビューのメタ情報オーバーレイ（案B / I キー）を表示するか。</summary>
     public bool ShowInfoOverlay { get; set; } = true;
 
+    /// <summary>「リネームしてコピー」で最後に使ったファイル名テンプレート（次回の初期値）。</summary>
+    public string CopyRenameTemplate { get; set; } = "{name}";
+
     /// <summary>前回終了時のセッション（開いていたフォルダ・選択・表示モード・フィルタ）。</summary>
     public SessionState LastSession { get; set; } = new();
 

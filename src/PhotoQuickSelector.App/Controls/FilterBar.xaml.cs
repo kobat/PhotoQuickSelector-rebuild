@@ -144,6 +144,10 @@ public sealed partial class FilterBar : UserControl
         if (await dialog.ShowAsync() != ContentDialogResult.Primary)
             return;
 
+        // 使ったテンプレートを次回の初期値として保存（最近/お気に入りと同じく変更時保存）。
+        vm.Settings.CopyRenameTemplate = dialog.RenameTemplate;
+        vm.Settings.Save();
+
         // 2) bat をメモリ生成 → 内容を確認ダイアログで表示。
         var now = DateTime.Now;
         var timestamp = now.ToString("yyyyMMddHHmmss");

@@ -43,6 +43,10 @@ public sealed partial class CopyRenameDialog : ContentDialog
         // コピー先の初期値は現在表示中のフォルダ（参照ボタンで変更可能）。
         if (string.IsNullOrEmpty(DestinationBox.Text))
             DestinationBox.Text = viewModel.CurrentFolder ?? "";
+        // ファイル名テンプレートの初期値は前回使った内容（保存済みなら復元）。
+        var saved = viewModel.Settings.CopyRenameTemplate;
+        if (!string.IsNullOrEmpty(saved))
+            TemplateBox.Text = saved;
         UpdatePreview();
     }
 

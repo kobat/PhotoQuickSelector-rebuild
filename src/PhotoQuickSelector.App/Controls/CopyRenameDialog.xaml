@@ -31,7 +31,7 @@
             <!-- リネームテンプレート -->
             <StackPanel Spacing="6">
                 <TextBlock Text="ファイル名テンプレート" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                <TextBox x:Name="TemplateBox" Text="{}{folder}_{seq:000}"
+                <TextBox x:Name="TemplateBox" Text="{}{name}"
                          TextChanged="Input_Changed" />
                 <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            TextWrapping="Wrap"
