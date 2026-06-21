@@ -101,7 +101,8 @@ public sealed partial class FilterBar : UserControl
         var timestamp = now.ToString("yyyyMMddHHmmss");
         var batText = vm.BuildRejectBatchText(targets, now.ToString("yyyy-MM-dd HH:mm:ss"));
 
-        if (!await ConfirmBatchAsync(targets.Count, batText))
+        var intro = $"{targets.Count} 件を Reject フォルダへ移動します。Reject フォルダに次のバッチを保存して実行します。";
+        if (!await ConfirmBatchAsync("Reject 移動の確認", intro, batText))
             return;
 
         // 3) Reject 作成（既存は再利用）＋bat 保存＋実行（ログ出力）。
@@ -111,6 +112,58 @@ public sealed partial class FilterBar : UserControl
             ? $"{result.TargetCount} 件の移動を実行しました。\n\nログ: {result.LogPath}"
             : $"移動を実行しましたが、エラーの可能性があります（終了コード {result.ExitCode}）。\n\nログ: {result.LogPath}";
         await ShowMessageAsync("Reject 移動が完了しました", message);
+    }
+
+    // === リネームコピー（絞込結果を任意の宛先へリネームしながらコピー） ===
+
+    /// <summary>
+    /// 絞込結果をリネームしながら別フォルダへコピーする一連のフロー。
+    /// 入力ダイアログ（宛先・テンプレート・上書き/無視）→ bat 内容の確認ダイアログ →
+    /// 宛先フォルダ作成＋bat 保存＋実行（ログ出力）→ 完了通知。
+    /// </summary>
+    private async void CopyRename_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel is not { } vm) return;
+
+        if (string.IsNullOrEmpty(vm.CurrentFolder))
+        {
+            await ShowMessageAsync("リネームしてコピー", "フォルダが読み込まれていません。");
+            return;
+        }
+
+        var targets = vm.GetCopyTargets();
+        if (targets.Count == 0)
+        {
+            await ShowMessageAsync("リネームしてコピー", "コピー対象の画像（絞込結果）がありません。");
+            return;
+        }
+
+        // 1) 入力ダイアログ（宛先・テンプレート・同名時の挙動）。
+        var dialog = new CopyRenameDialog { XamlRoot = XamlRoot };
+        dialog.Configure(vm, targets);
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            return;
+
+        // 2) bat をメモリ生成 → 内容を確認ダイアログで表示。
+        var now = DateTime.Now;
+        var timestamp = now.ToString("yyyyMMddHHmmss");
+        var batText = vm.BuildCopyRenameBatchText(
+            dialog.DestinationPath, dialog.RenameTemplate, dialog.Policy,
+            targets, now.ToString("yyyy-MM-dd HH:mm:ss"));
+
+        var intro = $"{targets.Count} 件を「{dialog.DestinationPath}」へコピーします。" +
+                    "コピー先に次のバッチを保存して実行します。";
+        if (!await ConfirmBatchAsync("リネームしてコピーの確認", intro, batText))
+            return;
+
+        // 3) 宛先作成（既存は再利用）＋bat 保存＋実行（ログ出力）。
+        var result = await vm.RunCopyRenameBatchAsync(
+            batText, dialog.DestinationPath, timestamp, targets.Count);
+
+        var message = result.Success
+            ? $"{result.TargetCount} 件のコピーを実行しました。\n\nログ: {result.LogPath}"
+            : $"コピーを実行しましたが、エラーの可能性があります（終了コード {result.ExitCode}）。\n\nログ: {result.LogPath}";
+        await ShowMessageAsync("リネームしてコピーが完了しました", message);
     }
 
     private async Task ShowMessageAsync(string title, string message)
@@ -125,7 +178,7 @@ public sealed partial class FilterBar : UserControl
         await dialog.ShowAsync();
     }
 
-    private async Task<bool> ConfirmBatchAsync(int count, string batText)
+    private async Task<bool> ConfirmBatchAsync(string title, string intro, string batText)
     {
         var box = new TextBox
         {
@@ -144,14 +197,14 @@ public sealed partial class FilterBar : UserControl
         var panel = new StackPanel { Spacing = 8, Width = 700 };
         panel.Children.Add(new TextBlock
         {
-            Text = $"{count} 件を Reject フォルダへ移動します。Reject フォルダに次のバッチを保存して実行します。",
+            Text = intro,
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(box);
 
         var dialog = new ContentDialog
         {
-            Title = "Reject 移動の確認",
+            Title = title,
             Content = panel,
             PrimaryButtonText = "実行",
             CloseButtonText = "キャンセル",

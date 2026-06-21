@@ -45,16 +45,16 @@ public class RejectMoveTests
             new[] { "DSC001.JPG", "DSC002.JPG" });
 
         var lines = text.Split("\r\n");
-        Assert.Equal("@echo off", lines[0]);
-        Assert.Equal("chcp 65001 > nul", lines[1]);
-        Assert.Equal("@rem Reject move generated 2026-06-21 12:34:56", lines[2]);
-        Assert.Equal(@"@rem Folder: D:\Photos\20260228", lines[3]);
-        Assert.Equal("@rem Count: 2/71 (no pick flag, no rating)", lines[4]);
-        Assert.Equal("set FROMDIR=..", lines[5]);
-        Assert.Equal("set TODIR=.", lines[6]);
-        Assert.Equal(@"move %FROMDIR%\DSC001* %TODIR%", lines[7]);
-        Assert.Equal(@"move %FROMDIR%\DSC002* %TODIR%", lines[8]);
-        Assert.Equal("", lines[9]);
+        // @echo off は付けない（コマンドをログにエコーさせるため）。
+        Assert.Equal("chcp 65001 > nul", lines[0]);
+        Assert.Equal("@rem Reject move generated 2026-06-21 12:34:56", lines[1]);
+        Assert.Equal(@"@rem Folder: D:\Photos\20260228", lines[2]);
+        Assert.Equal("@rem Count: 2/71 (no pick flag, no rating)", lines[3]);
+        Assert.Equal("set FROMDIR=..", lines[4]);
+        Assert.Equal("set TODIR=.", lines[5]);
+        Assert.Equal(@"move %FROMDIR%\DSC001* %TODIR%", lines[6]);
+        Assert.Equal(@"move %FROMDIR%\DSC002* %TODIR%", lines[7]);
+        Assert.Equal("", lines[8]);
     }
 
     [Fact]

@@ -20,7 +20,7 @@ public static class RejectMove
         => eval.FlagRating <= 0 && eval.Rating == 0;
 
     /// <summary>
-    /// Reject 移動バッチの本文を生成する。先頭に <c>@echo off</c> ＋ <c>chcp 65001</c>（UTF-8）と
+    /// Reject 移動バッチの本文を生成する。先頭に <c>chcp 65001</c>（UTF-8）と
     /// 生成日時・フォルダ・件数の <c>@rem</c> コメントを置き、本体は各ファイルの
     /// <c>move %FROMDIR%\&lt;拡張子なし名&gt;* %TODIR%</c>。ログ出力は呼び出し側で
     /// <c>cmd /c "bat" &gt; "log" 2&gt;&amp;1</c> のリダイレクトにより行う想定（bat 本文には含めない）。
@@ -37,9 +37,9 @@ public static class RejectMove
         int totalCount,
         IEnumerable<string> fileNames)
     {
+        // @echo off は付けない（各 move コマンドがログにエコーされるようにするため）。
         var lines = new List<string>
         {
-            "@echo off",
             "chcp 65001 > nul",
             $"@rem Reject move generated {generatedAt}",
             $"@rem Folder: {folderDescription}",

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentDialog
+    x:Class="PhotoQuickSelector_App.Controls.CopyRenameDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="リネームしてコピー"
+    PrimaryButtonText="バッチを生成"
+    CloseButtonText="キャンセル"
+    DefaultButton="Primary">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Width="640" Spacing="14">
+
+            <!-- コピー先フォルダ -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="コピー先フォルダ" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="DestinationBox" PlaceholderText="例: E:\Selected\20260228"
+                             TextChanged="Input_Changed" />
+                    <Button Grid.Column="1" Content="参照…" Click="Browse_Click" />
+                </Grid>
+            </StackPanel>
+
+            <!-- リネームテンプレート -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="ファイル名テンプレート" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                <TextBox x:Name="TemplateBox" Text="{}{folder}_{seq:000}"
+                         TextChanged="Input_Changed" />
+                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Text="プレースホルダを挿入（拡張子は元のまま自動付与）。年月日＝大文字 / 時分秒＝小文字。" />
+                <!-- プレースホルダ挿入ボタン群（クリックでキャレット位置へ挿入）。2 段に配置。 -->
+                <StackPanel Spacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button Content="フォルダ名" Tag="{}{folder}" Click="Token_Click" />
+                        <Button Content="元ファイル名" Tag="{}{name}" Click="Token_Click" />
+                        <Button Content="年" Tag="{}{YYYY}" Click="Token_Click" />
+                        <Button Content="月" Tag="{}{MM}" Click="Token_Click" />
+                        <Button Content="日" Tag="{}{DD}" Click="Token_Click" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Button Content="時" Tag="{}{hh}" Click="Token_Click" />
+                        <Button Content="分" Tag="{}{mm}" Click="Token_Click" />
+                        <Button Content="秒" Tag="{}{ss}" Click="Token_Click" />
+                        <Button Content="連番" Tag="{}{seq:000}" Click="Token_Click" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- 同名存在時 -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="コピー先に同名がある場合" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                <RadioButtons x:Name="PolicyButtons" SelectedIndex="0">
+                    <x:String>上書きする</x:String>
+                    <x:String>コピーしない（無視）</x:String>
+                </RadioButtons>
+            </StackPanel>
+
+            <!-- 重複警告 -->
+            <InfoBar x:Name="DuplicateWarning" Severity="Warning" IsOpen="False"
+                     IsClosable="False" Title="リネーム後の名前が重複しています" />
+
+            <!-- プレビュー -->
+            <StackPanel Spacing="6">
+                <TextBlock x:Name="PreviewHeader" Text="プレビュー"
+                           Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                        CornerRadius="4" Padding="8" MaxHeight="180">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="PreviewList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock FontFamily="Consolas" FontSize="12"
+                                               Text="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

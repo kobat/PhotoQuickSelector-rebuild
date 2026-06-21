@@ -102,6 +102,11 @@
                         <Button Content="未評価をRejectフォルダへ移動…" HorizontalAlignment="Stretch"
                                 Click="RejectUnrated_Click"
                                 ToolTipService.ToolTip="採用フラグなし・未評価の画像をフォルダ配下の Reject サブフォルダへ移動します" />
+
+                        <!-- 絞込結果をリネームしながら任意の宛先へコピー。 -->
+                        <Button Content="リネームしてコピー…" HorizontalAlignment="Stretch"
+                                Click="CopyRename_Click"
+                                ToolTipService.ToolTip="絞込結果の画像をリネームしながら別フォルダへコピーします（RAW+JPEG はまとめてコピー）" />
                     </StackPanel>
                 </StackPanel>
             </Flyout>

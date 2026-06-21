@@ -157,6 +157,84 @@ public partial class MainViewModel : ObservableObject
         return new RejectRunResult(exitCode == 0, exitCode, batPath, logPath, targetCount);
     }
 
+    // === リネームコピー（絞込結果を任意の宛先へリネームしながらコピー） ===
+
+    /// <summary>リネームコピーの対象（絞込結果＝現在表示中の写真）。</summary>
+    public IReadOnlyList<PhotoItemViewModel> GetCopyTargets() => Photos.ToList();
+
+    private static IReadOnlyList<CopyRename.RenameContext> ToContexts(
+        IEnumerable<PhotoItemViewModel> items)
+        => items.Select(p => new CopyRename.RenameContext(
+            p.FileName,
+            p.Meta.TakenDateTimeOffset == DateTimeOffset.MinValue
+                ? null : p.Meta.TakenDateTimeOffset)).ToList();
+
+    /// <summary>
+    /// テンプレートを各対象に適用した「元名 → 新ベース名」の一覧。UI のライブプレビュー用。
+    /// </summary>
+    public IReadOnlyList<(string SourceName, string NewBase)> PreviewCopyNames(
+        string template, IReadOnlyList<PhotoItemViewModel> items)
+        => CopyRename.ResolveAll(
+            template, Path.GetFileName(CurrentFolder ?? ""), ToContexts(items), out _);
+
+    /// <summary>テンプレート適用後に新ベース名が衝突する（同名になる）ものを列挙する。</summary>
+    public IReadOnlyList<string> FindCopyNameDuplicates(
+        string template, IReadOnlyList<PhotoItemViewModel> items)
+    {
+        CopyRename.ResolveAll(
+            template, Path.GetFileName(CurrentFolder ?? ""), ToContexts(items), out var dups);
+        return dups;
+    }
+
+    /// <summary>リネームコピーのバッチ本文を生成する。</summary>
+    public string BuildCopyRenameBatchText(
+        string destDir, string template, CopyRename.OnExist policy,
+        IReadOnlyList<PhotoItemViewModel> items, string generatedAt)
+        => CopyRename.BuildBatch(
+            CurrentFolder ?? "", destDir, template, policy, generatedAt, ToContexts(items));
+
+    /// <summary>リネームコピーの実行結果。</summary>
+    public sealed record CopyRunResult(
+        bool Success, int ExitCode, string BatPath, string LogPath, int TargetCount);
+
+    /// <summary>
+    /// 宛先フォルダを作成（既存なら再利用）して bat を保存し、cmd 経由で実行する。
+    /// bat・ログともに宛先フォルダ直下（<c>CopyRename_yyyyMMddHHmmss.bat/.log</c>）。
+    /// コピーは元フォルダを変更しないので一覧の再読込は行わない。
+    /// </summary>
+    public async Task<CopyRunResult> RunCopyRenameBatchAsync(
+        string batText, string destDir, string timestamp, int targetCount)
+    {
+        Directory.CreateDirectory(destDir);   // 冪等（既存フォルダはそのまま利用）
+
+        var batPath = Path.Combine(destDir, $"CopyRename_{timestamp}.bat");
+        var logPath = Path.Combine(destDir, $"CopyRename_{timestamp}.log");
+
+        // UTF-8（BOM なし）で保存。bat 先頭の chcp 65001 と整合し、日本語名にも対応。
+        await File.WriteAllTextAsync(batPath, batText, new UTF8Encoding(false));
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = $"/c \"\"{batPath}\" > \"{logPath}\" 2>&1\"",
+            WorkingDirectory = destDir,   // bat 内の TODIR=. の基準
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        int exitCode = -1;
+        using (var process = Process.Start(psi))
+        {
+            if (process != null)
+            {
+                await process.WaitForExitAsync();
+                exitCode = process.ExitCode;
+            }
+        }
+
+        return new CopyRunResult(exitCode == 0, exitCode, batPath, logPath, targetCount);
+    }
+
     /// <summary>設定の最近/お気に入りから表示用コレクションを作り直す。</summary>
     private void RebuildShortcuts()
     {

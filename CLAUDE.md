@@ -511,6 +511,34 @@
     `Controls/FilterBar.xaml(.cs)`。`BUILD SUCCEEDED`（App x64 Release・警告0）／`dotnet test` 79 件緑。
     実機で対象抽出・bat 全行表示・移動実行・完了通知をユーザー確認済み（2026-06-21）。
 
+- **リネームしてコピー 完了（2026-06-21）**: 絞込結果（フィルタ後の表示中写真）を、ファイル名を置換ルールで
+  リネームしながら任意の宛先フォルダへ bat 経由でコピーする機能。フィルタのフライアウト内に専用ボタン「リネームしてコピー…」。
+  Reject 移動と同じ骨格（メモリ生成→内容確認→宛先で保存・実行・ログ格納）。
+  - **Core（純関数・テスト付き）**: 新規 `Core/CopyRename.cs`＝`ResolveName`（テンプレート展開・不正文字は `_` にサニタイズ）／
+    `ResolveAll`（全件展開＋**重複名検出**＝リネーム特有の同名衝突）／`BuildBatch`（RAW+JPEG は
+    `for %%F in ("%FROMDIR%\<元名>.*") do copy "%%F" "%TODIR%\<新名>%%~xF"` で**まとめてコピー＋拡張子保持**。
+    上書き＝`copy /y`／無視＝`if not exist … copy`）。テスト 8 件追加＝**計 87 件緑**。
+  - **プレースホルダ（ユーザー指定: 年月日＝大文字 / 時分秒＝小文字。月 `MM` と分 `mm` が大小で区別）**:
+    `{folder}` `{name}` `{ext}` ／ `{YYYY}` `{YY}` `{MM}` `{DD}` ／ `{hh}`(24h) `{mm}` `{ss}` ／ `{seq}` `{seq:000}`（連番・桁数はゼロの個数）。
+    拡張子はテンプレートに含めず自動付与。撮影日時(`Meta.TakenDateTimeOffset`)が無い写真は日時トークンが空。
+  - **App（`MainViewModel`）**: `GetCopyTargets()`（**=絞込結果 `Photos`**）／`PreviewCopyNames`／`FindCopyNameDuplicates`／
+    `BuildCopyRenameBatchText`／`RunCopyRenameBatchAsync`（宛先を `Directory.CreateDirectory`＝冪等→
+    `CopyRename_yyyyMMddHHmmss.bat` を UTF-8(BOM なし)保存→ `cmd /c` で実行・`CopyRename_….log` へリダイレクト。
+    WorkingDirectory=宛先。コピーは元フォルダ不変なので再読込しない）。
+  - **UI（`Controls/CopyRenameDialog.xaml(.cs)` 新規＝モーダル）**: コピー先入力＋**参照ボタン（`FolderPicker`＋`App.WindowHandle`）**／
+    テンプレート入力＋プレースホルダ挿入ボタン（キャレット位置へ挿入）／上書き⇔無視 `RadioButtons`／**リネーム結果ライブプレビュー**／
+    重複警告 `InfoBar`。`FilterBar.CopyRename_Click` が 入力→bat 確認ダイアログ（Reject と共用化した `ConfirmBatchAsync(title,intro,bat)`）→
+    実行→完了通知 を駆動。コピー先初期値＝表示中フォルダ（`CurrentFolder`）。
+  - **誤実行防止（ユーザー要望）**: コピー先がコピー元（表示中フォルダ）と同じ／未入力／名前重複のいずれかなら
+    **「バッチを生成」ボタンを `IsPrimaryButtonEnabled=false` で無効化**＋InfoBar で理由表示（優先度: 未入力＞同一＞重複）。
+    パス比較は `Path.GetFullPath`＋`TrimEndingDirectorySeparator` の大小無視（不正パスは例外握りつぶし）。`PrimaryButtonClick` でも同条件を保険ガード。
+  - **バッチ先頭の `@echo off` を廃止（ユーザー要望・`RejectMove` にも適用）**: 各 copy/move コマンドを実行ログにエコーさせるため。
+    先頭は `chcp 65001 > nul` から。`ClipboardExport.BuildMoveBatch` は元々 `@echo off` 無しのため変更なし。テストの行構成も更新。
+  - 設計判断（ユーザー確定）: 対象＝絞込結果（フィルタ後）／RAW+JPEG はまとめてコピー／プレースホルダの年月日＝大文字・時分秒＝小文字。
+  - 変更/新規: `Core/CopyRename.cs`（新規）・`tests/…/CopyRenameTests.cs`（新規）、`Core/RejectMove.cs`（`@echo off` 撤去）、
+    `ViewModels/MainViewModel.cs`、`Controls/CopyRenameDialog.xaml(.cs)`（新規）、`Controls/FilterBar.xaml(.cs)`。
+    `BUILD SUCCEEDED`（App x64・警告0）／`dotnet test` 87 件緑。実機で参照・プレビュー・同一フォルダ時のボタン無効・コピー実行をユーザー確認済み（2026-06-21）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
