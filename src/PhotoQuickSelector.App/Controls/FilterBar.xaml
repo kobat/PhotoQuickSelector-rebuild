@@ -97,6 +97,11 @@
                                 </MenuFlyout>
                             </DropDownButton.Flyout>
                         </DropDownButton>
+
+                        <!-- 採用フラグなし・未評価の画像を Reject サブフォルダへ移動（フィルタ非依存・全件対象）。 -->
+                        <Button Content="未評価をRejectフォルダへ移動…" HorizontalAlignment="Stretch"
+                                Click="RejectUnrated_Click"
+                                ToolTipService.ToolTip="採用フラグなし・未評価の画像をフォルダ配下の Reject サブフォルダへ移動します" />
                     </StackPanel>
                 </StackPanel>
             </Flyout>

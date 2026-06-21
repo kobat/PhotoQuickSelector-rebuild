@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Xaml;
 using PhotoQuickSelector.Core;
@@ -72,6 +74,88 @@ public partial class MainViewModel : ObservableObject
             AllPhotos.Count,
             Filter.Model.DescribeConditions(),
             Photos.Select(p => p.FileName));
+
+    // === Reject 移動（採用フラグなし＆未評価をフォルダ配下の Reject サブフォルダへ） ===
+
+    /// <summary>Reject 移動の対象（採用フラグなし＆未評価）。UI フィルタ非依存で全件から抽出する。</summary>
+    public IReadOnlyList<PhotoItemViewModel> GetRejectTargets()
+        => AllPhotos.Where(p => RejectMove.IsRejectTarget(p.Eval)).ToList();
+
+    /// <summary>Reject サブフォルダの絶対パス（現在フォルダ配下）。</summary>
+    public string RejectFolderPath
+        => Path.Combine(CurrentFolder ?? "", RejectMove.RejectFolderName);
+
+    /// <summary>
+    /// 移動対象のうち、Reject フォルダに既に同名（拡張子込み）ファイルが存在するものを列挙する。
+    /// Reject フォルダ未作成なら衝突なし。
+    /// </summary>
+    public IReadOnlyList<string> FindRejectCollisions(IEnumerable<PhotoItemViewModel> targets)
+    {
+        var dir = RejectFolderPath;
+        if (!Directory.Exists(dir)) return Array.Empty<string>();
+        return targets
+            .Select(t => t.FileName)
+            .Where(name => File.Exists(Path.Combine(dir, name)))
+            .ToList();
+    }
+
+    /// <summary>移動対象から Reject 移動バッチ本文を生成する。</summary>
+    public string BuildRejectBatchText(IReadOnlyList<PhotoItemViewModel> targets, string generatedAt)
+        => RejectMove.BuildBatch(
+            CurrentFolder ?? "",
+            generatedAt,
+            targets.Count,
+            AllPhotos.Count,
+            targets.Select(p => p.FileName));
+
+    /// <summary>Reject 移動の実行結果。</summary>
+    public sealed record RejectRunResult(
+        bool Success, int ExitCode, string BatPath, string LogPath, int TargetCount);
+
+    /// <summary>
+    /// Reject フォルダを作成（既存なら再利用）して bat を保存し、cmd 経由で実行する。
+    /// ログは <c>Reject_yyyyMMddHHmmss.log</c> へリダイレクトする。実行後はフォルダを再読込し、
+    /// 移動済みの写真を一覧から除く。
+    /// </summary>
+    public async Task<RejectRunResult> RunRejectBatchAsync(
+        string batText, string timestamp, int targetCount)
+    {
+        var dir = RejectFolderPath;
+        Directory.CreateDirectory(dir);   // 冪等（既存フォルダはそのまま利用）
+
+        var batPath = Path.Combine(dir, $"Reject_{timestamp}.bat");
+        var logPath = Path.Combine(dir, $"Reject_{timestamp}.log");
+
+        // UTF-8（BOM なし）で保存。bat 先頭の chcp 65001 と整合し、日本語ファイル名にも対応。
+        await File.WriteAllTextAsync(batPath, batText, new UTF8Encoding(false));
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            // bat の実行とログ出力。最初の引用符で外側の囲みを剥がす cmd の作法に合わせる。
+            Arguments = $"/c \"\"{batPath}\" > \"{logPath}\" 2>&1\"",
+            WorkingDirectory = dir,   // bat 内の FROMDIR=.. / TODIR=. の基準
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        int exitCode = -1;
+        using (var process = Process.Start(psi))
+        {
+            if (process != null)
+            {
+                await process.WaitForExitAsync();
+                exitCode = process.ExitCode;
+            }
+        }
+
+        // 移動でフォルダ内容が変わったので再読込（移動済みは一覧から消える）。
+        var folder = CurrentFolder;
+        if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+            await LoadFolderAsync(folder);
+
+        return new RejectRunResult(exitCode == 0, exitCode, batPath, logPath, targetCount);
+    }
 
     /// <summary>設定の最近/お気に入りから表示用コレクションを作り直す。</summary>
     private void RebuildShortcuts()

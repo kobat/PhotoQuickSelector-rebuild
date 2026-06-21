@@ -488,6 +488,29 @@
     `MainViewModel` は WinUI 依存（`Visibility`）で Core.Tests から参照不可のため検証は実機目視（外れる→空／広げて復帰→元選択／
     空のまま ←/→ で前後の可視写真へ）をユーザー確認推奨。
 
+- **未評価画像の Reject フォルダ移動 完了（2026-06-21）**: 「採用フラグなし＆未評価」の画像を、フォルダ配下の
+  `Reject` サブフォルダへ bat 経由で移動する機能。フィルタのフライアウト内に専用ボタン「未評価をRejectフォルダへ移動…」。
+  - **Core（純関数・テスト付き）**: 新規 `Core/RejectMove.cs`＝`IsRejectTarget(eval)`（`FlagRating<=0 && Rating==0`＝
+    拒否フラグ付き未評価も対象）／`BuildBatch(...)`（`@echo off`＋`chcp 65001`＋`@rem` ヘッダ＋既存と同じ
+    `move %FROMDIR%\<拡張子なし名>* %TODIR%`＝RAW+JPEG まとめ移動。bat を Reject 直下に置く前提で FROMDIR=../TODIR=.）。
+    テスト 6 件追加＝**計 79 件緑**。
+  - **App（`MainViewModel`）**: `GetRejectTargets()`（**フィルタ非依存で `AllPhotos` 全件**から抽出）／`RejectFolderPath`／
+    `FindRejectCollisions()`（Reject に同名=拡張子込みが既存なら列挙）／`BuildRejectBatchText()`／`RunRejectBatchAsync()`
+    （`Directory.CreateDirectory`＝冪等→ `Reject_yyyyMMddHHmmss.bat` を UTF-8(BOM なし)保存→
+    `cmd /c ""bat" > "Reject_….log" 2>&1"`（WorkingDirectory=Reject）で実行＋`WaitForExitAsync`→ フォルダ再読込で移動済みを一覧から除去）。
+  - **UI フロー（`Controls/FilterBar.xaml(.cs)`）**: ボタン→ 対象抽出（0 件なら通知）→ **同名衝突チェック（あれば中断ダイアログ）**→
+    bat 内容を `ContentDialog`（読み取り専用 `TextBox`・Consolas・実行/キャンセル）で確認 → OK で `RunRejectBatchAsync` → 完了ダイアログ
+    （ログパス表示）。`ContentDialog` の `XamlRoot` はコントロールのものを使用。
+  - 設計判断（ユーザー確定）: 対象＝拒否フラグ付き未評価も含む／RAW+JPEG はワイルドカードでまとめ移動／フィルタ非依存で全件／
+    入口はフィルタのフライアウト内。**パッケージ版でも子 cmd はサンドボックス外で動くのでファイル移動可**。
+  - **確認ダイアログ TextBox の落とし穴 2 件（実機確認で修正）**: ①初期化子は記述順に代入されるため
+    `AcceptsReturn=true` を `Text` より**先に**設定する（`AcceptsReturn=false` のまま改行入り文字列を代入すると 1 行目で切り捨て。
+    メモリ `winui-textbox-acceptsreturn-order`）。②`ContentDialog` は既定で `ContentDialogMaxWidth`(≈548) に幅をクランプするため、
+    内容 `StackPanel.Width=700` ＋ `dialog.Resources["ContentDialogMaxWidth"]=760.0` の**2点セット**で広げる。
+  - 変更/新規: `Core/RejectMove.cs`（新規）・`tests/…/RejectMoveTests.cs`（新規）、`ViewModels/MainViewModel.cs`、
+    `Controls/FilterBar.xaml(.cs)`。`BUILD SUCCEEDED`（App x64 Release・警告0）／`dotnet test` 79 件緑。
+    実機で対象抽出・bat 全行表示・移動実行・完了通知をユーザー確認済み（2026-06-21）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
