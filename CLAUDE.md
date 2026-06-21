@@ -238,6 +238,8 @@
   - **キー**: `Ctrl+L` でフィルタ ON/OFF トグル（フライアウトは開かない。`MainPage.HandleGlobalKeyDown` で両モード共通）。
   - 既知の割り切り: プレビュー中に `Ctrl+L`/条件変更で表示中の写真が絞り込みから外れると選択解除→プレビューが空になる
     （通常はサムネイル時に使う想定。必要なら 4-B で抑止）。ユーザー画面確認済み（2026-06-19）。
+    → **後日アンカー方式で改善（2026-06-21、後述「フィルタで選択写真が外れた時の挙動改善」）**。空表示自体は維持しつつ、
+    再表示で元ファイル復元／外れ中の前後移動を元位置基準に。
   - 変更/新規: `Core/PhotoFilter.cs`・`Core/ClipboardExport.cs`、`ViewModels/FilterViewModel.cs`・`MainViewModel.cs`、
     `Controls/FilterBar.xaml(.cs)`・`PhotoStatusBar.xaml(.cs)`、`MainPage.xaml(.cs)`、テスト 2 ファイル。
 - **フルスクリーン表示 完了（`5a97b7c`、`origin/main` プッシュ済み・2026-06-20）**: ウィンドウ全体の全画面表示を追加。
@@ -468,6 +470,23 @@
     `ViewModels/MainViewModel.cs`（`CaptureSession`＋`LoadFolderAsync` 引数）、`MainPage.xaml.cs`（`RestoreSessionAsync`）、
     `MainWindow.xaml.cs`（`Closed` で `CaptureSession`）、`Controls/FolderNavigationView.xaml.cs`（`ExpandAndSelectFolderAsync` を public 化）。
     `BUILD SUCCEEDED`（警告0）／`dotnet test` 73 件緑。実機目視（開く→選択→プレビュー→終了→再起動で復元）はユーザー確認推奨。
+- **フィルタで選択写真が外れた時の挙動改善 完了（2026-06-21）**: 選択中の写真がフィルタ条件変更で絞込結果から外れたときの
+  挙動を、従来の「選択を完全に忘れる」から「**最後に実際に選んでいた写真をアンカーとして覚えておく**」方式へ変更。
+  3 挙動を実現（`MainViewModel.cs` のみ変更・Core/XAML/テスト非変更）。
+  - **新フィールド `_selectionAnchor`**: `SelectedPhoto` とは別に「最後に実際に選んでいた写真」を保持。
+    `OnSelectedPhotoChanged(old,new)` で **非 null 選択時のみ更新**（`SelectedPhoto=null`＝外れた時は保持）。
+    `LoadFolderAsync` の `AllPhotos.Clear()` で `null` リセット（別フォルダの古い写真を基準に残さない）。
+  - **挙動①（外れたら空表示・維持）**: `ApplyFilter` はアンカーが結果に残れば選択復元・外れれば `SelectedPhoto=null`
+    （プレビューは空）だが**アンカーは保持**。
+  - **挙動②（再表示で元ファイル選択）**: `ApplyFilter` の選択判定を旧 `previous`（＝今の選択）から `_selectionAnchor` へ置換。
+    再びフィルタを広げてアンカーが結果に入れば自動再選択。
+  - **挙動③（外れ中の前後移動は元位置基準）**: `MoveBy` を 2 分岐化。`SelectedPhoto != null` は従来どおり絞込ビュー内移動。
+    `null`（外れ中）はアンカーの `AllPhotos` 位置から直近の前/後ろの**可視（`Filter.Model.Matches`）写真**を選ぶ。
+  - 設計判断: アンカー＝「最後に**表示できていた**選択」。外れて空の後に ←/→ で見える別写真へ動けば、その時点でアンカーは
+    そちらへ更新される（元写真へは戻らない＝ブラウズ中の選択ワープを防止）。挙動②③はいずれも「まだ空のまま」の状態で作用。
+  - 変更: `ViewModels/MainViewModel.cs`（5 箇所）。`BUILD SUCCEEDED`（警告0）／`dotnet test` 73 件緑。
+    `MainViewModel` は WinUI 依存（`Visibility`）で Core.Tests から参照不可のため検証は実機目視（外れる→空／広げて復帰→元選択／
+    空のまま ←/→ で前後の可視写真へ）をユーザー確認推奨。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

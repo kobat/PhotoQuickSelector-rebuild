@@ -47,8 +47,6 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public void ApplyFilter()
     {
-        var previous = SelectedPhoto;
-
         Photos.Clear();
         foreach (var item in AllPhotos)
             if (Filter.Model.Matches(item.Eval))
@@ -56,8 +54,10 @@ public partial class MainViewModel : ObservableObject
 
         OnPropertyChanged(nameof(FilteredCountText));
 
-        // 絞り込みで対象から外れた場合は選択を解除（残っていればそのまま）。
-        SelectedPhoto = (previous != null && Photos.Contains(previous)) ? previous : null;
+        // アンカー（最後に選んでいた写真）が結果に残っていれば選択を復元、外れていれば選択解除。
+        // アンカー自体は保持し続け、再び結果に入れば次回ここで復元される。
+        SelectedPhoto = (_selectionAnchor != null && Photos.Contains(_selectionAnchor))
+            ? _selectionAnchor : null;
     }
 
     /// <summary>絞込結果のファイル名一覧テキスト（クリップボード用、SPEC §3-5）。</summary>
@@ -138,6 +138,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial PhotoItemViewModel? SelectedPhoto { get; set; }
 
+    /// <summary>
+    /// 最後に「実際に選択していた」写真。絞り込みで <see cref="SelectedPhoto"/> が null になっても保持し、
+    /// 再び結果に入れば選択を復元する／外れている間の前後移動の基準にする。
+    /// </summary>
+    private PhotoItemViewModel? _selectionAnchor;
+
     /// <summary>ステータスバーのメタ情報パネル表示（写真選択時のみ）。</summary>
     public Visibility PhotoInfoVisibility =>
         SelectedPhoto != null ? Visibility.Visible : Visibility.Collapsed;
@@ -149,7 +155,11 @@ public partial class MainViewModel : ObservableObject
     partial void OnSelectedPhotoChanged(PhotoItemViewModel? oldValue, PhotoItemViewModel? newValue)
     {
         if (oldValue != null) oldValue.IsSelected = false;
-        if (newValue != null) newValue.IsSelected = true;
+        if (newValue != null)
+        {
+            newValue.IsSelected = true;
+            _selectionAnchor = newValue;  // 絞り込みで外れても保持する（再表示時の復元／外れ中の移動基準）
+        }
     }
 
     // --- プレビュー画面（右ペインのサムネイル一覧 ⇄ 大画面プレビュー切替） ---
@@ -218,11 +228,35 @@ public partial class MainViewModel : ObservableObject
 
     private void MoveBy(int delta)
     {
-        if (SelectedPhoto == null) return;
-        int index = Photos.IndexOf(SelectedPhoto);
-        if (index < 0) return;
-        int next = Math.Clamp(index + delta, 0, Photos.Count - 1);
-        if (next != index) SelectedPhoto = Photos[next];
+        if (Photos.Count == 0) return;
+
+        // 通常: 選択中の写真を基準に絞込ビュー内で前後移動。
+        if (SelectedPhoto != null)
+        {
+            int index = Photos.IndexOf(SelectedPhoto);
+            if (index < 0) return;
+            int next = Math.Clamp(index + delta, 0, Photos.Count - 1);
+            if (next != index) SelectedPhoto = Photos[next];
+            return;
+        }
+
+        // 絞り込みで選択が外れている間: もともとの写真（アンカー）の位置を基準に、
+        // 絞込結果に含まれる直近の後ろ／前の写真を選ぶ（AllPhotos は表示順で安定）。
+        if (_selectionAnchor == null) return;
+        int aIdx = AllPhotos.IndexOf(_selectionAnchor);
+        if (aIdx < 0) return;
+
+        if (delta > 0)
+        {
+            for (int i = aIdx + 1; i < AllPhotos.Count; i++)
+                if (Filter.Model.Matches(AllPhotos[i].Eval)) { SelectedPhoto = AllPhotos[i]; return; }
+        }
+        else
+        {
+            for (int i = aIdx - 1; i >= 0; i--)
+                if (Filter.Model.Matches(AllPhotos[i].Eval)) { SelectedPhoto = AllPhotos[i]; return; }
+        }
+        // 該当方向に可視写真が無ければ何もしない（端と同じ＝空のまま）。
     }
 
     /// <summary>
@@ -246,6 +280,7 @@ public partial class MainViewModel : ObservableObject
         IsLoading = true;
         AllPhotos.Clear();
         Photos.Clear();
+        _selectionAnchor = null;   // 別フォルダの古い写真を基準に残さない
         OnPropertyChanged(nameof(FilteredCountText));
         CurrentFolder = folderPath;
         StatusText = $"読み込み中: {folderPath}";
