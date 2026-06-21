@@ -543,6 +543,14 @@
     変更時保存。キャンセルした打ちかけは記録しない）。`CopyRenameDialog.Configure` が開く際に保存値を `TemplateBox` へ復元
     （非空のときのみ）。string プロパティ追加のみで source-gen コンテキストは変更不要。変更: `AppSettings.cs`、
     `Controls/CopyRenameDialog.xaml(.cs)`（XAML 既定値も `{name}`）、`Controls/FilterBar.xaml.cs`。
+  - **参照ボタンをコピー先フォルダで開く（追記・2026-06-21）**: 「参照…」のフォルダ選択を、現在のコピー先
+    （既定＝表示中フォルダ）を初期表示して開くようにした。**WinRT `FolderPicker` は任意パスから開けない**
+    （`SuggestedStartLocation` は `PickerLocationId` 列挙のみ＝WinUI 3 既知制約）ため、Win32 `IFileOpenDialog`
+    （`FOS_PICKFOLDERS`＋`SetFolder`）を `[ComImport]` 相互運用で呼ぶ新規ヘルパー `Controls/NativeFolderPicker.cs` を導入。
+    `SHCreateItemFromParsingName` で開始パスの `IShellItem` 化 → `SetFolder` → `Show` → `GetResult`/`GetDisplayName(FILESYSPATH)`。
+    開始パスが無ければ**直近の存在する親へ遡り**、キャンセル/例外は握りつぶして null。発行時もトリミング無効なので従来型
+    `[ComImport]` で安全。`Browse_Click` は WinRT → ネイティブに差し替え（同期化、`using Windows.Storage.Pickers;` 撤去）。
+    変更/新規: `Controls/NativeFolderPicker.cs`（新規）、`Controls/CopyRenameDialog.xaml.cs`。Core/ViewModel/XAML 非変更。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

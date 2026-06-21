@@ -3,7 +3,6 @@ using System.Linq;
 using Microsoft.UI.Xaml.Controls;
 using PhotoQuickSelector.Core;
 using PhotoQuickSelector_App.ViewModels;
-using Windows.Storage.Pickers;
 
 namespace PhotoQuickSelector_App.Controls;
 
@@ -135,16 +134,17 @@ public sealed partial class CopyRenameDialog : ContentDialog
         TemplateBox.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
     }
 
-    private async void Browse_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    private void Browse_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        var picker = new FolderPicker { SuggestedStartLocation = PickerLocationId.ComputerFolder };
-        picker.FileTypeFilter.Add("*");
-        WinRT.Interop.InitializeWithWindow.Initialize(picker, App.WindowHandle);
+        // コピー先テキスト（既定＝表示中フォルダ）を初期表示してネイティブのフォルダ選択を開く。
+        var start = !string.IsNullOrWhiteSpace(DestinationBox.Text)
+            ? DestinationBox.Text
+            : _viewModel?.CurrentFolder;
 
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder != null)
+        var picked = NativeFolderPicker.PickFolder(App.WindowHandle, start);
+        if (picked != null)
         {
-            DestinationBox.Text = folder.Path;
+            DestinationBox.Text = picked;
             UpdatePreview();
         }
     }
