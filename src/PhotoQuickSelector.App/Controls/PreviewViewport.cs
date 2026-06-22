@@ -58,6 +58,12 @@ public sealed class PreviewViewport
     private const double MinScale = 0.02;
     private const double MaxScale = 16.0;
 
+    // 直近のズーム状態（フィットに戻る直前の倍率・モード・相対中心）を覚えておき、
+    // 再度ズーム（Z トグル）したときに同じ表示位置へ復元する。null＝記憶なし。
+    private double? _rememberedScale;
+    private double _rememberedRelCx = 0.5, _rememberedRelCy = 0.5;
+    private ZoomMode _rememberedMode = ZoomMode.ActualSize;
+
     /// <summary>フィット時の倍率。</summary>
     public double FitScale
     {
@@ -83,6 +89,7 @@ public sealed class PreviewViewport
         ImageWidth = imageWidth;
         ImageHeight = imageHeight;
         Mode = ZoomMode.Fit;
+        _rememberedScale = null; // 新しい画像なので記憶ズーム位置はリセット
         ApplyMode();
     }
 
@@ -146,6 +153,9 @@ public sealed class PreviewViewport
     /// <summary>フィット表示にする。</summary>
     public void SetFit()
     {
+        // ズーム中からフィットへ戻るときは、戻る前の表示位置を記憶しておく
+        // （次に Z でズームしたとき同じ位置へ復元するため）。
+        if (Mode != ZoomMode.Fit) RememberCurrentView();
         Mode = ZoomMode.Fit;
         ApplyMode();
     }
@@ -157,11 +167,40 @@ public sealed class PreviewViewport
         Mode = ZoomMode.ActualSize;
     }
 
-    /// <summary>フィット ⇄ 等倍をトグルする（SPEC §3-7 の Z キー）。</summary>
+    /// <summary>
+    /// フィット ⇄ ズームをトグルする（SPEC §3-7 の Z キー）。
+    /// フィットからズームへ戻すときは、直前にスクロールしていた表示位置（倍率・中心）を復元する
+    /// （記憶がなければ等倍）。
+    /// </summary>
     public void ToggleZoom()
     {
-        if (Mode == ZoomMode.Fit) SetActualSize();
+        if (Mode == ZoomMode.Fit) RestoreZoomView();
         else SetFit();
+    }
+
+    /// <summary>現在の表示状態（倍率・モード・キャンバス中心が指す相対位置）を記憶する。</summary>
+    private void RememberCurrentView()
+    {
+        if (ImageWidth <= 0 || ImageHeight <= 0 || Scale <= 0) return;
+        _rememberedScale = Scale;
+        _rememberedMode = Mode;
+        _rememberedRelCx = Math.Clamp(((CanvasWidth / 2 - OffsetX) / Scale) / ImageWidth, 0, 1);
+        _rememberedRelCy = Math.Clamp(((CanvasHeight / 2 - OffsetY) / Scale) / ImageHeight, 0, 1);
+    }
+
+    /// <summary>記憶した表示状態（倍率・中心）を復元する。記憶がなければ等倍にする。</summary>
+    private void RestoreZoomView()
+    {
+        if (_rememberedScale is not { } s || ImageWidth <= 0 || ImageHeight <= 0)
+        {
+            SetActualSize();
+            return;
+        }
+        Scale = Math.Clamp(s, MinScale, MaxScale);
+        Mode = _rememberedMode;
+        OffsetX = CanvasWidth / 2 - _rememberedRelCx * ImageWidth * Scale;
+        OffsetY = CanvasHeight / 2 - _rememberedRelCy * ImageHeight * Scale;
+        Clamp();
     }
 
     /// <summary>指定キャンバス座標を中心に倍率を factor 倍する（ホイールズーム用）。</summary>

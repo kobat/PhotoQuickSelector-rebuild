@@ -60,18 +60,19 @@ public sealed partial class PreviewControl
             }
         }
 
-        // 修飾子なしの ←/→ : 前後移動
+        // 修飾子なしの ←/→ : 前後移動。移動後はフォーカスをフィルムストリップへ移し、
+        // PageUp/PageDown/Home/End 等の ListView キー操作が効くようにする。
         if (KeyboardModifiers.None)
         {
             switch (key)
             {
-                case VirtualKey.Left: _viewModel.MovePrevious(); return true;
-                case VirtualKey.Right: _viewModel.MoveNext(); return true;
+                case VirtualKey.Left: _viewModel.MovePrevious(); FocusFilmStripSelected(); return true;
+                case VirtualKey.Right: _viewModel.MoveNext(); FocusFilmStripSelected(); return true;
             }
         }
 
-        // Esc は KeyboardAccelerator 側で処理（KeyDown には届かないため）。
-        // Z : フィット ⇄ 100% トグル / Shift+Z : 100%
+        // Esc ではプレビューを抜けない（ユーザー要望。終了はダブルクリック）。全画面中の Esc は MainWindow 側。
+        // Z : フィット ⇄ 直近ズーム位置トグル / Shift+Z : 100%
         if (key == VirtualKey.Z)
         {
             if (KeyboardModifiers.Shift) _viewport.SetActualSize();

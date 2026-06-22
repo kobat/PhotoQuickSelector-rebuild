@@ -83,17 +83,9 @@ public sealed partial class PreviewControl : UserControl
         _cache = new PreviewBitmapCache(MainCanvas);
         _cache.Changed += RefreshCacheOverlay;
 
-        // Esc は WinUI のフォーカス管理に先取りされ KeyDown へ届かないため、
-        // フォーカスを持つキャンバスにアクセラレータを付けてサムネイル一覧へ戻す。
-        // （ヒントの自動ツールチップは非表示にする）
-        MainCanvas.KeyboardAcceleratorPlacementMode = KeyboardAcceleratorPlacementMode.Hidden;
-        var escape = new KeyboardAccelerator { Key = VirtualKey.Escape };
-        escape.Invoked += (_, args) =>
-        {
-            _viewModel?.ExitPreview();
-            args.Handled = true;
-        };
-        MainCanvas.KeyboardAccelerators.Add(escape);
+        // Esc ではプレビューを抜けない（ユーザー要望）。プレビュー表示のまま維持する。
+        // プレビュー終了はダブルクリック（SPEC §2）で行う。以前あった Esc→ExitPreview の
+        // KeyboardAccelerator は撤去した。なお全画面中の Esc（通常表示へ復帰）は MainWindow 側で処理する。
     }
 
     // フィルムストリップも可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
@@ -206,6 +198,24 @@ public sealed partial class PreviewControl : UserControl
     {
         if (_viewModel?.SelectedPhoto is { } photo)
             DispatcherQueue.TryEnqueue(() => FilmStrip.ScrollIntoView(photo));
+    }
+
+    /// <summary>
+    /// 選択中の写真をフィルムストリップへスクロールし、そのコンテナにフォーカスを移す。
+    /// ←/→ で前後移動したあとに呼び、PageUp/PageDown/Home/End 等の ListView キー操作を
+    /// フィルムストリップ上で使えるようにする。コンテナ未実体化時は ListView 自体へフォーカス。
+    /// </summary>
+    private void FocusFilmStripSelected()
+    {
+        if (_viewModel?.SelectedPhoto is not { } photo) return;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            FilmStrip.ScrollIntoView(photo);
+            if (FilmStrip.ContainerFromItem(photo) is Control container)
+                container.Focus(FocusState.Programmatic);
+            else
+                FilmStrip.Focus(FocusState.Programmatic);
+        });
     }
 
     // --- 画像ロード ---
