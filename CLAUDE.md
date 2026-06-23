@@ -577,6 +577,27 @@
     **Core・XAML は非変更**。`BUILD SUCCEEDED`（警告0）／`dotnet test` 87 件緑。実機目視（記憶ズーム復元・
     フォーカス移動後の PageUp/PageDown・Esc 無反応）はユーザー確認推奨。
 
+- **Reject 移動でキャッシュ中ファイルが「使用中」で移動失敗する不具合 修正完了（2026-06-23）**: 「未評価を Reject フォルダへ移動」
+  実行時に**一部のファイルだけ移動に失敗**する不具合を解消。真因＝**プレビュー先読みキャッシュ（`PreviewBitmapCache`）が
+  対象ファイルをロックしていた**こと。
+  - **真因**: `PreviewBitmapCache` は `CanvasBitmap.LoadAsync(_device, path)`（**ファイルパス指定オーバーロード**）でデコード
+    していた。Win2D のこの方式は、生成された `CanvasBitmap` が生きている間ずっと元ファイルを開いたままロックする（[Win2D #291]）。
+    Reject 移動はアプリ起動中に子 `cmd` の `move` で実行するため、**自プロセスがキャッシュ経由でロック中のファイルだけ**
+    `move` に失敗する。キャッシュ保持窓は「表示中±前後数枚」なので、移動対象（フォルダ全件の未評価）のうち**直前に
+    プレビューで見た付近の数枚だけ失敗**＝「一部のファイルだけ失敗」の症状と一致。サムネイル（`PhotoItemViewModel`）は
+    全バイトを読み切り `using` で閉じておりロック源ではない。
+  - **修正（ストリーム経由デコードへ＝根治）**: `PreviewBitmapCache.LoadCoreAsync` を **`File.ReadAllBytesAsync` で読み切り →
+    `InMemoryRandomAccessStream` → `CanvasBitmap.LoadAsync(_device, stream)`** に変更。元ファイルのハンドルは読み切った時点で
+    閉じるため、`CanvasBitmap` がキャッシュに残っていてもファイルはロックされない。**EXIF Orientation は WIC のデコード段で
+    適用されるためストリーム経由でも自動回転は維持**（「二重回転しない」前提は不変）。デコード中だけ一時的に `byte[]`（JPEG 生
+    サイズ）が増えるが直後に GC 対象（保持窓は数枚なので影響軽微）。
+  - 設計の波及（将来）: この根治により、Copy/リネーム/エクスプローラ操作など他のファイル操作でも同種のロック問題を予防できる。
+  - **Core・XAML・他コードビハインドは非変更**。変更: `Controls/PreviewBitmapCache.cs` のみ（usings に
+    `System.Runtime.InteropServices.WindowsRuntime`／`Windows.Storage.Streams` を追加）。`BUILD SUCCEEDED`（App x64 Release・
+    警告0）／`dotnet test` 87 件緑。実機で「プレビューで数枚見た直後に未評価を Reject へ移動→全件移動成功」をユーザー確認済み（2026-06-23）。
+
+  [Win2D #291]: https://github.com/Microsoft/Win2D/issues/291
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**

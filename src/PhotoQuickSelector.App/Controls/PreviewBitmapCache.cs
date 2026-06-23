@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Microsoft.Graphics.Canvas;
+using Windows.Storage.Streams;
 
 namespace PhotoQuickSelector_App.Controls;
 
@@ -58,7 +60,17 @@ internal sealed class PreviewBitmapCache
     {
         try
         {
-            var bmp = await CanvasBitmap.LoadAsync(_device, path);
+            // ファイルパスを直接 CanvasBitmap.LoadAsync に渡すと、生成された CanvasBitmap が
+            // 生きている間ずっと元ファイルをロックし続ける（Win2D の既知挙動）。すると Reject 移動
+            // などの move がキャッシュ中のファイルだけ「使用中」で失敗する。バイトを読み切って
+            // メモリストリームからデコードし、元ファイルのハンドルは即座に閉じる。
+            // EXIF Orientation は WIC が適用するため、ストリーム経由でも自動回転は維持される。
+            var bytes = await File.ReadAllBytesAsync(path);
+            using var stream = new InMemoryRandomAccessStream();
+            await stream.WriteAsync(bytes.AsBuffer());
+            stream.Seek(0);
+
+            var bmp = await CanvasBitmap.LoadAsync(_device, stream);
             if (generation != _generation)
             {
                 bmp.Dispose(); // デバイス再生成でキャッシュが無効化された
