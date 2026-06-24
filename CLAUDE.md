@@ -598,6 +598,23 @@
 
   [Win2D #291]: https://github.com/Microsoft/Win2D/issues/291
 
+- **プレビューのイマーシブ表示（メイン全域表示）完了（2026-06-25）**: プレビュー中に **`F` キー**（修飾子なし）で
+  右パネル（ルーペ＋ナビ）とフィルムストリップを畳み、`MainCanvas` を `PreviewControl` の全域へ広げるトグルを追加。
+  既存の **F11 全画面＋左ペイン非表示**と組み合わせると画像が画面一杯に表示される（ユーザー選択＝3 つは独立操作で合成）。
+  - **トグル本体（新規 `Controls/PreviewControl.Immersive.cs`／partial）**: `ToggleImmersive()` が `RightPanelColumn` 列と
+    `FilmStripRow` 行の `Width/Height`＋`MinWidth/MinHeight` を退避→0 にし、右パネル/フィルムストリップと**両スプリッターを
+    `Collapsed`**。戻す時は退避値へ復元＋`Visible`。`MinWidth/MinHeight` も 0 にしないと `Width/Height=0` が効かない点に注意。
+    `MainCanvas` の再フィットは既存 `MainCanvas_SizeChanged`→`SetCanvasSize` が自動処理（追加描画ロジック不要）。
+  - **キー**: `Controls/PreviewControl.Input.cs` に `KeyboardModifiers.None && F` 分岐。`Alt+F`/`Ctrl+Alt+F`（フォーカス点へ
+    スクロール）は上流で処理済みなので競合なし。ルート集約経路（`RootGrid_PreviewKeyDown→HandleGlobalKeyDown→
+    Preview.HandleKeyDown`）に乗るので配線追加不要。
+  - **XAML**: 畳む対象の 2 本のスプリッターに `x:Name`（`RightSplitter`/`FilmSplitter`）を付与しただけ。
+  - 決め事（ユーザー確定）: トグルキー＝`F`／**永続化なし**（再起動で通常の 3 パネルに戻る・セッション中は状態維持）／
+    `PreviewControl` 内のみ（F11・左ペイン非表示は従来どおり独立）。
+  - **Core・MainPage・MainWindow は非変更**。変更/新規: `Controls/PreviewControl.xaml`・`.Input.cs`・`.Immersive.cs`（新規）。
+    `BUILD SUCCEEDED`。実機目視（`F` で畳む/戻す・全画面＋左ペイン非表示との合成で画面一杯・畳んだ状態でのズーム/パン/前後移動）は
+    ユーザー確認推奨。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
@@ -620,6 +637,7 @@
 - プレビュー中: `Z` フィット⇄ズームトグル（ズーム側は**直近のズーム位置=倍率/中心を復元**。初回は等倍＝DPI考慮の
   1画像px=1物理px＝100%）/ `Shift+Z` 等倍 / `Shift+Alt+←/→` フィット/等倍 / ホイール ズーム。倍率はステータスバー
   右端に表示（ピクセル等倍＝100%）。拡大率により補間自動切替（等倍以上＝NearestNeighbor／縮小＝HighQualityCubic）
+- プレビュー中: `F` イマーシブ表示トグル（右パネル＋フィルムストリップを畳んでメインを全域表示。F11＋左ペイン非表示と合成で画面一杯）
 - プレビュー中: `I` メタ情報オーバーレイ（案B）トグル / `G` 三分割グリッド線 / `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
 
 ## 既知の注意点

@@ -81,6 +81,14 @@ public sealed partial class PreviewControl
             return true;
         }
 
+        // F : イマーシブ表示トグル（右パネル＋フィルムストリップを畳んでメインを全域表示）。
+        // Alt+F / Ctrl+Alt+F（フォーカス点へスクロール）は上で処理済みなので、ここは修飾子なしのみ。
+        if (KeyboardModifiers.None && key == VirtualKey.F)
+        {
+            ToggleImmersive();
+            return true;
+        }
+
         // G : 三分割グリッド線トグル（ShowGrid 変更で再描画される）
         if (KeyboardModifiers.None && key == VirtualKey.G)
         {

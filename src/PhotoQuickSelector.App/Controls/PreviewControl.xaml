@@ -128,6 +128,7 @@
 
             <!-- 左カラムと右パネルのリサイズ用スプリッター -->
             <controls:GridSplitter
+                x:Name="RightSplitter"
                 Grid.Column="1"
                 Width="8"
                 ResizeBehavior="BasedOnAlignment"
@@ -180,6 +181,7 @@
 
         <!-- 上段とフィルムストリップの境界リサイズ用スプリッター（高さ調節） -->
         <controls:GridSplitter
+            x:Name="FilmSplitter"
             Grid.Row="1"
             Height="8"
             HorizontalAlignment="Stretch"
