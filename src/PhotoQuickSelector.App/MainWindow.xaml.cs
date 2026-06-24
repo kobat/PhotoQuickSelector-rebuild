@@ -65,15 +65,34 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        // Esc: フルスクリーン中のときだけ通常表示へ戻す。Esc は SPEC §3-7 で本来「選択リセット」用途
-        // なので、全画面でないときは未処理のまま通す（将来用途を潰さない）。PreviewKeyDown(tunneling)
-        // はフォーカス管理の Esc 消費より前に届くため、ここで拾えば確実（実キーボードで要確認）。
-        if (e.Key == Windows.System.VirtualKey.Escape &&
-            AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
+        // Shift+F: 完全全画面モード（ウィンドウ全画面＋左ペイン/ステータスバー非表示＋イマーシブ＋余白0）の
+        // トグル。複数コンポーネントにまたがるので MainPage のコーディネータへ委譲する。グリッド表示中でも
+        // ここで拾える（F11 と同じフォーカス非依存の集約点）。素の F（イマーシブ）は MainPage→Preview 側で処理。
+        if (e.Key == Windows.System.VirtualKey.F && KeyboardModifiers.Shift)
         {
-            AppWindow.SetPresenter(AppWindowPresenterKind.Default);
+            (RootFrame.Content as MainPage)?.ToggleFullImageMode();
             e.Handled = true;
             return;
+        }
+
+        // Esc: 完全全画面モード中ならそれを解除（左ペイン/ステータスバー/余白も復元）。そうでなく素の
+        // フルスクリーン中なら通常表示へ戻す。Esc は SPEC §3-7 で本来「選択リセット」用途なので、いずれでも
+        // ないときは未処理のまま通す（将来用途を潰さない）。PreviewKeyDown(tunneling) はフォーカス管理の
+        // Esc 消費より前に届くため、ここで拾えば確実。
+        if (e.Key == Windows.System.VirtualKey.Escape)
+        {
+            if (RootFrame.Content is MainPage page && page.IsFullImageMode)
+            {
+                page.ToggleFullImageMode();
+                e.Handled = true;
+                return;
+            }
+            if (AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen)
+            {
+                AppWindow.SetPresenter(AppWindowPresenterKind.Default);
+                e.Handled = true;
+                return;
+            }
         }
 
         (RootFrame.Content as MainPage)?.HandleGlobalKeyDown(e);
@@ -92,6 +111,17 @@ public sealed partial class MainWindow : Window
             ? AppWindowPresenterKind.Default
             : AppWindowPresenterKind.FullScreen;
         AppWindow.SetPresenter(kind);
+    }
+
+    /// <summary>
+    /// ウィンドウ全画面の ON/OFF を明示指定する。完全全画面モード（<see cref="MainPage.ToggleFullImageMode"/>）の
+    /// コーディネータが他要素（左ペイン/ステータスバー等）と同時に切り替えるために使う。
+    /// </summary>
+    public void SetFullScreen(bool on)
+    {
+        var kind = on ? AppWindowPresenterKind.FullScreen : AppWindowPresenterKind.Default;
+        if (AppWindow.Presenter.Kind != kind)
+            AppWindow.SetPresenter(kind);
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)

@@ -17,6 +17,17 @@ public sealed partial class MainPage : Page
 
     private double _lastLeftWidth = 300;
 
+    // --- 完全全画面モード（Shift+F）。入る前の状態を退避して解除時に正確復元する ---
+    private bool _fullImageMode;
+    private GridLength _savedLeftWidth;
+    private double _savedLeftMinWidth;
+    private Visibility _savedStatusBarVisibility;
+    private Thickness _savedRightPanePadding;
+    private bool _wasPreviewMode;
+
+    /// <summary>完全全画面モード中か（MainWindow の Esc 分岐から参照）。</summary>
+    public bool IsFullImageMode => _fullImageMode;
+
     public MainPage()
     {
         InitializeComponent();
@@ -107,6 +118,59 @@ public sealed partial class MainPage : Page
         else
         {
             LeftColumn.Width = new GridLength(_lastLeftWidth <= 0 ? 300 : _lastLeftWidth);
+        }
+    }
+
+    // --- 完全全画面モード（Shift+F / Esc で解除） ---
+
+    /// <summary>
+    /// 完全全画面モードをトグルする。1 操作で「ウィンドウ全画面＋左ペイン非表示＋ステータスバー非表示＋
+    /// プレビューのイマーシブ（右パネル/フィルム畳む）＋右ペイン余白0」を切り替える。グリッド表示中なら
+    /// 先にプレビューへ入る。入る前の状態をスナップショットし、解除時に正確に復元する（元がグリッドなら
+    /// グリッドへ戻す）。<c>Shift+F</c>（<see cref="MainWindow"/> のキー集約点）と <c>Esc</c> から呼ばれる。
+    /// </summary>
+    public void ToggleFullImageMode()
+    {
+        var window = App.Window as MainWindow;
+
+        if (!_fullImageMode)
+        {
+            // 入る: 現在状態を退避。
+            _savedLeftWidth = LeftColumn.Width;
+            _savedLeftMinWidth = LeftColumn.MinWidth;
+            _savedStatusBarVisibility = StatusBar.Visibility;
+            _savedRightPanePadding = RightPaneRoot.Padding;
+            _wasPreviewMode = ViewModel.IsPreviewMode;
+            if (LeftColumn.ActualWidth > 0) _lastLeftWidth = LeftColumn.ActualWidth;
+
+            // グリッド表示中ならプレビューへ入る（空フォルダなら EnterPreview は no-op）。
+            if (!ViewModel.IsPreviewMode) ViewModel.EnterPreview();
+
+            // 全要素を畳む。MinWidth も 0 にしないと Width=0 が効かない。
+            LeftColumn.MinWidth = 0;
+            LeftColumn.Width = new GridLength(0);
+            LeftSplitter.Visibility = Visibility.Collapsed;
+            StatusBar.Visibility = Visibility.Collapsed;
+            RightPaneRoot.Padding = new Thickness(0);
+            Preview.SetImmersive(true);
+            window?.SetFullScreen(true);
+
+            _fullImageMode = true;
+        }
+        else
+        {
+            // 出る: スナップショットへ復元。
+            window?.SetFullScreen(false);
+            Preview.SetImmersive(false);
+            RightPaneRoot.Padding = _savedRightPanePadding;
+            StatusBar.Visibility = _savedStatusBarVisibility;
+            LeftSplitter.Visibility = Visibility.Visible;
+            LeftColumn.MinWidth = _savedLeftMinWidth;
+            LeftColumn.Width = _savedLeftWidth;
+            // 元がグリッド表示だったらグリッドへ戻す。
+            if (!_wasPreviewMode) ViewModel.ExitPreview();
+
+            _fullImageMode = false;
         }
     }
 

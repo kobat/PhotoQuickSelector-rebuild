@@ -23,13 +23,14 @@
 
         <!-- リサイズ用スプリッター -->
         <controls:GridSplitter
+            x:Name="LeftSplitter"
             Grid.Column="1"
             Width="8"
             ResizeBehavior="BasedOnAlignment"
             ResizeDirection="Auto" />
 
         <!-- 右ペイン: ステータスバー＋サムネイルグリッド／大画面プレビュー（行1で排他表示） -->
-        <Grid Grid.Column="2" Padding="8">
+        <Grid Grid.Column="2" x:Name="RightPaneRoot" Padding="8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />

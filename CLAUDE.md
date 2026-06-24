@@ -615,6 +615,26 @@
     `BUILD SUCCEEDED`。実機目視（`F` で畳む/戻す・全画面＋左ペイン非表示との合成で画面一杯・畳んだ状態でのズーム/パン/前後移動）は
     ユーザー確認推奨。
 
+- **プレビューの完全全画面モード（Shift+F）完了（2026-06-25）**: 1 操作で **ウィンドウ全画面＋左ペイン非表示
+  （スプリッター含む）＋ステータスバー非表示＋イマーシブ（右パネル/フィルム畳む）＋右ペイン余白0** を切り替え、
+  `MainCanvas` を物理画面いっぱいに表示する統合モード。`F`（イマーシブ単体）とは別。
+  - **挙動（ユーザー確定）**: グリッド表示中に `Shift+F` → **プレビューに入ってから**完全全画面化／ステータスバー
+    （件数・メタ情報・倍率）も隠す／解除は **`Shift+F` または `Esc`**。**入る前の状態をスナップショットして正確に復元**
+    （元がグリッドならグリッドへ戻す）。
+  - **コーディネータ（`MainPage.ToggleFullImageMode()`）**: 複数コンポーネントにまたがるため `MainPage` に集約。
+    入りで退避（`LeftColumn` 幅/MinWidth・`StatusBar.Visibility`・`RightPaneRoot.Padding`・直前の `IsPreviewMode`）→
+    `EnterPreview()`（グリッド時）→ 左ペイン幅0＋`LeftSplitter` 隠す／`StatusBar` 隠す／余白0／`Preview.SetImmersive(true)`／
+    `MainWindow.SetFullScreen(true)`。出は逆順で復元（元がグリッドなら `ExitPreview()`）。`IsFullImageMode` を公開。
+  - **イマーシブ共用（`PreviewControl`）**: `ToggleImmersive()` を **冪等な `public SetImmersive(bool)`** へリファクタ。
+    `F` キーはトグル、完全全画面は強制 ON/OFF で本メソッドを共用（スナップショット方式で `F`/`F11`/左ペイン手動トグルと衝突しない）。
+  - **キー配線（`MainWindow.RootGrid_PreviewKeyDown`）**: `Shift+F`（`KeyboardModifiers.Shift && F`）→ `MainPage.ToggleFullImageMode()`
+    （F11 と同じフォーカス非依存の集約点なのでグリッド時も拾える）。`Esc` 分岐を拡張＝**完全全画面モード中なら優先解除**、
+    そうでなく素のフルスクリーン中なら従来どおり `Default` 復帰。`public SetFullScreen(bool)` を追加（既存 `ToggleFullScreen` は据え置き）。
+  - 変更/新規: `MainPage.xaml`（右ペイン Grid に `x:Name="RightPaneRoot"`／左スプリッターに `x:Name="LeftSplitter"`）・
+    `MainPage.xaml.cs`（コーディネータ＋退避フィールド）、`MainWindow.xaml.cs`（`Shift+F`/`Esc` 分岐＋`SetFullScreen`）、
+    `Controls/PreviewControl.Immersive.cs`（`SetImmersive`/`IsImmersive`）。**Core 非変更**。`BUILD SUCCEEDED`。
+    実機で `Shift+F` 完全全画面化／`Esc`・`Shift+F` 解除／グリッド入退場でのモード復元／左スプリッター非表示をユーザー確認済み（2026-06-25）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
@@ -638,6 +658,8 @@
   1画像px=1物理px＝100%）/ `Shift+Z` 等倍 / `Shift+Alt+←/→` フィット/等倍 / ホイール ズーム。倍率はステータスバー
   右端に表示（ピクセル等倍＝100%）。拡大率により補間自動切替（等倍以上＝NearestNeighbor／縮小＝HighQualityCubic）
 - プレビュー中: `F` イマーシブ表示トグル（右パネル＋フィルムストリップを畳んでメインを全域表示。F11＋左ペイン非表示と合成で画面一杯）
+- `Shift+F` 完全全画面モード（ウィンドウ全画面＋左ペイン/ステータスバー非表示＋イマーシブ＋余白0 を一括）。グリッド時は
+  プレビューに入って全画面化。解除は `Shift+F` または `Esc`（入る前の状態へ正確復元）
 - プレビュー中: `I` メタ情報オーバーレイ（案B）トグル / `G` 三分割グリッド線 / `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
 
 ## 既知の注意点

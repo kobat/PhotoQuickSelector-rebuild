@@ -18,13 +18,24 @@ public sealed partial class PreviewControl
     private GridLength _savedFilmStripHeight = new(118);
     private double _savedFilmStripMinHeight = 80;
 
+    /// <summary>現在イマーシブ表示中か（完全全画面モードのスナップショット復元用に公開）。</summary>
+    public bool IsImmersive => _immersive;
+
     /// <summary>
     /// 右パネル＋フィルムストリップの表示／非表示をトグルする。畳むと <c>MainCanvas</c> が
     /// Grid 全域を占め、<see cref="MainCanvas_SizeChanged"/>→<c>SetCanvasSize</c> で自動的に再フィットする。
     /// </summary>
-    private void ToggleImmersive()
+    private void ToggleImmersive() => SetImmersive(!_immersive);
+
+    /// <summary>
+    /// イマーシブ表示の ON/OFF を明示指定する（冪等）。F キーはトグル（<see cref="ToggleImmersive"/>）、
+    /// 完全全画面モード（<see cref="MainPage.ToggleFullImageMode"/>）は強制 ON/OFF で本メソッドを共用する。
+    /// </summary>
+    public void SetImmersive(bool on)
     {
-        if (_immersive)
+        if (on == _immersive) return; // 冪等: 既に目的状態なら何もしない
+
+        if (!on)
         {
             // 戻す: 退避していた寸法を復元し、右パネル/フィルムストリップとスプリッターを再表示。
             RightPanelColumn.MinWidth = _savedRightPanelMinWidth;
@@ -57,6 +68,6 @@ public sealed partial class PreviewControl
             FilmStrip.Visibility = Visibility.Collapsed;
         }
 
-        _immersive = !_immersive;
+        _immersive = on;
     }
 }
