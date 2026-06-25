@@ -49,4 +49,19 @@ public sealed partial class PhotoStatusBar : UserControl
         if ((sender as FrameworkElement)?.DataContext is PhotoItemViewModel { MapUri: { } uri })
             await Launcher.LaunchUriAsync(uri);
     }
+
+    /// <summary>設定（歯車）ボタン。設定ダイアログを開き、保存されたら <see cref="AppSettings"/> へ反映する。</summary>
+    private async void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null) return;
+
+        var dialog = new SettingsDialog { XamlRoot = XamlRoot };
+        dialog.Configure(_viewModel.Settings);
+
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            _viewModel.Settings.SharePath = dialog.SharePath;
+            _viewModel.Settings.Save();
+        }
+    }
 }

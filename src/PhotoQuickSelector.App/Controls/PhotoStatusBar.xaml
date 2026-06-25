@@ -19,6 +19,7 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Button Grid.Column="0" Click="ToggleButton_Click" Margin="0,0,8,0"
                 VerticalAlignment="Center"
@@ -126,6 +127,13 @@
                 VerticalAlignment="Center"
                 ToolTipService.ToolTip="全画面表示の切替 (F11)">
             <FontIcon Glyph="&#xE740;" FontSize="14" />
+        </Button>
+
+        <!-- 設定（歯車）。共有先 exe パス等を編集するダイアログを開く -->
+        <Button Grid.Column="7" Click="SettingsButton_Click" Margin="8,0,0,0"
+                VerticalAlignment="Center"
+                ToolTipService.ToolTip="設定">
+            <FontIcon Glyph="&#xE713;" FontSize="14" />
         </Button>
     </Grid>
 </UserControl>

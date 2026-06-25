@@ -112,8 +112,11 @@ public sealed partial class PreviewControl
             return true;
         }
 
-        // 評価キー（rating / flag / colorlabel）はサムネイル一覧と共通化（SPEC §3-7）。
-        if (_viewModel.SelectedPhoto is { } photo && PhotoKeyCommands.TryHandleEvaluation(key, photo))
+        // 外部連携（Ctrl+E / Alt+E / Ctrl+Alt+E / Alt+S）／評価キー（rating / flag / colorlabel）は
+        // サムネイル一覧と共通化（SPEC §3-7 / §3-8）。
+        if (_viewModel.SelectedPhoto is { } photo &&
+            (PhotoFileCommands.TryHandle(key, photo, _viewModel.Settings) ||
+             PhotoKeyCommands.TryHandleEvaluation(key, photo)))
             return true;
 
         return false;

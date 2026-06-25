@@ -41,6 +41,12 @@ public sealed class AppSettings
     /// <summary>「リネームしてコピー」で最後に使ったファイル名テンプレート（次回の初期値）。</summary>
     public string CopyRenameTemplate { get; set; } = "{name}";
 
+    /// <summary>
+    /// 共有（Alt+S）で起動する外部アプリの exe パス。空なら Windows 標準の共有シートにフォールバックする。
+    /// 旧アプリは Google Nearby Share の固定パスだったが、本アプリでは設定化する（SPEC §6-3）。
+    /// </summary>
+    public string SharePath { get; set; } = "";
+
     /// <summary>前回終了時のセッション（開いていたフォルダ・選択・表示モード・フィルタ）。</summary>
     public SessionState LastSession { get; set; } = new();
 

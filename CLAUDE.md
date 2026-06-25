@@ -635,22 +635,46 @@
     `Controls/PreviewControl.Immersive.cs`（`SetImmersive`/`IsImmersive`）。**Core 非変更**。`BUILD SUCCEEDED`。
     実機で `Shift+F` 完全全画面化／`Esc`・`Shift+F` 解除／グリッド入退場でのモード復元／左スプリッター非表示をユーザー確認済み（2026-06-25）。
 
+- **Phase 4-B 完了（外部連携＋設定・2026-06-26）**: SPEC §3-8/§6-3 の外部連携キーと共有先パスの設定化を実装。
+  評価キー（`PhotoKeyCommands`）と同じ「App 層の静的ディスパッチャ＋2 呼び出し点」パターンで横展開。**Core 非変更**。
+  - **`PhotoFileCommands`（App層・新規）**: `TryHandle(key, item, settings)` が修飾子で分岐＝
+    `Ctrl+E`=エクスプローラ `/select`（`explorer.exe "/select,\"<path>\""`）／`Alt+E`=既定アプリ（`ProcessStartInfo`
+    `UseShellExecute=true`）／`Ctrl+Alt+E`=パスを `Clipboard` へコピー／`Alt+S`=共有（`ShareHelper` へ委譲）。
+    各操作は try/catch でファイル消失等を黙殺。`Meta.Path` がフルパス。
+  - **`ShareHelper`（App層・新規）**: `ShareAsync(path, settings)`。**SharePath 設定済み（かつ存在）→ その exe を
+    `Process.Start`（パスを引数）／未設定（or exe 消失）→ Windows 標準の共有シート**。共有シートは WinUI 3 では
+    `DataTransferManager.ShowShareUI()` を直接呼べず **`IDataTransferManagerInterop`（`GetForWindow`/`ShowShareUIForWindow`）に
+    `App.WindowHandle`(HWND) を渡す相互運用**が必要（`DataTransferManager.As<…>()`＋`MarshalInterface<…>.FromAbi`、
+    `DataRequested` は `GetDeferral` で `StorageFile` を非同期セット）。
+  - **設定（`AppSettings.SharePath`／既定 ""）**: string 追加のみ（source-gen コンテキスト変更不要）。歯車ボタンは
+    **ステータスバー右端**（`PhotoStatusBar.xaml` の列追加＋`&#xE713;`）。`SettingsButton_Click` が新規モーダル
+    `Controls/SettingsDialog.xaml(.cs)` を開き、保存（Primary）で `Settings.SharePath` 反映＋`Settings.Save()`。
+    exe 参照は WinRT `FileOpenPicker`（`.exe` フィルタ＋`InitializeWithWindow(App.WindowHandle)`）＋クリアボタン。
+  - **2 呼び出し点**（評価キーと同列）: サムネイル＝`MainPage.HandleGlobalKeyDown`／プレビュー＝
+    `PreviewControl.Input.cs` の `HandleKeyDown`。いずれも `PhotoFileCommands.TryHandle(...)` を評価キーより先に判定。
+    プレビュー既存キー（Alt+矢印/Alt+F 等）と `Alt+E`/`Alt+S` は競合なし。
+  - 決め事（ユーザー確定）: 共有＝**両対応**（SharePath あれば exe／無ければ標準シート）／設定入口＝**ステータスバー右端**。
+  - 変更/新規: `PhotoFileCommands.cs`（新規）・`ShareHelper.cs`（新規）・`Controls/SettingsDialog.xaml(.cs)`（新規）、
+    `AppSettings.cs`、`Controls/PhotoStatusBar.xaml(.cs)`、`MainPage.xaml.cs`、`Controls/PreviewControl.Input.cs`。
+    `BUILD SUCCEEDED`（x64・警告0）／`dotnet test` 87 件緑。実機で Ctrl+E/Alt+E/Ctrl+Alt+E/Alt+S・設定保存・
+    共有2系統をユーザー確認済み（2026-06-26）。`M`（デバッグ GC）は SPEC 通り未実装。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
   残微調整: ルーペのロード時センタリングは初期レイアウト未確定だと AF 点がやや上寄りになる場合あり（軽微）。
   AF 枠の正確な位置（回転画像）はユーザー最終確認推奨。
 - ~~Phase 4-A: フィルタ／クリップボード出力~~ → **完了（`c073853`）。** 上の「現在の進捗」参照。
-- Phase 4-B: 外部連携（`Ctrl+E`=エクスプローラ `/select`／`Alt+E`=既定アプリ／`Ctrl+Alt+E`=パスをコピー／
-  `Alt+S`=共有）＋設定（**共有先パスを `AppSettings.SharePath` に設定化**＝SPEC §6-3。歯車ボタン→設定ダイアログ）。
-  実装方針: `PhotoFileCommands.TryHandle(key, modifiers, item, settings)` を共有し `MainPage.HandleGlobalKeyDown`
-  （サムネイル）と `PreviewControl.HandleKeyDown`（プレビュー）の両方から呼ぶ。`M`（デバッグ GC）は実装しない（SPEC §3-7）。
+- ~~Phase 4-B: 外部連携（`Ctrl+E`／`Alt+E`／`Ctrl+Alt+E`／`Alt+S`）＋設定（`AppSettings.SharePath` 設定化・歯車→設定ダイアログ）~~
+  → **完了（2026-06-26）。** 上の「現在の進捗」参照。`M`（デバッグ GC）は SPEC 通り未実装。
 - ~~パッケージング: 素の自己完結 EXE の publish 構成を組み込み＋発行確認~~ → **完了（2026-06-20）。** 上の「現在の進捗」参照。
   pubxml 2 系統（フォルダ／単一ファイル）＋`Publish.ps1`。実発行・起動確認済み（未コミット）。
 
 ## キー操作（右ペイン・写真選択時）
 - `0`–`5` レーティング / `6`–`9`＋`P` カラーラベル（赤橙緑青紫）/ `[` `]` レーティング増減 / `Ctrl+↑/↓` フラグ
 - `Ctrl+L` フィルタ ON/OFF トグル（両モード共通、フライアウトは開かない）
+- `Ctrl+E` エクスプローラで表示 / `Alt+E` 既定アプリで開く / `Ctrl+Alt+E` パスをコピー / `Alt+S` 共有
+  （両モード共通。共有は `AppSettings.SharePath` 設定時はその exe 起動、未設定なら Windows 標準共有シート。設定はステータスバー右端の歯車から）
 - `F11` フルスクリーン表示トグル（ステータスバー右端の全画面ボタンも同じ）/ `Esc` 全画面中なら通常表示へ復帰
   （全画面でない通常時の `Esc` は無反応＝プレビューを抜けない。プレビュー終了はダブルクリック）
 - プレビュー中: `←`/`→` 前後移動（移動後フォーカスはフィルムストリップへ移り `PageUp`/`PageDown`/`Home`/`End` が効く）

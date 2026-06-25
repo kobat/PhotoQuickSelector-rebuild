@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentDialog
+    x:Class="PhotoQuickSelector_App.Controls.SettingsDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="設定"
+    PrimaryButtonText="保存"
+    CloseButtonText="キャンセル"
+    DefaultButton="Primary">
+
+    <StackPanel Width="560" Spacing="16">
+        <!-- 共有（Alt+S）の起動先 -->
+        <StackPanel Spacing="6">
+            <TextBlock Text="共有 (Alt+S) で起動するアプリ" FontWeight="SemiBold" />
+            <TextBlock TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="共有時に起動する外部アプリの実行ファイル (.exe) を指定します。選択中の写真パスを引数として渡します。空欄のときは Windows 標準の共有シートを表示します。" />
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" x:Name="SharePathBox"
+                         PlaceholderText="（未設定：Windows 標準の共有シートを使用）" />
+                <Button Grid.Column="1" Content="参照…" Click="Browse_Click" />
+                <Button Grid.Column="2" Content="クリア" Click="Clear_Click" />
+            </Grid>
+        </StackPanel>
+    </StackPanel>
+</ContentDialog>

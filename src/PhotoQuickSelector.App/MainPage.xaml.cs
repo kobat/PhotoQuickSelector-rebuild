@@ -202,7 +202,12 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        if (ViewModel.SelectedPhoto is { } item && PhotoKeyCommands.TryHandleEvaluation(e.Key, item))
-            e.Handled = true;
+        if (ViewModel.SelectedPhoto is { } item)
+        {
+            // 外部連携（Ctrl+E / Alt+E / Ctrl+Alt+E / Alt+S）を評価キーより先に判定（SPEC §3-8）。
+            if (PhotoFileCommands.TryHandle(e.Key, item, ViewModel.Settings) ||
+                PhotoKeyCommands.TryHandleEvaluation(e.Key, item))
+                e.Handled = true;
+        }
     }
 }
