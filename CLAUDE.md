@@ -659,6 +659,24 @@
     `BUILD SUCCEEDED`（x64・警告0）／`dotnet test` 87 件緑。実機で Ctrl+E/Alt+E/Ctrl+Alt+E/Alt+S・設定保存・
     共有2系統をユーザー確認済み（2026-06-26）。`M`（デバッグ GC）は SPEC 通り未実装。
 
+- **公開向けライセンス整備 完了（2026-06-26）**: GitHub 公開済みソースに対し、本アプリのライセンス明示と、同梱する
+  第三者ライブラリの許諾義務への対応を実施。
+  - **本アプリ＝MIT License**（`LICENSE`／`Copyright (c) 2026 KOBAT`）。使用ライブラリは全て許諾型（MIT/Apache/BSD/
+    パブリックドメイン）でコピーレフトが無いため、アプリ自体を MIT にして矛盾・追加義務なし。
+  - **`THIRD-PARTY-NOTICES.txt`（新規・リポジトリ直下）**: **配布物（自己完結EXE）に同梱されるコンポーネントのみ**
+    のライセンス全文を集約。対象＝.NET ランタイム(MIT)／Windows App SDK 2.2.0(Microsoft Software License Terms・全文)／
+    Win2D 1.4.0(MIT)／CommunityToolkit.Mvvm 8.4.2・WinUI.Controls.Sizers 8.2(MIT)／MetadataExtractor 2.9.3(Apache-2.0・全文)／
+    XmpCore 6.1.10.1(BSD・Adobe XMP SDK 由来／MetadataExtractor の依存)／System.Data.SQLite.Core 1.0.119・SQLite(パブリック
+    ドメイン)。**ビルド専用（SDK.BuildTools/WinApp）・テスト専用（xUnit/coverlet/Test.Sdk）は配布物に含まれず義務なしのため記載せず**。
+  - **検証**: 各 NuGet パッケージの実体（`~/.nuget/packages`）の nuspec/license ファイルで著作権者・許諾を確認。Win2D の
+    現行ライセンスは nuspec の旧 EULA URL ではなく **MIT**（GitHub microsoft/Win2D で確認）。XmpCore は LICENSE ファイル無し・
+    README が「Adobe の XMP SDK と同じ BSD」と明記。WindowsAppSDK は `license.txt §3` で自己完結配布の再頒布を明示許可。
+  - **発行物への自動同梱**: App csproj に `Content Include="..\..\LICENSE"`／`THIRD-PARTY-NOTICES.txt`（`Link`＋
+    `CopyToOutputDirectory=PreserveNewest`）を追加。ビルド/publish 出力ルートへコピーされることを確認（`bin/x64/Release/.../win-x64/`）。
+  - 変更/新規: `LICENSE`（新規）・`THIRD-PARTY-NOTICES.txt`（新規）、`PhotoQuickSelector.App.csproj`（Content 2 件）。
+    `BUILD SUCCEEDED`（x64 Release・警告0）。**任意の次候補**: アプリ内「バージョン情報／ライセンス」画面（必須ではない）。
+  - 注: これは法的助言ではないが、許諾型ライセンスの一般的な遵守要件（著作権表示＋ライセンス文の同梱）は満たしている。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
