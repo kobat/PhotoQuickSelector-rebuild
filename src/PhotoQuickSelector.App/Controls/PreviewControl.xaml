@@ -192,7 +192,7 @@
         <ListView
             x:Name="FilmStrip"
             Grid.Row="2"
-            Padding="4"
+            Padding="4,0,4,2"
             SizeChanged="FilmStrip_SizeChanged"
             ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
             SelectedItem="{x:Bind ViewModel.SelectedPhoto, Mode=TwoWay}"
@@ -210,8 +210,10 @@
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <Setter Property="Padding" Value="0" />
-                    <Setter Property="Margin" Value="2" />
+                    <Setter Property="Margin" Value="2,0" />
                     <Setter Property="MinWidth" Value="0" />
+                    <!-- 既定のキーボードフォーカス枠（矩形）を無効化。選択強調は案2のアクセント外枠で行う -->
+                    <Setter Property="UseSystemFocusVisuals" Value="False" />
                 </Style>
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>

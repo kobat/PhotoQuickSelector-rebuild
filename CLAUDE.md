@@ -698,6 +698,20 @@
     `tests/…/MetadataStoreTests.cs`（`Constructor_DoesNotCreateDatabaseFile`/`LoadEvaluation_DoesNotCreateDatabaseFile`/`FirstSave_CreatesDatabaseFile` に更新）。
     `BUILD SUCCEEDED`（x64・警告0）／`dotnet test` 88 件緑。実機でフォルダを開いただけでは未生成・初回評価で確認→作成/キャンセルをユーザー確認済み（2026-06-27）。
 
+- **UI 微修正3点（フォント統一＋フィルムストリップ整形）完了（2026-06-27）**: ユーザー指摘の見た目の違和感を調整。挙動・機能は不変。
+  - **① メタ情報パネル上段の EXIF チップのフォント統一**: チップだけ `FontSize="12"` で隣（ファイル名・画像/ファイルサイズ＝既定14px）
+    より小さかったため属性を削除し既定 14px へ。`Controls/PhotoStatusBar.xaml`（チップの `TextBlock`）。
+  - **② フィルムストリップの選択セルに出る矩形枠を除去**: フォーカスが当たると `ListViewItem` の**システムフォーカス枠**
+    （二重線の矩形）が選択強調のアクセント外枠とは別に描画されていた。`ItemContainerStyle` に
+    `<Setter Property="UseSystemFocusVisuals" Value="False" />` を追加して無効化（選択強調はアクセント外枠＝`#FF333333` リングで継続）。
+  - **③ フィルムストリップ上下の余分な余白を削減**: ListView の縦 `Padding` を `4`→**`4,0,4,2`（上0・下2）**、項目 `Margin` を
+    `2`→`2,0`（縦の項目間隔0・横は維持）。下 2px は横スクロールバー（`HorizontalScrollBarVisibility=Auto`／オーバーレイ）の逃げとして残置。
+    **`FilmChromeHeight` を `42`→`32` に連動**して下げ、削った余白ぶんサムネイル画像を拡大＝隙間が再発しないよう整合
+    （行高は `AllPhotos` 由来でなく `FilmStrip.ActualHeight - FilmChromeHeight` でセル一辺を決めるため、Padding/Margin を減らしたら
+    同じだけ定数も減らすのが要点）。アクセント外枠 `Margin=3`／カラーラベル枠 `BorderThickness=3`／ファイル名行は機能上必要なので維持。
+  - 変更: `Controls/PhotoStatusBar.xaml`、`Controls/PreviewControl.xaml`、`Controls/PreviewControl.xaml.cs`（`FilmChromeHeight`）。
+    **Core・ViewModel は非変更**。ユーザー画面確認済み（2026-06-27）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**

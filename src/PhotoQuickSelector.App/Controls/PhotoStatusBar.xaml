@@ -65,7 +65,7 @@
                             <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                     BorderThickness="1" CornerRadius="9" Padding="7,1">
-                                <TextBlock Text="{Binding}" FontSize="12" />
+                                <TextBlock Text="{Binding}" />
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

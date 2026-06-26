@@ -72,8 +72,8 @@ public sealed partial class PreviewControl : UserControl
     private readonly FilmStripMetrics _filmMetrics;
 
     // ListView 高 → セル一辺へ変換するときの内訳分
-    // （Padding 8 ＋ 項目 Margin 4 ＋ アクセント外枠 6 ＋ カラーラベル枠 6 ＋ ファイル名行 ≒ 18）。
-    private const double FilmChromeHeight = 42;
+    // （Padding 上0+下2 ＋ 項目 Margin 縦0 ＋ アクセント外枠 6 ＋ カラーラベル枠 6 ＋ ファイル名行 ≒ 18）。
+    private const double FilmChromeHeight = 32;
     private const double MinThumbEdge = 40;
 
     public PreviewControl()
