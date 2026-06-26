@@ -114,10 +114,17 @@ public sealed partial class PreviewControl
 
         // 外部連携（Ctrl+E / Alt+E / Ctrl+Alt+E / Alt+S）／評価キー（rating / flag / colorlabel）は
         // サムネイル一覧と共通化（SPEC §3-7 / §3-8）。
-        if (_viewModel.SelectedPhoto is { } photo &&
-            (PhotoFileCommands.TryHandle(key, photo, _viewModel.Settings) ||
-             PhotoKeyCommands.TryHandleEvaluation(key, photo)))
-            return true;
+        if (_viewModel.SelectedPhoto is { } photo)
+        {
+            if (PhotoFileCommands.TryHandle(key, photo, _viewModel.Settings))
+                return true;
+            if (PhotoKeyCommands.ResolveEvaluation(key, photo) is { } op)
+            {
+                // 初回はファイル作成確認ダイアログを挟むため非同期 gate 経由（待たない）。
+                _ = _viewModel.ApplyEvaluationAsync(op);
+                return true;
+            }
+        }
 
         return false;
     }

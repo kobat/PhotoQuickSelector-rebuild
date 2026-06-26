@@ -33,18 +33,37 @@ public sealed class MetadataStore : IDisposable
     public string FolderPath { get; }
     public string DatabasePath { get; }
 
-    private readonly SQLiteConnection _connection;
+    // 接続は遅延生成（最初の評価書き込み、または既存ファイルからの読み込み時に開く）。
+    // ctor で開くと存在しない sqlite を新規作成してしまうため、ここでは開かない。
+    private SQLiteConnection? _connection;
 
     public MetadataStore(string folderPath)
     {
         FolderPath = Path.GetFullPath(folderPath);
         DatabasePath = Path.Combine(FolderPath, DatabaseFileName);
+    }
+
+    /// <summary>
+    /// sqlite ファイルが既に存在するか。最初の評価操作の前に作成確認ダイアログを
+    /// 出すか（＝まだ無い）の判定に使う。
+    /// </summary>
+    public bool DatabaseExists => File.Exists(DatabasePath);
+
+    /// <summary>
+    /// 接続を遅延生成する。<paramref name="createIfMissing"/> が false でファイルが無ければ
+    /// 接続を開かず false を返す（＝読み取り目的でファイルを作らない）。true のとき、
+    /// ファイルが無ければ <see cref="SQLiteConnection.Open"/> がここで新規作成する。
+    /// </summary>
+    private bool EnsureConnection(bool createIfMissing)
+    {
+        if (_connection != null) return true;
+        if (!createIfMissing && !File.Exists(DatabasePath)) return false;
 
         _connection = new SQLiteConnection(
             new SQLiteConnectionStringBuilder { DataSource = DatabasePath }.ToString());
         _connection.Open();
-
         EnsureSchema();
+        return true;
     }
 
     /// <summary>
@@ -55,7 +74,10 @@ public sealed class MetadataStore : IDisposable
     {
         var evaluation = new PhotoEvaluation { ExifRating = exifRating };
 
-        using var command = _connection.CreateCommand();
+        // ファイルが無ければ作らずに EXIF レーティングのみで返す（開いただけでは sqlite を生成しない）。
+        if (!EnsureConnection(createIfMissing: false)) return evaluation;
+
+        using var command = _connection!.CreateCommand();
         command.CommandText =
             $"SELECT {ColumnRating}, {ColumnFlagRating}, " +
             $"{ColumnColorLabelRed}, {ColumnColorLabelYellow}, {ColumnColorLabelGreen}, " +
@@ -85,7 +107,9 @@ public sealed class MetadataStore : IDisposable
 
     private void UpsertColumn(string fileName, string column, object? value)
     {
-        using var command = _connection.CreateCommand();
+        // 評価書き込み＝ファイル生成点。無ければここで sqlite が新規作成される。
+        EnsureConnection(createIfMissing: true);
+        using var command = _connection!.CreateCommand();
         // file_name は image_file_metadata の主キー。既存行があれば該当列のみ更新。
         command.CommandText =
             $"INSERT INTO image_file_metadata (file_name, {column}) VALUES (@fn, @val) " +
@@ -115,7 +139,7 @@ public sealed class MetadataStore : IDisposable
 
     private bool TableExists(string tableName)
     {
-        using var command = _connection.CreateCommand();
+        using var command = _connection!.CreateCommand();
         command.CommandText =
             "SELECT count(*) FROM sqlite_master WHERE type='table' AND tbl_name=@name";
         command.Parameters.AddWithValue("@name", tableName);
@@ -124,7 +148,7 @@ public sealed class MetadataStore : IDisposable
 
     private int GetSchemaVersion()
     {
-        using var command = _connection.CreateCommand();
+        using var command = _connection!.CreateCommand();
         command.CommandText = "SELECT value FROM schema_info WHERE key='schema_version'";
         return int.Parse((string)command.ExecuteScalar()!);
     }
@@ -168,7 +192,7 @@ public sealed class MetadataStore : IDisposable
 
     private void RunInTransaction(Action action)
     {
-        using var transaction = _connection.BeginTransaction();
+        using var transaction = _connection!.BeginTransaction();
         try
         {
             action();
@@ -183,10 +207,10 @@ public sealed class MetadataStore : IDisposable
 
     private void ExecuteNonQuery(string sql)
     {
-        using var command = _connection.CreateCommand();
+        using var command = _connection!.CreateCommand();
         command.CommandText = sql;
         command.ExecuteNonQuery();
     }
 
-    public void Dispose() => _connection.Dispose();
+    public void Dispose() => _connection?.Dispose();
 }

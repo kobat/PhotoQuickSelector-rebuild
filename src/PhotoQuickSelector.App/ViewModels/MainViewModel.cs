@@ -15,6 +15,13 @@ public partial class MainViewModel : ObservableObject
 {
     private MetadataStore? _store;
 
+    /// <summary>
+    /// 評価データファイル（sqlite）をまだ作成していないフォルダで、最初の評価操作時に
+    /// 作成可否を確認する非同期コールバック（OK=true）。View（<see cref="MainPage"/>）が
+    /// ContentDialog を出して登録する。VM は XamlRoot を持たないためコールバックで委譲する。
+    /// </summary>
+    public Func<Task<bool>>? ConfirmCreateAsync { get; set; }
+
     /// <summary>アプリ設定（最近フォルダ・お気に入り・左ペイン状態）。</summary>
     public AppSettings Settings { get; } = AppSettings.Load();
 
@@ -419,6 +426,22 @@ public partial class MainViewModel : ObservableObject
                 if (Filter.Model.Matches(AllPhotos[i].Eval)) { SelectedPhoto = AllPhotos[i]; return; }
         }
         // 該当方向に可視写真が無ければ何もしない（端と同じ＝空のまま）。
+    }
+
+    /// <summary>
+    /// 評価操作を適用する。対象フォルダの sqlite がまだ無い場合は、実行前に
+    /// <see cref="ConfirmCreateAsync"/> で作成可否を確認し、OK のときだけ <paramref name="op"/> を
+    /// 実行する（＝ファイル生成）。キャンセル時は何もしない（ファイルも作らず評価も変えない）。
+    /// 既にファイルが在れば確認なしで即実行する。
+    /// </summary>
+    public async Task ApplyEvaluationAsync(Action op)
+    {
+        if (_store is { DatabaseExists: false })
+        {
+            if (ConfirmCreateAsync == null) return;
+            if (!await ConfirmCreateAsync()) return; // キャンセル＝何もしない
+        }
+        op();
     }
 
     /// <summary>

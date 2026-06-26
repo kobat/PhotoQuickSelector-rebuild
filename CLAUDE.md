@@ -677,6 +677,27 @@
     `BUILD SUCCEEDED`（x64 Release・警告0）。**任意の次候補**: アプリ内「バージョン情報／ライセンス」画面（必須ではない）。
   - 注: これは法的助言ではないが、許諾型ライセンスの一般的な遵守要件（著作権表示＋ライセンス文の同梱）は満たしている。
 
+- **評価データファイルの遅延作成＋作成確認ダイアログ 完了（2026-06-27）**: 「フォルダを開いただけで `PhotoQuickSelector.sqlite3`
+  が即生成される」挙動を改め、**最初の評価操作時に初めて作成**するように変更。さらに作成直前に確認ダイアログを出し、OK の時だけ作る。
+  - **① Core を遅延作成化（`MetadataStore`）**: コンストラクタで接続を開かない（＝ファイルを作らない）よう変更し、
+    パス記録のみに。`DatabaseExists`（`File.Exists` 判定）を公開。`EnsureConnection(createIfMissing)` で遅延 Open＝
+    読み取り（`false`）はファイルが無ければ開かず、**書き込み（`true`）で初めて Open＝ファイル生成点**。`LoadEvaluation` は
+    ファイルが無ければ作らず `ExifRating` のみで返す（**EXIF の★表示は維持**）。`UpsertColumn`（`SaveRating`/`SaveFlagRating`/
+    `SaveColorLabel`）が `EnsureConnection(true)` で生成。`Dispose` は null セーフ化。スキーマ系ヘルパは `_connection!`。
+  - **② 作成前の確認ダイアログ（App・案A＝Action 解決→非同期 gate）**: `PhotoKeyCommands.TryHandleEvaluation`（即実行）を
+    **`ResolveEvaluation`（実行せず `Action?` を返す）** へ改修（評価キー判定の同期 bool は維持）。`MainViewModel.ApplyEvaluationAsync(Action)`
+    が、`_store` のファイル未作成時のみ `ConfirmCreateAsync` で確認し **OK のときだけ `op()` 実行（＝生成＋保存）／キャンセルは何もしない**
+    （評価も変えない）。既存ファイルがあれば確認なしで即実行。ダイアログ（`ContentDialog`）は `MainPage.ConfirmCreateStoreAsync` が
+    表示（VM は XamlRoot を持たないため View にコールバック登録。多重表示ガード付き）。
+  - **2 呼び出し点**（評価キーと同列）: サムネイル＝`MainPage.HandleGlobalKeyDown`／プレビュー＝`PreviewControl.Input.cs`。
+    いずれも `ResolveEvaluation → ApplyEvaluationAsync`（fire-and-forget。キーハンドラは await 不可）。`ContentDialog` 表示中は
+    既存の `GetOpenPopupsForXamlRoot` 早期 return でグローバルキーが抑止されるため連打多重も防止。
+  - 決め事（ユーザー確定）: キャンセル＝**何もしない**／ダイアログは**そのフォルダで最初の評価時に1回**（キャンセル後の再操作で再度尋ねる。
+    OK 後はファイルが在るので以後無言）／文言＝「このフォルダに評価データファイル（PhotoQuickSelector.sqlite3）を作成します。よろしいですか？」。
+  - 変更: `Core/MetadataStore.cs`、`PhotoKeyCommands.cs`、`ViewModels/MainViewModel.cs`、`MainPage.xaml.cs`、`Controls/PreviewControl.Input.cs`、
+    `tests/…/MetadataStoreTests.cs`（`Constructor_DoesNotCreateDatabaseFile`/`LoadEvaluation_DoesNotCreateDatabaseFile`/`FirstSave_CreatesDatabaseFile` に更新）。
+    `BUILD SUCCEEDED`（x64・警告0）／`dotnet test` 88 件緑。実機でフォルダを開いただけでは未生成・初回評価で確認→作成/キャンセルをユーザー確認済み（2026-06-27）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**

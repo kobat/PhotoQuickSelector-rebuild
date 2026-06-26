@@ -42,6 +42,37 @@ public sealed partial class MainPage : Page
         StatusBar.ToggleLeftPaneRequested += (_, _) => ToggleLeftPane();
         // 全画面ボタンは AppWindow を持つ MainWindow で切り替える（F11 と同じ経路）。
         StatusBar.ToggleFullScreenRequested += (_, _) => (App.Window as MainWindow)?.ToggleFullScreen();
+        // 評価データファイル（sqlite）の初回作成確認ダイアログ。VM は XamlRoot を持たないので View が出す。
+        ViewModel.ConfirmCreateAsync = ConfirmCreateStoreAsync;
+    }
+
+    /// <summary>
+    /// 対象フォルダにまだ評価データファイルが無いとき、最初の評価操作の直前に作成可否を尋ねる。
+    /// OK で true（＝ファイル作成して評価を保存）、キャンセルで false（＝何もしない）。
+    /// </summary>
+    private bool _creationDialogOpen;
+
+    private async Task<bool> ConfirmCreateStoreAsync()
+    {
+        if (_creationDialogOpen) return false; // 多重表示防止
+        _creationDialogOpen = true;
+        try
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "評価データの作成",
+                Content = "このフォルダに評価データファイル（PhotoQuickSelector.sqlite3）を作成します。よろしいですか？",
+                PrimaryButtonText = "作成",
+                CloseButtonText = "キャンセル",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = XamlRoot,
+            };
+            return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        }
+        finally
+        {
+            _creationDialogOpen = false;
+        }
     }
 
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
@@ -205,9 +236,16 @@ public sealed partial class MainPage : Page
         if (ViewModel.SelectedPhoto is { } item)
         {
             // 外部連携（Ctrl+E / Alt+E / Ctrl+Alt+E / Alt+S）を評価キーより先に判定（SPEC §3-8）。
-            if (PhotoFileCommands.TryHandle(e.Key, item, ViewModel.Settings) ||
-                PhotoKeyCommands.TryHandleEvaluation(e.Key, item))
+            if (PhotoFileCommands.TryHandle(e.Key, item, ViewModel.Settings))
+            {
                 e.Handled = true;
+            }
+            else if (PhotoKeyCommands.ResolveEvaluation(e.Key, item) is { } op)
+            {
+                // 初回はファイル作成確認ダイアログを挟むため非同期 gate 経由（キーハンドラなので待たない）。
+                _ = ViewModel.ApplyEvaluationAsync(op);
+                e.Handled = true;
+            }
         }
     }
 }

@@ -20,20 +20,35 @@ public sealed class MetadataStoreTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_CreatesDatabaseFile()
+    public void Constructor_DoesNotCreateDatabaseFile()
     {
         using var store = new MetadataStore(_folder);
-        Assert.True(File.Exists(Path.Combine(_folder, MetadataStore.DatabaseFileName)));
+        Assert.False(File.Exists(Path.Combine(_folder, MetadataStore.DatabaseFileName)));
+        Assert.False(store.DatabaseExists);
     }
 
     [Fact]
-    public void LoadEvaluation_ReturnsExifRating_WhenNoPersistedData()
+    public void LoadEvaluation_DoesNotCreateDatabaseFile()
     {
         using var store = new MetadataStore(_folder);
         var e = store.LoadEvaluation("DSC0001.JPG", exifRating: 4);
 
+        // 読み込みだけではファイルを作らない（EXIF レーティングのみで返す）。
+        Assert.False(File.Exists(Path.Combine(_folder, MetadataStore.DatabaseFileName)));
         Assert.Null(e.PersistedRating);
         Assert.Equal(4, e.Rating); // EXIF フォールバック
+    }
+
+    [Fact]
+    public void FirstSave_CreatesDatabaseFile()
+    {
+        using var store = new MetadataStore(_folder);
+        Assert.False(store.DatabaseExists);
+
+        store.SaveRating("DSC0001.JPG", 3); // 初回書き込みでファイル生成
+
+        Assert.True(File.Exists(Path.Combine(_folder, MetadataStore.DatabaseFileName)));
+        Assert.True(store.DatabaseExists);
     }
 
     [Fact]
