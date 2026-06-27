@@ -892,6 +892,25 @@
   - 変更: `Controls/PhotoStatusBar.xaml(.cs)`・`Controls/FilterBar.xaml`、`MainPage.xaml.cs`。**Core・ViewModel は非変更**。
     `BUILD SUCCEEDED`。`dotnet run` で実機確認・拡大目視（グリフ向き／開閉追従／4ボタンの高さ・3ボタンの幅統一）済み（2026-06-27）。
 
+- **バージョン情報画面＋ライセンス画面 完了（2026-06-28）**: ステータスバー右端のハンバーガーメニューに「バージョン情報…」を追加し、
+  About → ライセンス の2画面を実装。**Core・`MainViewModel`・`MainWindow` は非変更**（App 層のダイアログ追加のみ）。
+  - **メニュー（`Controls/PhotoStatusBar.xaml(.cs)`）**: 「設定…」直下に「バージョン情報…」。`MenuAbout_Click` で `AboutDialog` を表示し、
+    **Primary（「ライセンス情報」）が押されたら About を閉じてから `LicenseDialog` を開く連鎖**（`ContentDialog` の入れ子表示は
+    クラッシュ要因のため必ず閉じてから次を開く）。
+  - **`Controls/AboutDialog.xaml(.cs)`（新規）**: アプリアイコン（`ms-appx:///Assets/Square150x150Logo.scale-200.png`）＋アプリ名＋
+    バージョン＋`Copyright © 2026 KOBAT`＋MIT＋GitHub リンク。**バージョンはハードコードせず**
+    `Assembly.GetExecutingAssembly().GetName().Version` を `x.y.z` 整形して表示。
+  - **`Controls/LicenseDialog.xaml(.cs)`（新規）**: `Pivot`（「本アプリ (MIT)」／「ライブラリ」）で全文をスクロール表示
+    （`ContentDialogMaxWidth` を 780 へ拡張）。全文は **アセンブリ埋め込みリソース**（`GetManifestResourceStream("LICENSE")`／
+    `"THIRD-PARTY-NOTICES.txt"`）から読む＝single-file 発行でも exe 隣のファイル有無に依存せず確実に表示できる。
+  - **バージョンの単一情報源（`csproj`）**: `<Version>1.0.0</Version>` を追加（About がリフレクション参照）。
+  - **ライセンス文の二重持ち（`csproj`）**: 既存の `Content`/`Link`（配布物への同梱＝法的要件）はそのまま残し、別途
+    `EmbeddedResource`（`LogicalName="LICENSE"` / `"THIRD-PARTY-NOTICES.txt"`）でアセンブリにも埋め込む（アプリ内表示用）。
+    ビルド済みアセンブリで埋め込み2件を `GetManifestResourceNames()` で確認済み。
+  - 変更/新規: `PhotoQuickSelector.App.csproj`（`<Version>`＋`EmbeddedResource` 2件）、`Controls/PhotoStatusBar.xaml(.cs)`、
+    `Controls/AboutDialog.xaml(.cs)`（新規）、`Controls/LicenseDialog.xaml(.cs)`（新規）。`BUILD SUCCEEDED`（x64 Release・警告0）。
+    実機目視（メニュー項目・About 表示・ライセンス全文スクロール・GitHub リンク）はユーザー確認推奨。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**

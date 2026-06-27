@@ -149,4 +149,16 @@ public sealed partial class PhotoStatusBar : UserControl
             _viewModel.Settings.Save();
         }
     }
+
+    /// <summary>メニュー「バージョン情報…」。About を表示し、「ライセンス情報」が押されたら
+    /// About を閉じてから License を開く（ContentDialog の入れ子表示はクラッシュ要因のため連鎖させる）。</summary>
+    private async void MenuAbout_Click(object sender, RoutedEventArgs e)
+    {
+        var about = new AboutDialog { XamlRoot = XamlRoot };
+        if (await about.ShowAsync() == ContentDialogResult.Primary)
+        {
+            var license = new LicenseDialog { XamlRoot = XamlRoot };
+            await license.ShowAsync();
+        }
+    }
 }
