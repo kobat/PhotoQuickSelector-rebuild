@@ -150,6 +150,13 @@ public sealed partial class PhotoStatusBar : UserControl
         }
     }
 
+    /// <summary>メニュー「ショートカット一覧…」。チートシートをモーダルで表示する（F1 と同経路）。</summary>
+    private async void MenuShortcuts_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ShortcutsDialog { XamlRoot = XamlRoot };
+        await dialog.ShowAsync();
+    }
+
     /// <summary>メニュー「バージョン情報…」。About を表示し、「ライセンス情報」が押されたら
     /// About を閉じてから License を開く（ContentDialog の入れ子表示はクラッシュ要因のため連鎖させる）。</summary>
     private async void MenuAbout_Click(object sender, RoutedEventArgs e)

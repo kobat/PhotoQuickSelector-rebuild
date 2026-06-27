@@ -188,6 +188,9 @@
                     <MenuFlyoutSeparator />
 
                     <MenuFlyoutItem Text="設定…" Click="MenuSettings_Click" />
+                    <MenuFlyoutItem Text="ショートカット一覧…"
+                                    KeyboardAcceleratorTextOverride="F1"
+                                    Click="MenuShortcuts_Click" />
                     <MenuFlyoutItem Text="バージョン情報…" Click="MenuAbout_Click" />
                 </MenuFlyout>
             </Button.Flyout>

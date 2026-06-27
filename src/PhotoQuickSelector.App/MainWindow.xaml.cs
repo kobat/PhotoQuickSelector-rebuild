@@ -56,6 +56,15 @@ public sealed partial class MainWindow : Window
             Microsoft.UI.Xaml.Media.VisualTreeHelper.GetOpenPopupsForXamlRoot(xamlRoot).Count > 0)
             return;
 
+        // F1: ショートカット一覧（チートシート）をモーダルで開く。ポップアップ開時は冒頭の早期 return で
+        // 弾かれるため二重表示しない。tunneling のルートで拾うのでフォーカス位置によらず届く。
+        if (e.Key == Windows.System.VirtualKey.F1)
+        {
+            _ = ShowShortcutsAsync();
+            e.Handled = true;
+            return;
+        }
+
         // F11: フルスクリーン表示のトグル。AppWindow を所有する Window 側で完結させる。
         // tunneling のルートで拾うのでフォーカス位置によらず確実に届く（評価/ナビキーと競合しない）。
         if (e.Key == Windows.System.VirtualKey.F11)
@@ -96,6 +105,13 @@ public sealed partial class MainWindow : Window
         }
 
         (RootFrame.Content as MainPage)?.HandleGlobalKeyDown(e);
+    }
+
+    /// <summary>ショートカット一覧ダイアログを開く（F1 から呼ぶ。XamlRoot はルート要素のものを使う）。</summary>
+    private async System.Threading.Tasks.Task ShowShortcutsAsync()
+    {
+        var dialog = new Controls.ShortcutsDialog { XamlRoot = RootGrid.XamlRoot };
+        await dialog.ShowAsync();
     }
 
     /// <summary>

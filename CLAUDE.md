@@ -911,6 +911,24 @@
     `Controls/AboutDialog.xaml(.cs)`（新規）、`Controls/LicenseDialog.xaml(.cs)`（新規）。`BUILD SUCCEEDED`（x64 Release・警告0）。
     実機目視（メニュー項目・About 表示・ライセンス全文スクロール・GitHub リンク）はユーザー確認推奨。
 
+- **ショートカット一覧（チートシート）画面 完了（2026-06-28）**: キー操作の一覧を **モーダル `ContentDialog`** で表示。
+  入口は **ハンバーガーメニュー「ショートカット一覧…」＋ `F1` キー**。**Core・既存のキー処理ロジックは非変更**（App 層の追加のみ）。
+  - **データ（`ShortcutCheatSheet.cs`・新規／App ルート名前空間）**: 表示専用の静的定義。`record ShortcutItem(Keys, Description)`
+    ＋`record ShortcutGroup(Title, Items)`。グループ順は **全般→表示→移動→評価→複数選択→ファイル連携**（ユーザー指定）。
+    内容は CLAUDE.md「キー操作」節が元ネタ。**項目追加はこのリストへ 1 行足すだけ**。
+  - **設計判断（二重持ち）**: 実キー処理は 5 箇所（`PhotoKeyCommands`/`SelectionKeyCommands`/`PhotoFileCommands`/
+    `PreviewControl.Input`/`MainWindow.RootGrid_PreviewKeyDown`）に分散。今回は SSOT 化せず**表示専用の独立データ**にした
+    （処理との二重持ち＝低リスク優先。SSOT 化は将来課題としてコメントに明記）。
+  - **ダイアログ（`Controls/ShortcutsDialog.xaml(.cs)`・新規）**: `LicenseDialog` 同型（`ContentDialogMaxWidth=720` へ拡張、
+    `ScrollViewer` で縦スクロール）。`ItemsControl`（グループ）＋ネスト `ItemsControl`（項目）でデータ駆動。各項目は
+    キー列（角丸チップ＝EXIF チップと同デザイン・幅 210px 固定で全行そろえ）｜説明（ラップ）の 2 カラム。`ItemsSource` は
+    コードビハインドで `ShortcutCheatSheet.Groups` を流し込み（DataTemplate はクラシック `{Binding}`）。
+  - **入口**: `PhotoStatusBar.xaml(.cs)` のメニューに「設定…」直下へ「ショートカット一覧…」（`F1` 併記・`MenuShortcuts_Click`）。
+    `MainWindow.RootGrid_PreviewKeyDown` に **`F1`** 分岐（`ShowShortcutsAsync` を fire-and-forget）。ポップアップ開時は
+    既存の `GetOpenPopupsForXamlRoot` 早期 return で弾かれ二重表示しない。
+  - 変更/新規: `ShortcutCheatSheet.cs`（新規）・`Controls/ShortcutsDialog.xaml(.cs)`（新規）、`Controls/PhotoStatusBar.xaml(.cs)`、
+    `MainWindow.xaml.cs`。`BUILD SUCCEEDED`（x64 Release・警告0）。ユーザー画面確認済み（2026-06-28）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
