@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -233,17 +234,40 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        if (ViewModel.SelectedPhoto is { } item)
+        // 複数選択キー（Shift+←/→ / Ctrl+←/→ / Ctrl+Space / Esc）。プレビューと共通化。
+        if (SelectionKeyCommands.TryHandle(e.Key, ViewModel))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        // 選択集合があるときの素 ←/→ はメンバー内で焦点を巡回する（横取り。空なら GridView の通常ナビへ）。
+        if (ViewModel.SelectedPhotos.Count > 0 && KeyboardModifiers.None)
+        {
+            if (e.Key == Windows.System.VirtualKey.Left) { ViewModel.MovePrevious(); e.Handled = true; return; }
+            if (e.Key == Windows.System.VirtualKey.Right) { ViewModel.MoveNext(); e.Handled = true; return; }
+        }
+
+        // 一括評価（Alt+数字）: 選択集合の全メンバーへ。集合が無ければ無効（消費のみ）。
+        if (PhotoKeyCommands.ResolveBulkEvaluation(e.Key) is { } bulkOp)
+        {
+            if (ViewModel.SelectedPhotos.Count > 0)
+                _ = ViewModel.ApplyEvaluationAsync(bulkOp, ViewModel.SelectedPhotos.ToList());
+            e.Handled = true;
+            return;
+        }
+
+        if (ViewModel.FocusedPhoto is { } item)
         {
             // 外部連携（Ctrl+E / Alt+E / Ctrl+Alt+E / Alt+S）を評価キーより先に判定（SPEC §3-8）。
             if (PhotoFileCommands.TryHandle(e.Key, item, ViewModel.Settings))
             {
                 e.Handled = true;
             }
-            else if (PhotoKeyCommands.ResolveEvaluation(e.Key, item) is { } op)
+            else if (PhotoKeyCommands.ResolveEvaluation(e.Key) is { } op)
             {
                 // 初回はファイル作成確認ダイアログを挟むため非同期 gate 経由（キーハンドラなので待たない）。
-                _ = ViewModel.ApplyEvaluationAsync(op);
+                _ = ViewModel.ApplyEvaluationAsync(op, new[] { item });
                 e.Handled = true;
             }
         }

@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Windows.System;
 
@@ -33,6 +34,14 @@ public sealed partial class PreviewControl
         // Ctrl+Alt+矢印 : 右上ズームプレビュー（ルーペ）をスクロール / Ctrl+Alt+F : 同・フォーカス点へ
         if (ctrl && alt)
         {
+            // 選択集合があるときは Ctrl+Alt+↑/↓ を一括フラグへ振り分ける（無いときは従来のルーペ縦スクロール）。
+            if (_viewModel.SelectedPhotos.Count > 0 &&
+                (key == VirtualKey.Up || key == VirtualKey.Down) &&
+                PhotoKeyCommands.ResolveBulkEvaluation(key) is { } flagOp)
+            {
+                _ = _viewModel.ApplyEvaluationAsync(flagOp, _viewModel.SelectedPhotos.ToList());
+                return true;
+            }
             switch (key)
             {
                 case VirtualKey.Left: ZoomPanByRatio(0.25, 0); return true;
@@ -66,8 +75,15 @@ public sealed partial class PreviewControl
             }
         }
 
-        // 修飾子なしの ←/→ : 前後移動。移動後はフォーカスをフィルムストリップへ移し、
-        // PageUp/PageDown/Home/End 等の ListView キー操作が効くようにする。
+        // 複数選択キー（Shift+←/→ / Ctrl+←/→ / Ctrl+Space / Esc）。Alt 併用は上で処理済み。
+        if (SelectionKeyCommands.TryHandle(key, _viewModel))
+        {
+            FocusFilmStripSelected();
+            return true;
+        }
+
+        // 修飾子なしの ←/→ : 前後移動（選択集合があればメンバー内で巡回）。移動後はフォーカスを
+        // フィルムストリップへ移し、PageUp/PageDown/Home/End 等の ListView キー操作が効くようにする。
         if (KeyboardModifiers.None)
         {
             switch (key)
@@ -135,16 +151,24 @@ public sealed partial class PreviewControl
             return true;
         }
 
-        // 外部連携（Ctrl+E / Alt+E / Ctrl+Alt+E / Alt+S）／評価キー（rating / flag / colorlabel）は
+        // 一括評価（Alt+数字）: 選択集合の全メンバーへ。集合が無ければ Alt+数字 は無効（消費のみ）。
+        if (PhotoKeyCommands.ResolveBulkEvaluation(key) is { } bulkOp)
+        {
+            if (_viewModel.SelectedPhotos.Count > 0)
+                _ = _viewModel.ApplyEvaluationAsync(bulkOp, _viewModel.SelectedPhotos.ToList());
+            return true;
+        }
+
+        // 外部連携（Ctrl+E / Alt+E / Ctrl+Alt+E / Alt+S）／単一評価（焦点1枚。rating / flag / colorlabel）は
         // サムネイル一覧と共通化（SPEC §3-7 / §3-8）。
-        if (_viewModel.SelectedPhoto is { } photo)
+        if (_viewModel.FocusedPhoto is { } photo)
         {
             if (PhotoFileCommands.TryHandle(key, photo, _viewModel.Settings))
                 return true;
-            if (PhotoKeyCommands.ResolveEvaluation(key, photo) is { } op)
+            if (PhotoKeyCommands.ResolveEvaluation(key) is { } op)
             {
                 // 初回はファイル作成確認ダイアログを挟むため非同期 gate 経由（待たない）。
-                _ = _viewModel.ApplyEvaluationAsync(op);
+                _ = _viewModel.ApplyEvaluationAsync(op, new[] { photo });
                 return true;
             }
         }

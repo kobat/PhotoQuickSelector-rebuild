@@ -167,7 +167,7 @@ public sealed partial class PreviewControl : UserControl
     {
         switch (e.PropertyName)
         {
-            case nameof(MainViewModel.SelectedPhoto):
+            case nameof(MainViewModel.FocusedPhoto):
                 // プレビュー中の写真切替はズーム状態（モード/フィット比/相対中心）を維持する。
                 LoadCurrentAsync(preserveView: true);
                 ScrollSelectedIntoView();
@@ -196,7 +196,7 @@ public sealed partial class PreviewControl : UserControl
 
     private void ScrollSelectedIntoView()
     {
-        if (_viewModel?.SelectedPhoto is { } photo)
+        if (_viewModel?.FocusedPhoto is { } photo)
             DispatcherQueue.TryEnqueue(() => FilmStrip.ScrollIntoView(photo));
     }
 
@@ -207,7 +207,7 @@ public sealed partial class PreviewControl : UserControl
     /// </summary>
     private void FocusFilmStripSelected()
     {
-        if (_viewModel?.SelectedPhoto is not { } photo) return;
+        if (_viewModel?.FocusedPhoto is not { } photo) return;
         DispatcherQueue.TryEnqueue(() =>
         {
             FilmStrip.ScrollIntoView(photo);
@@ -228,7 +228,7 @@ public sealed partial class PreviewControl : UserControl
     {
         if (_viewModel?.IsPreviewMode != true) return;
 
-        var photo = _viewModel.SelectedPhoto;
+        var photo = _viewModel.FocusedPhoto;
         int token = ++_loadToken;
 
         if (photo == null)
@@ -341,8 +341,8 @@ public sealed partial class PreviewControl : UserControl
     private IEnumerable<string> WindowPaths()
     {
         var vm = _viewModel;
-        if (vm?.SelectedPhoto == null) yield break;
-        int index = vm.Photos.IndexOf(vm.SelectedPhoto);
+        if (vm?.FocusedPhoto == null) yield break;
+        int index = vm.Photos.IndexOf(vm.FocusedPhoto);
         if (index < 0) yield break;
 
         int start = Math.Max(0, index - PrefetchBackward);

@@ -745,6 +745,50 @@
     `tests/…/PreviewViewportTests.cs`。`BUILD SUCCEEDED`（App x64 Release・警告0）／`dotnet test` 92 件緑。実機でホイール段スナップ・
     `+`/`-` キーボードズームをユーザー確認済み（2026-06-27）。
 
+- **フィルムストリップ/グリッドの複数選択 完了（2026-06-27・要実機確認）**: 「焦点（常に1枚）」と「選択集合（0..N枚＝一括評価対象）」を
+  概念分離し、複数選択と集合一括評価を追加。**概念整理に合わせて既存名もリネーム**（挙動不変の純リネーム＋新機能の二段）。
+  - **リネーム（焦点系。挙動不変）**: `MainViewModel.SelectedPhoto`→**`FocusedPhoto`**／per-item `PhotoItemViewModel.IsSelected`→**`IsFocused`**／
+    視覚 `SelectionOpacity`→**`CellOpacity`**（焦点 **or メンバー**で 1.0／他 0.9）・`SelectionFrameOpacity`→**`FocusFrameOpacity`**／
+    焦点復元アンカー `_selectionAnchor`→**`_focusAnchor`**／`OnSelectedPhotoChanged`→**`OnFocusedPhotoChanged`**／`MoveBy`→**`MoveFocus`**。
+    XAML の `x:Bind`（`PreviewControl.xaml`・`PhotoStatusBar.xaml`）と `nameof` 参照も追従。
+  - **新概念（選択集合）**: `MainViewModel.SelectedPhotos`（`ObservableCollection`）＋ per-item **`IsInSelection`** ＋視覚
+    **`SelectionHighlightOpacity`**（メンバー＝薄い青の外枠 `#FF66B2FF`＋背景ウォッシュ `#4066B2FF`・焦点リング(グレー)とは別レイヤで併存）。
+    レンジ起点 `_selectionPivot`。
+  - **焦点 vs 集合の調停（肝）**: 「素の焦点移動（マウス選択・集合空の前後移動・入場/読込）は集合をリセット」する一方、複数選択メソッドが
+    焦点を動かす時は消さない。これを `OnFocusedPhotoChanged(old,new)` 内の `if(!_managingSelection) ClearSelection();` ＋
+    複数選択メソッドが `SetFocusManaged()`（`_managingSelection` ガード付きで焦点設定）で焦点を動かす再入ガードで実現。マウス選択は
+    TwoWay バインド経由で焦点が変わるのでガード無し＝集合リセット。`ApplyFilter` は絞り込みで結果外のメンバーを集合から外す（ガード ON で調停）。
+  - **複数選択メソッド（`MainViewModel`）**: `ExtendSelectionTo(±1)`（Shift+←/→＝起点 pivot..焦点の連続レンジ・`SetSelectionRange`）／
+    `MoveFocusKeepingSelection(±1)`（Ctrl+←/→＝焦点のみ移動・集合外可）／`ToggleFocusInSelection()`（Ctrl+Space＝焦点をトグル参加・pivot=焦点）／
+    `MoveFocusWithinSelection(±1)`（集合ありの素 ←/→＝メンバー表示順で焦点巡回。焦点が集合外なら端メンバーへ）／`ClearSelection()`（Esc）。
+    `MoveNext`/`MovePrevious` を「集合あり=巡回／無し=`MoveFocus`」へ分岐。
+  - **一括評価（Alt+数字）**: `PhotoKeyCommands.ResolveEvaluation` を **`Action<PhotoItemViewModel>` 返し**へリファクタ（item 非依存化）＋
+    新規 `ResolveBulkEvaluation`（**Alt+0–5＝レーティング／Alt+6–9＝赤橙緑青／Alt+P＝紫**。フラグ・増減は対象外）。
+    `ApplyEvaluationAsync(op, targets)` へバッチ化（sqlite 作成確認は対象複数でも1回）。単一=焦点1枚／一括=`SelectedPhotos` 全員。
+    **通常評価（Alt なし）は焦点1枚のみ＝集合不変**（要件どおり）。
+  - **キー集約（新規 `SelectionKeyCommands.TryHandle(key, vm)`）**: 評価キーと同じ「App 層の静的ディスパッチャ＋2 呼び出し点」パターン。
+    `MainPage.HandleGlobalKeyDown`（グリッド）／`PreviewControl.Input.cs`（プレビュー）の両方から、Alt 系ナビ（Alt+矢印パン等）の**後**に判定。
+    グリッドの素 ←/→ は集合ありのとき横取りして巡回（空なら GridView 通常ナビへ）。Esc は集合があるときだけ消費（無ければ素通し＝
+    全画面解除は `MainWindow` 側が先、プレビュー終了はしない）。Ctrl+L(フィルタ)/Ctrl+↑↓(フラグ)とは非衝突。
+  - **マウス選択＝集合リセット**（ユーザー確定の決定2）／**集合中の通常数字は焦点1枚のみ**（決定1）。グリッドにもメンバー外枠を表示（焦点は GridView 標準）。
+  - 変更/新規: `PhotoKeyCommands.cs`・`SelectionKeyCommands.cs`（新規）、`ViewModels/MainViewModel.cs`・`PhotoItemViewModel.cs`、
+    `MainPage.xaml.cs`、`Controls/PreviewControl.Input.cs`・`.xaml.cs`・`.xaml`、`Controls/PhotoGridView.xaml(.cs)`、`Controls/PhotoStatusBar.xaml`。
+    `BUILD SUCCEEDED`（App x64 Release・警告0）／`dotnet test` 92 件緑。**`MainViewModel` は WinUI 依存（`Visibility`）で Core.Tests から
+    参照不可＝選択ロジックは単体テスト未実施**。実機目視（実キーボードで Shift/Ctrl+←/→・Ctrl+Space・Alt+数字一括・Esc 解除・
+    マウス選択でのリセット）をユーザー確認済み（2026-06-27）。
+  - **一括フラグ（`Ctrl+Alt+↑/↓`）追記（2026-06-27）**: 単一フラグ `Ctrl+↑↓` の対称形として一括フラグを追加。
+    `PhotoKeyCommands.ResolveBulkEvaluation` に `Ctrl+Alt+↑/↓→FlagUp/FlagDown` 分岐を足し（既存 `Alt+数字` と同居）、
+    グリッドは既存の一括評価ブロックが自動対応。**プレビューは `Ctrl+Alt+矢印` がルーペ縦スクロールと衝突**するため、
+    `PreviewControl.Input.cs` の `Ctrl+Alt` ブロック先頭で **選択集合があるとき `↑/↓` だけ一括フラグへ振り分け／無いときは
+    従来のルーペ縦スクロールへ素通し**（横スクロール `←/→`・`Ctrl+Alt+F` は常にルーペのまま）。`Ctrl+↑↓`(単一)とは別キーで非干渉。
+    変更: `PhotoKeyCommands.cs`・`Controls/PreviewControl.Input.cs`。`BUILD SUCCEEDED`（x64 Release・警告0）。ユーザー確認済み（2026-06-27）。
+  - **微修正3点（2026-06-27）**: ①メンバー強調色をアンバー→**薄い青（外枠 `#FF66B2FF`＋背景ウォッシュ `#4066B2FF`）**に変更
+    （フィルムストリップ/グリッド両テンプレート）。②`MoveFocusKeepingSelection`（Ctrl+←/→）で**集合が空の状態から動き出すとき、
+    もともと焦点だった1枚を選択メンバーに残す**（焦点だけ先へ動く）。③`MoveFocusWithinSelection`（集合中の素 ←/→）を
+    clamp→**巻き戻し（modulo）**に変更（一番右で→は一番左へ／一番左で←は一番右へ）。
+    変更: `ViewModels/MainViewModel.cs`、`Controls/PreviewControl.xaml`・`PhotoGridView.xaml`。`BUILD SUCCEEDED`（x64 Release・警告0）。
+    ユーザー確認済み（2026-06-27）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
@@ -758,6 +802,13 @@
 
 ## キー操作（右ペイン・写真選択時）
 - `0`–`5` レーティング / `6`–`9`＋`P` カラーラベル（赤橙緑青紫）/ `[` `]` レーティング増減 / `Ctrl+↑/↓` フラグ
+  （複数選択中でも**通常評価は焦点の1枚のみ**に反映）
+- 複数選択（両モード共通。焦点＝常に1枚／選択集合＝0..N枚で別概念）:
+  `Shift+←/→` レンジ選択（起点から焦点までを連続選択）/ `Ctrl+←/→` 焦点のみ移動（集合は不変）/
+  `Ctrl+Space` 焦点を選択集合へ参加/解除 / 選択集合中の `←/→` はメンバー内で焦点巡回 / `Esc` 選択集合を解除
+- `Alt+0`–`5`／`Alt+6`–`9`／`Alt+P` 一括評価（選択集合の全メンバーへ。レーティング/カラーラベル）
+- `Ctrl+Alt+↑/↓` 一括フラグ（選択集合の全メンバーへ。単一フラグ `Ctrl+↑↓` の対称形）。**プレビューでは選択集合がある
+  ときのみ一括フラグ／無いときは従来のルーペ縦スクロール**。集合が無ければ一括系は無効
 - `Ctrl+L` フィルタ ON/OFF トグル（両モード共通、フライアウトは開かない）
 - `Ctrl+E` エクスプローラで表示 / `Alt+E` 既定アプリで開く / `Ctrl+Alt+E` パスをコピー / `Alt+S` 共有
   （両モード共通。共有は `AppSettings.SharePath` 設定時はその exe 起動、未設定なら Windows 標準共有シート。設定はステータスバー右端の歯車から）

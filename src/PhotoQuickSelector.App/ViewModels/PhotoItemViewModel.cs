@@ -166,25 +166,46 @@ public partial class PhotoItemViewModel : ObservableObject
         }
     }
 
-    // --- フィルムストリップの選択強調（案1 ディミング ＋ 案2 アクセント外枠） ---
+    // --- フィルムストリップ/グリッドの強調（焦点＝1枚 ／ 選択集合＝0..N枚は別概念） ---
 
     /// <summary>
-    /// このセルが現在の選択写真かどうか。<see cref="MainViewModel.SelectedPhoto"/> 変更時に
-    /// 旧／新セルへ設定される。フィルムストリップのテンプレートが不透明度の切替に使う。
+    /// このセルが現在の焦点（プレビュー表示・通常評価の対象＝常に1枚）かどうか。
+    /// <see cref="MainViewModel.FocusedPhoto"/> 変更時に旧／新セルへ設定される。フィルムストリップの
+    /// テンプレートが不透明度・アクセント外枠の切替に使う。一括評価の対象となる
+    /// <see cref="IsInSelection"/>（選択集合のメンバー）とは独立。
     /// </summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SelectionOpacity))]
-    [NotifyPropertyChangedFor(nameof(SelectionFrameOpacity))]
-    public partial bool IsSelected { get; set; }
-
-    /// <summary>非選択セルを淡くして選択を際立たせる不透明度（案1）。選択=1.0／非選択=0.9（濃いめ）。</summary>
-    public double SelectionOpacity => IsSelected ? 1.0 : 0.9;
+    [NotifyPropertyChangedFor(nameof(CellOpacity))]
+    [NotifyPropertyChangedFor(nameof(FocusFrameOpacity))]
+    public partial bool IsFocused { get; set; }
 
     /// <summary>
-    /// アクセント外枠の不透明度（案2）。枠はレイアウトを動かさないよう常設し、可視性だけ切替える。
-    /// 選択=1.0／非選択=0.0。
+    /// このセルが複数選択（一括評価の対象）のメンバーかどうか。<see cref="MainViewModel.SelectedPhotos"/>
+    /// の出入りで設定される。焦点（<see cref="IsFocused"/>）とは独立で、焦点はメンバーの中の1枚になる
+    /// （ただし Ctrl+矢印で焦点だけ集合外へ動く瞬間はメンバー外になり得る）。
     /// </summary>
-    public double SelectionFrameOpacity => IsSelected ? 1.0 : 0.0;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CellOpacity))]
+    [NotifyPropertyChangedFor(nameof(SelectionHighlightOpacity))]
+    public partial bool IsInSelection { get; set; }
+
+    /// <summary>
+    /// セル全体の不透明度。焦点またはメンバーは全不透明（1.0）、いずれでもないセルは淡く（0.9）して
+    /// 焦点/選択を際立たせる。
+    /// </summary>
+    public double CellOpacity => IsFocused || IsInSelection ? 1.0 : 0.9;
+
+    /// <summary>
+    /// 焦点のアクセント外枠（グレー）の不透明度。枠はレイアウトを動かさないよう常設し可視性だけ切替える。
+    /// 焦点=1.0／非焦点=0.0。
+    /// </summary>
+    public double FocusFrameOpacity => IsFocused ? 1.0 : 0.0;
+
+    /// <summary>
+    /// 選択集合メンバーのハイライト外枠（アンバー）の不透明度。焦点リングとは別レイヤで併存させる。
+    /// メンバー=1.0／非メンバー=0.0。
+    /// </summary>
+    public double SelectionHighlightOpacity => IsInSelection ? 1.0 : 0.0;
 
     // 評価操作（永続化込み）
     public void SetRating(int value)

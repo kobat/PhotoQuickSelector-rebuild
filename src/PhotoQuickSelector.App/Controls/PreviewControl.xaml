@@ -54,7 +54,7 @@
                     VerticalAlignment="Top" HorizontalAlignment="Left"
                     Margin="12" Padding="12,9" CornerRadius="8"
                     Background="#A6000000" IsHitTestVisible="False"
-                    DataContext="{x:Bind ViewModel.SelectedPhoto, Mode=OneWay}"
+                    DataContext="{x:Bind ViewModel.FocusedPhoto, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.InfoOverlayVisibility, Mode=OneWay}">
                 <StackPanel Spacing="6" MaxWidth="440">
                     <!-- 1行目: ファイル名 ＋ 画像サイズ ＋ ファイルサイズ -->
@@ -195,7 +195,7 @@
             Padding="4,0,4,2"
             SizeChanged="FilmStrip_SizeChanged"
             ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
-            SelectedItem="{x:Bind ViewModel.SelectedPhoto, Mode=TwoWay}"
+            SelectedItem="{x:Bind ViewModel.FocusedPhoto, Mode=TwoWay}"
             SelectionMode="Single"
             ScrollViewer.HorizontalScrollMode="Enabled"
             ScrollViewer.HorizontalScrollBarVisibility="Auto"
@@ -218,9 +218,9 @@
             </ListView.ItemContainerStyle>
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                    <!-- 案1: 非選択セルを SelectionOpacity(0.45) で淡くし、選択セルだけ全不透明にする -->
+                    <!-- 非焦点かつ非メンバーのセルを CellOpacity(0.9) で淡くし、焦点/メンバーは全不透明にする -->
                     <StackPanel Width="{Binding ItemWidth, Source={StaticResource FilmMetrics}}"
-                                Opacity="{x:Bind SelectionOpacity, Mode=OneWay}">
+                                Opacity="{x:Bind CellOpacity, Mode=OneWay}">
                         <!-- セル本体（カラーラベル枠＋画像＋バッジ）に、最外周のアクセント外枠を重ねる。
                              外枠は子を持たない空リングなので Opacity=0（非選択）でも画像は消えない。 -->
                         <Grid>
@@ -264,13 +264,19 @@
                                 </Border>
                             </Grid>
                         </Border>
-                        <!-- 案2: アクセント外枠（空リング）。セル本体に重ね最外周へ描画。
-                             選択時のみ SelectionFrameOpacity(1.0) で可視。子が無いので Opacity=0 でも画像は残る。
+                        <!-- 焦点のアクセント外枠（空リング・グレー）。セル本体に重ね最外周へ描画。
+                             焦点時のみ FocusFrameOpacity(1.0) で可視。子が無いので Opacity=0 でも画像は残る。
                              枠は常設しレイアウト不変。カラーラベル枠（内側）とは別レイヤで併存。 -->
                         <Border CornerRadius="6" BorderThickness="3"
                                 BorderBrush="#FF333333"
                                 IsHitTestVisible="False"
-                                Opacity="{x:Bind SelectionFrameOpacity, Mode=OneWay}" />
+                                Opacity="{x:Bind FocusFrameOpacity, Mode=OneWay}" />
+                        <!-- 選択集合メンバーのハイライト（薄い青の外枠＋背景ウォッシュ）。焦点リングの内側に
+                             別レイヤで重ね、メンバー時のみ SelectionHighlightOpacity(1.0) で可視。 -->
+                        <Border CornerRadius="5" BorderThickness="2" Margin="1"
+                                BorderBrush="#FF66B2FF" Background="#4066B2FF"
+                                IsHitTestVisible="False"
+                                Opacity="{x:Bind SelectionHighlightOpacity, Mode=OneWay}" />
                         </Grid>
 
                         <!-- ファイル名（画像の下の独立行） -->

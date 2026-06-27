@@ -31,6 +31,22 @@ public partial class MainViewModel : ObservableObject
     /// <summary>絞り込み結果（<see cref="AllPhotos"/> から <see cref="Filter"/> を通した表示用ビュー）。</summary>
     public ObservableCollection<PhotoItemViewModel> Photos { get; } = new();
 
+    /// <summary>
+    /// 複数選択（一括評価の対象）の集合。焦点（<see cref="FocusedPhoto"/>）とは独立で 0..N 枚を保持する。
+    /// 各メンバーは <see cref="PhotoItemViewModel.IsInSelection"/> も true になる。
+    /// </summary>
+    public ObservableCollection<PhotoItemViewModel> SelectedPhotos { get; } = new();
+
+    /// <summary>Shift+←/→ レンジ選択の起点（軸）。</summary>
+    private PhotoItemViewModel? _selectionPivot;
+
+    /// <summary>
+    /// 複数選択メソッドが焦点（<see cref="FocusedPhoto"/>）を動かす間 true。立っている間は
+    /// <see cref="OnFocusedPhotoChanged(PhotoItemViewModel?, PhotoItemViewModel?)"/> が選択集合を
+    /// リセットしないようにする（素の焦点移動・マウス選択だけが集合をクリアする）。
+    /// </summary>
+    private bool _managingSelection;
+
     /// <summary>絞り込み条件（SPEC §3-4）。変更で <see cref="ApplyFilter"/> を再実行する。</summary>
     public FilterViewModel Filter { get; } = new();
 
@@ -63,10 +79,27 @@ public partial class MainViewModel : ObservableObject
 
         OnPropertyChanged(nameof(FilteredCountText));
 
-        // アンカー（最後に選んでいた写真）が結果に残っていれば選択を復元、外れていれば選択解除。
-        // アンカー自体は保持し続け、再び結果に入れば次回ここで復元される。
-        SelectedPhoto = (_selectionAnchor != null && Photos.Contains(_selectionAnchor))
-            ? _selectionAnchor : null;
+        // 焦点と選択集合を絞り込み結果に合わせて調停する（集合は素の焦点移動で消えないようガード ON で）。
+        _managingSelection = true;
+        try
+        {
+            // アンカー（最後に焦点だった写真）が結果に残っていれば焦点を復元、外れていれば焦点解除。
+            // アンカー自体は保持し続け、再び結果に入れば次回ここで復元される。
+            FocusedPhoto = (_focusAnchor != null && Photos.Contains(_focusAnchor))
+                ? _focusAnchor : null;
+
+            // 絞り込みで結果から外れたメンバーは選択集合からも外す（残ったメンバーは維持）。
+            for (int i = SelectedPhotos.Count - 1; i >= 0; i--)
+            {
+                if (!Photos.Contains(SelectedPhotos[i]))
+                {
+                    SelectedPhotos[i].IsInSelection = false;
+                    SelectedPhotos.RemoveAt(i);
+                }
+            }
+            if (SelectedPhotos.Count == 0) _selectionPivot = null;
+        }
+        finally { _managingSelection = false; }
     }
 
     /// <summary>絞込結果のファイル名一覧テキスト（クリップボード用、SPEC §3-5）。</summary>
@@ -263,7 +296,7 @@ public partial class MainViewModel : ObservableObject
         Settings.LastSession = new SessionState
         {
             FolderPath = CurrentFolder,
-            SelectedFileName = SelectedPhoto?.FileName,
+            SelectedFileName = FocusedPhoto?.FileName,
             IsPreviewMode = IsPreviewMode,
             Filter = Filter.CaptureState(),
         };
@@ -310,31 +343,39 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
 
+    /// <summary>
+    /// 焦点の写真（常に 1 枚。プレビュー表示・通常評価・ステータスバー・セッション復元を駆動）。
+    /// 複数選択（一括評価の対象）の集合は <see cref="SelectedPhotos"/> を参照。
+    /// </summary>
     [ObservableProperty]
-    public partial PhotoItemViewModel? SelectedPhoto { get; set; }
+    public partial PhotoItemViewModel? FocusedPhoto { get; set; }
 
     /// <summary>
-    /// 最後に「実際に選択していた」写真。絞り込みで <see cref="SelectedPhoto"/> が null になっても保持し、
-    /// 再び結果に入れば選択を復元する／外れている間の前後移動の基準にする。
+    /// 最後に「実際に焦点だった」写真。絞り込みで <see cref="FocusedPhoto"/> が null になっても保持し、
+    /// 再び結果に入れば焦点を復元する／外れている間の前後移動の基準にする。
     /// </summary>
-    private PhotoItemViewModel? _selectionAnchor;
+    private PhotoItemViewModel? _focusAnchor;
 
     /// <summary>ステータスバーのメタ情報パネル表示（写真選択時のみ）。</summary>
     public Visibility PhotoInfoVisibility =>
-        SelectedPhoto != null ? Visibility.Visible : Visibility.Collapsed;
+        FocusedPhoto != null ? Visibility.Visible : Visibility.Collapsed;
 
-    partial void OnSelectedPhotoChanged(PhotoItemViewModel? value) =>
+    partial void OnFocusedPhotoChanged(PhotoItemViewModel? value) =>
         OnPropertyChanged(nameof(PhotoInfoVisibility));
 
-    // 旧／新セルの選択フラグを更新（フィルムストリップのディミング＋アクセント外枠の駆動）。
-    partial void OnSelectedPhotoChanged(PhotoItemViewModel? oldValue, PhotoItemViewModel? newValue)
+    // 旧／新セルの焦点フラグを更新（フィルムストリップのディミング＋アクセント外枠の駆動）。
+    partial void OnFocusedPhotoChanged(PhotoItemViewModel? oldValue, PhotoItemViewModel? newValue)
     {
-        if (oldValue != null) oldValue.IsSelected = false;
+        if (oldValue != null) oldValue.IsFocused = false;
         if (newValue != null)
         {
-            newValue.IsSelected = true;
-            _selectionAnchor = newValue;  // 絞り込みで外れても保持する（再表示時の復元／外れ中の移動基準）
+            newValue.IsFocused = true;
+            _focusAnchor = newValue;  // 絞り込みで外れても保持する（再表示時の復元／外れ中の移動基準）
         }
+
+        // 素の焦点移動（マウス選択・集合が空の前後移動・入場/読込）は選択集合をリセットする。
+        // 複数選択メソッドが焦点を動かすときは _managingSelection を立てるのでここは素通り。
+        if (!_managingSelection) ClearSelection();
     }
 
     // --- プレビュー画面（右ペインのサムネイル一覧 ⇄ 大画面プレビュー切替） ---
@@ -386,68 +427,202 @@ public partial class MainViewModel : ObservableObject
     /// <summary>サムネイルをダブルクリック等でプレビュー（大画面）へ遷移する。</summary>
     public void EnterPreview()
     {
-        if (SelectedPhoto == null && Photos.Count > 0)
-            SelectedPhoto = Photos[0];
-        if (SelectedPhoto == null) return;
+        if (FocusedPhoto == null && Photos.Count > 0)
+            FocusedPhoto = Photos[0];
+        if (FocusedPhoto == null) return;
         IsPreviewMode = true;
     }
 
     /// <summary>プレビューからサムネイル一覧へ戻る（Esc / 再ダブルクリック）。</summary>
     public void ExitPreview() => IsPreviewMode = false;
 
-    /// <summary>次の写真へ。複数枚あるとき末尾はそのまま。</summary>
-    public void MoveNext() => MoveBy(1);
+    /// <summary>
+    /// 次の写真へ。選択集合があるときはメンバー内で焦点を進める／無いときは絞込ビュー内で前後移動。
+    /// 複数枚あるとき末尾はそのまま。
+    /// </summary>
+    public void MoveNext()
+    {
+        if (SelectedPhotos.Count > 0) MoveFocusWithinSelection(1);
+        else MoveFocus(1);
+    }
 
-    /// <summary>前の写真へ。先頭はそのまま。</summary>
-    public void MovePrevious() => MoveBy(-1);
+    /// <summary>前の写真へ。選択集合があるときはメンバー内で焦点を戻す。先頭はそのまま。</summary>
+    public void MovePrevious()
+    {
+        if (SelectedPhotos.Count > 0) MoveFocusWithinSelection(-1);
+        else MoveFocus(-1);
+    }
 
-    private void MoveBy(int delta)
+    /// <summary>素の焦点移動（選択集合なし）。絞込ビュー内 or アンカー基準で前後の可視写真へ。</summary>
+    private void MoveFocus(int delta)
     {
         if (Photos.Count == 0) return;
 
-        // 通常: 選択中の写真を基準に絞込ビュー内で前後移動。
-        if (SelectedPhoto != null)
+        // 通常: 焦点の写真を基準に絞込ビュー内で前後移動。
+        if (FocusedPhoto != null)
         {
-            int index = Photos.IndexOf(SelectedPhoto);
+            int index = Photos.IndexOf(FocusedPhoto);
             if (index < 0) return;
             int next = Math.Clamp(index + delta, 0, Photos.Count - 1);
-            if (next != index) SelectedPhoto = Photos[next];
+            if (next != index) FocusedPhoto = Photos[next];
             return;
         }
 
-        // 絞り込みで選択が外れている間: もともとの写真（アンカー）の位置を基準に、
+        // 絞り込みで焦点が外れている間: もともとの写真（アンカー）の位置を基準に、
         // 絞込結果に含まれる直近の後ろ／前の写真を選ぶ（AllPhotos は表示順で安定）。
-        if (_selectionAnchor == null) return;
-        int aIdx = AllPhotos.IndexOf(_selectionAnchor);
+        if (_focusAnchor == null) return;
+        int aIdx = AllPhotos.IndexOf(_focusAnchor);
         if (aIdx < 0) return;
 
         if (delta > 0)
         {
             for (int i = aIdx + 1; i < AllPhotos.Count; i++)
-                if (Filter.Model.Matches(AllPhotos[i].Eval)) { SelectedPhoto = AllPhotos[i]; return; }
+                if (Filter.Model.Matches(AllPhotos[i].Eval)) { FocusedPhoto = AllPhotos[i]; return; }
         }
         else
         {
             for (int i = aIdx - 1; i >= 0; i--)
-                if (Filter.Model.Matches(AllPhotos[i].Eval)) { SelectedPhoto = AllPhotos[i]; return; }
+                if (Filter.Model.Matches(AllPhotos[i].Eval)) { FocusedPhoto = AllPhotos[i]; return; }
         }
         // 該当方向に可視写真が無ければ何もしない（端と同じ＝空のまま）。
     }
 
-    /// <summary>
-    /// 評価操作を適用する。対象フォルダの sqlite がまだ無い場合は、実行前に
-    /// <see cref="ConfirmCreateAsync"/> で作成可否を確認し、OK のときだけ <paramref name="op"/> を
-    /// 実行する（＝ファイル生成）。キャンセル時は何もしない（ファイルも作らず評価も変えない）。
-    /// 既にファイルが在れば確認なしで即実行する。
-    /// </summary>
-    public async Task ApplyEvaluationAsync(Action op)
+    // === 複数選択（フィルムストリップ/グリッド共通） ===
+
+    /// <summary>複数選択メソッドが焦点を動かすときに使う（集合をリセットしないようガードする）。</summary>
+    private void SetFocusManaged(PhotoItemViewModel photo)
     {
+        _managingSelection = true;
+        try { FocusedPhoto = photo; }
+        finally { _managingSelection = false; }
+    }
+
+    /// <summary>Shift+←/→ : レンジ起点から新しい焦点までを連続選択し、焦点も移動する。</summary>
+    public void ExtendSelectionTo(int delta)
+    {
+        if (Photos.Count == 0 || FocusedPhoto == null) return;
+        int focusIdx = Photos.IndexOf(FocusedPhoto);
+        if (focusIdx < 0) return;
+
+        if (_selectionPivot == null || !Photos.Contains(_selectionPivot))
+            _selectionPivot = FocusedPhoto;
+
+        int next = Math.Clamp(focusIdx + delta, 0, Photos.Count - 1);
+        SetFocusManaged(Photos[next]);
+        SetSelectionRange(_selectionPivot!, Photos[next]);
+    }
+
+    /// <summary>Ctrl+←/→ : 選択集合を変えずに焦点だけ移動する（焦点は集合外へも出られる）。</summary>
+    public void MoveFocusKeepingSelection(int delta)
+    {
+        if (Photos.Count == 0 || FocusedPhoto == null) return;
+        int idx = Photos.IndexOf(FocusedPhoto);
+        if (idx < 0) return;
+
+        // 選択集合が空の状態から動き出すときは、もともと焦点だった1枚を選択メンバーに残す
+        // （焦点だけ先へ動いても、見ていた写真は選択状態のまま）。
+        if (SelectedPhotos.Count == 0)
+        {
+            FocusedPhoto.IsInSelection = true;
+            SelectedPhotos.Add(FocusedPhoto);
+            _selectionPivot = FocusedPhoto;
+        }
+
+        int next = Math.Clamp(idx + delta, 0, Photos.Count - 1);
+        if (next != idx) SetFocusManaged(Photos[next]);
+    }
+
+    /// <summary>Ctrl+Space : 焦点の写真を選択集合へ参加/解除し、レンジ起点を焦点に置き直す。</summary>
+    public void ToggleFocusInSelection()
+    {
+        if (FocusedPhoto is not { } f) return;
+        if (f.IsInSelection)
+        {
+            f.IsInSelection = false;
+            SelectedPhotos.Remove(f);
+        }
+        else
+        {
+            f.IsInSelection = true;
+            SelectedPhotos.Add(f);
+        }
+        _selectionPivot = f;
+    }
+
+    /// <summary>
+    /// 選択集合がある状態の素 ←/→ : メンバー（表示順）の中で焦点を巡回する。端ではもう一方の端へ
+    /// 巻き戻す（一番右で → なら一番左、一番左で ← なら一番右）。
+    /// </summary>
+    public void MoveFocusWithinSelection(int delta)
+    {
+        var ordered = Photos.Where(p => p.IsInSelection).ToList();
+        if (ordered.Count == 0) { MoveFocus(delta); return; }
+
+        int cur = FocusedPhoto != null ? ordered.IndexOf(FocusedPhoto) : -1;
+        int n = ordered.Count;
+        int next = cur < 0
+            ? (delta > 0 ? 0 : n - 1)                       // 焦点が集合外なら端のメンバーへ
+            : ((cur + delta) % n + n) % n;                  // 端で反対側へ巻き戻し
+        SetFocusManaged(ordered[next]);
+    }
+
+    /// <summary>Esc : 選択集合を解除する（焦点は据え置き）。</summary>
+    public void ClearSelection()
+    {
+        if (SelectedPhotos.Count > 0)
+        {
+            foreach (var p in SelectedPhotos) p.IsInSelection = false;
+            SelectedPhotos.Clear();
+        }
+        _selectionPivot = null;
+    }
+
+    /// <summary><see cref="Photos"/> 上の a..b を選択集合にし、範囲外の旧メンバーは外す。</summary>
+    private void SetSelectionRange(PhotoItemViewModel a, PhotoItemViewModel b)
+    {
+        int ia = Photos.IndexOf(a), ib = Photos.IndexOf(b);
+        if (ia < 0 || ib < 0) return;
+        if (ia > ib) (ia, ib) = (ib, ia);
+
+        var inRange = new HashSet<PhotoItemViewModel>();
+        for (int i = ia; i <= ib; i++) inRange.Add(Photos[i]);
+
+        // 範囲外になった旧メンバーを外す。
+        for (int i = SelectedPhotos.Count - 1; i >= 0; i--)
+        {
+            if (!inRange.Contains(SelectedPhotos[i]))
+            {
+                SelectedPhotos[i].IsInSelection = false;
+                SelectedPhotos.RemoveAt(i);
+            }
+        }
+        // 範囲内の未メンバーを追加する。
+        for (int i = ia; i <= ib; i++)
+        {
+            var p = Photos[i];
+            if (!p.IsInSelection)
+            {
+                p.IsInSelection = true;
+                SelectedPhotos.Add(p);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 評価操作を <paramref name="targets"/> の各写真へ適用する（単一＝焦点1枚／一括＝選択集合の全メンバー）。
+    /// 対象フォルダの sqlite がまだ無い場合は、実行前に <see cref="ConfirmCreateAsync"/> で作成可否を確認し、
+    /// OK のときだけ適用する（＝ファイル生成）。キャンセル時は何もしない（ファイルも作らず評価も変えない）。
+    /// 既にファイルが在れば確認なしで即適用する。確認は対象が複数でも一度だけ。
+    /// </summary>
+    public async Task ApplyEvaluationAsync(Action<PhotoItemViewModel> op, IReadOnlyList<PhotoItemViewModel> targets)
+    {
+        if (targets.Count == 0) return;
         if (_store is { DatabaseExists: false })
         {
             if (ConfirmCreateAsync == null) return;
             if (!await ConfirmCreateAsync()) return; // キャンセル＝何もしない
         }
-        op();
+        foreach (var t in targets) op(t);
     }
 
     /// <summary>
@@ -471,7 +646,9 @@ public partial class MainViewModel : ObservableObject
         IsLoading = true;
         AllPhotos.Clear();
         Photos.Clear();
-        _selectionAnchor = null;   // 別フォルダの古い写真を基準に残さない
+        SelectedPhotos.Clear();    // 別フォルダの古い複数選択を残さない
+        _selectionPivot = null;
+        _focusAnchor = null;       // 別フォルダの古い写真を基準に残さない
         OnPropertyChanged(nameof(FilteredCountText));
         CurrentFolder = folderPath;
         StatusText = $"読み込み中: {folderPath}";
@@ -530,15 +707,15 @@ public partial class MainViewModel : ObservableObject
             {
                 var target = Photos.FirstOrDefault(p =>
                     string.Equals(p.FileName, restoreSelectedFile, StringComparison.OrdinalIgnoreCase));
-                if (target != null) SelectedPhoto = target;
+                if (target != null) FocusedPhoto = target;
             }
 
             // 表示モードの復元。既定（null）は従来どおりプレビュー初期表示。
-            // プレビュー指定時は EnterPreview() が SelectedPhoto 未設定なら先頭を選ぶ（空なら no-op でグリッドのまま）。
+            // プレビュー指定時は EnterPreview() が FocusedPhoto 未設定なら先頭を選ぶ（空なら no-op でグリッドのまま）。
             if (restorePreviewMode ?? true)
                 EnterPreview();
-            else if (SelectedPhoto == null && Photos.Count > 0)
-                SelectedPhoto = Photos[0]; // グリッド復元でも何か選んでおく
+            else if (FocusedPhoto == null && Photos.Count > 0)
+                FocusedPhoto = Photos[0]; // グリッド復元でも何か選んでおく
 
             // 4) サムネイル（圧縮バイト）を順次先読み（UI を塞がない）。世代トークンで古い読込を中断。
             //    デコード（BitmapImage 化）は表示中のコンテナ分だけ行うのでここでは軽量。

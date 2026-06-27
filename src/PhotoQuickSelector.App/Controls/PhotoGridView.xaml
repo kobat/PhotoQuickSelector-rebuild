@@ -9,7 +9,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <!-- サムネイルグリッド。選択は ViewModel.SelectedPhoto と双方向同期（コードビハインド）。
+    <!-- サムネイルグリッド。焦点は ViewModel.FocusedPhoto と双方向同期（コードビハインド）。
          表示/非表示（プレビューとの排他）は呼び出し側が Visibility で制御する。 -->
     <GridView
         x:Name="PhotoGrid"
@@ -63,6 +63,13 @@
                                            FontSize="11" TextTrimming="CharacterEllipsis" />
                             </Border>
                         </StackPanel>
+
+                        <!-- 選択集合メンバーのハイライト（薄い青の外枠＋背景ウォッシュ）。焦点は GridView
+                             標準の選択ビジュアル。メンバー時のみ SelectionHighlightOpacity(1.0) で可視。 -->
+                        <Border CornerRadius="4" BorderThickness="3"
+                                BorderBrush="#FF66B2FF" Background="#4066B2FF"
+                                IsHitTestVisible="False"
+                                Opacity="{x:Bind SelectionHighlightOpacity, Mode=OneWay}" />
                     </Grid>
                 </Border>
             </DataTemplate>

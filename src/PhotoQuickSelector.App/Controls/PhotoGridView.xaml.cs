@@ -8,7 +8,7 @@ namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
 /// 右ペインのサムネイルグリッド。共有 <see cref="MainViewModel"/> を <see cref="MainPage"/> が注入する。
-/// 選択は <c>ViewModel.SelectedPhoto</c> と双方向同期: グリッド選択→VM、VM の変更（プレビュー前後移動・
+/// 焦点は <c>ViewModel.FocusedPhoto</c> と双方向同期: グリッド選択→VM、VM の変更（プレビュー前後移動・
 /// フィルムストリップ選択）→グリッドの選択へ反映する。ダブルクリックで大画面プレビューへ遷移。
 /// </summary>
 public sealed partial class PhotoGridView : UserControl
@@ -56,16 +56,16 @@ public sealed partial class PhotoGridView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(MainViewModel.SelectedPhoto)) return;
+        if (e.PropertyName != nameof(MainViewModel.FocusedPhoto)) return;
         // プレビューでの前後移動・フィルムストリップ選択をサムネイルグリッドへ反映。
-        if (!ReferenceEquals(PhotoGrid.SelectedItem, _viewModel?.SelectedPhoto))
-            PhotoGrid.SelectedItem = _viewModel?.SelectedPhoto;
+        if (!ReferenceEquals(PhotoGrid.SelectedItem, _viewModel?.FocusedPhoto))
+            PhotoGrid.SelectedItem = _viewModel?.FocusedPhoto;
     }
 
     private void PhotoGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_viewModel != null)
-            _viewModel.SelectedPhoto = PhotoGrid.SelectedItem as PhotoItemViewModel;
+            _viewModel.FocusedPhoto = PhotoGrid.SelectedItem as PhotoItemViewModel;
     }
 
     private void PhotoGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
