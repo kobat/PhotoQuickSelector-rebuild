@@ -103,10 +103,25 @@ public sealed partial class PreviewControl
         e.Handled = true;
     }
 
+    private void MainCanvas_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        // 大画面のシングルクリックでフィット ⇄ ズームをトグル（倍率は Z キーと同一）。
+        // 中心はクリック位置を基準にする（ホイールズームと同様にカーソル下の画像点を固定）。
+        // Tapped はドラッグ（しきい値超えの移動）では発火しないため、パン操作とは自然に分離される。
+        var p = e.GetPosition(MainCanvas);
+        _viewport.ToggleZoomAround(p.X, p.Y);
+        InvalidateMain();
+        e.Handled = true;
+    }
+
     private void MainCanvas_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
-        // 大画面のダブルクリックでサムネイル一覧へ戻る（SPEC §2）。
-        _viewModel?.ExitPreview();
+        // 大画面のダブルクリックで 100% 表示（倍率は Shift+Z キーと同一）。中心はクリック位置基準。
+        // ダブルクリック時は Tapped（トグル）が先に発火するが、最終状態は 100% に確定する。
+        // ※プレビュー終了（サムネイル一覧へ戻る）はフィルムストリップのダブルクリックへ移設。
+        var p = e.GetPosition(MainCanvas);
+        _viewport.SetActualSizeAround(p.X, p.Y);
+        InvalidateMain();
         e.Handled = true;
     }
 }

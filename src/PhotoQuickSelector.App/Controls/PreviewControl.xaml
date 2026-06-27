@@ -45,6 +45,7 @@
                 PointerMoved="MainCanvas_PointerMoved"
                 PointerReleased="MainCanvas_PointerReleased"
                 PointerWheelChanged="MainCanvas_PointerWheelChanged"
+                Tapped="MainCanvas_Tapped"
                 DoubleTapped="MainCanvas_DoubleTapped" />
 
             <!-- メタ情報オーバーレイ（案B / I キーでトグル）。画像領域を狭めず左上に半透明で重畳。
@@ -201,7 +202,8 @@
             ScrollViewer.HorizontalScrollBarVisibility="Auto"
             ScrollViewer.VerticalScrollMode="Disabled"
             ScrollViewer.VerticalScrollBarVisibility="Disabled"
-            ContainerContentChanging="FilmStrip_ContainerContentChanging">
+            ContainerContentChanging="FilmStrip_ContainerContentChanging"
+            DoubleTapped="FilmStrip_DoubleTapped">
             <ListView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsStackPanel Orientation="Horizontal" />

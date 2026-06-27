@@ -16,6 +16,10 @@ public class PreviewViewportTests
         => ((vp.CanvasWidth / 2 - vp.OffsetX) / vp.Scale,
             (vp.CanvasHeight / 2 - vp.OffsetY) / vp.Scale);
 
+    /// <summary>キャンバス座標 (cx,cy) が指す画像上の点（px）。</summary>
+    private static (double X, double Y) ImagePointAt(PreviewViewport vp, double cx, double cy)
+        => ((cx - vp.OffsetX) / vp.Scale, (cy - vp.OffsetY) / vp.Scale);
+
     /// <summary>キャンバス中心が指す画像上の相対位置（0..1）。</summary>
     private static (double X, double Y) CenterImageRatio(PreviewViewport vp)
     {
@@ -166,6 +170,67 @@ public class PreviewViewportTests
         double before = vp.DeviceScale;
         vp.ZoomToStop(zoomIn: true, 250, 200);
         Assert.Equal(before, vp.DeviceScale, Precision);
+    }
+
+    [Fact]
+    public void ToggleZoomAround_FromFit_ZoomsAroundClickPoint()
+    {
+        var vp = NewViewport(1000, 800);   // FitScale = 0.5, DpiScale = 1（ActualScale = 1.0）
+        // フィット時にクリック点が指す画像点を控える。
+        var (imgX, imgY) = ImagePointAt(vp, 300, 250);
+
+        vp.ToggleZoomAround(300, 250);     // 記憶なし → 等倍（100%）でクリック位置基準
+
+        Assert.Equal(ZoomMode.ActualSize, vp.Mode);
+        Assert.Equal(1.0, vp.Scale, Precision);
+        // クリック点の画像点はズーム後も同じキャンバス座標 (300,250) に固定される（マウス基準）。
+        var (afterX, afterY) = ImagePointAt(vp, 300, 250);
+        Assert.Equal(imgX, afterX, Precision);
+        Assert.Equal(imgY, afterY, Precision);
+    }
+
+    [Fact]
+    public void ToggleZoomAround_UsesRememberedScale_WithNewClickCenter()
+    {
+        var vp = NewViewport(1000, 800);   // FitScale = 0.5
+        vp.ZoomBy(3.0, 250, 200);          // Custom, Scale = 1.5
+        vp.SetFit();                       // 倍率 1.5 / Custom を記憶しつつフィットへ
+        var (imgX, imgY) = ImagePointAt(vp, 300, 250);
+
+        vp.ToggleZoomAround(300, 250);     // 記憶倍率 1.5 で、中心はクリック位置
+
+        Assert.Equal(ZoomMode.Custom, vp.Mode);
+        Assert.Equal(1.5, vp.Scale, Precision);
+        var (afterX, afterY) = ImagePointAt(vp, 300, 250);
+        Assert.Equal(imgX, afterX, Precision);
+        Assert.Equal(imgY, afterY, Precision);
+    }
+
+    [Fact]
+    public void ToggleZoomAround_WhenZoomed_ReturnsToFit()
+    {
+        var vp = NewViewport(1000, 800);
+        vp.ToggleZoomAround(300, 250);     // Fit → ズーム
+        Assert.NotEqual(ZoomMode.Fit, vp.Mode);
+
+        vp.ToggleZoomAround(300, 250);     // ズーム → フィット（座標は不要）
+        Assert.Equal(ZoomMode.Fit, vp.Mode);
+        Assert.Equal(0.5, vp.Scale, Precision);
+    }
+
+    [Fact]
+    public void SetActualSizeAround_ZoomsToHundredPercentAroundClickPoint()
+    {
+        var vp = NewViewport(1000, 800);   // DpiScale = 1（ActualScale = 1.0）
+        var (imgX, imgY) = ImagePointAt(vp, 320, 240);
+
+        vp.SetActualSizeAround(320, 240);
+
+        Assert.Equal(ZoomMode.ActualSize, vp.Mode);
+        Assert.Equal(1.0, vp.Scale, Precision);
+        var (afterX, afterY) = ImagePointAt(vp, 320, 240);
+        Assert.Equal(imgX, afterX, Precision);
+        Assert.Equal(imgY, afterY, Precision);
     }
 
     [Fact]

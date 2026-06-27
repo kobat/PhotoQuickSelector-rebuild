@@ -179,6 +179,14 @@ public sealed class PreviewViewport
         Mode = ZoomMode.ActualSize;
     }
 
+    /// <summary>等倍（1 画像px = 1 物理px）を指定キャンバス座標 (cx,cy) を基準に表示する
+    /// （マウスダブルクリックの 100% 用。ホイールズームと同様にカーソル下の画像点を固定）。</summary>
+    public void SetActualSizeAround(double cx, double cy)
+    {
+        SetScaleAround(ActualScale, cx, cy);
+        Mode = ZoomMode.ActualSize;
+    }
+
     /// <summary>
     /// フィット ⇄ ズームをトグルする（SPEC §3-7 の Z キー）。
     /// フィットからズームへ戻すときは、直前にスクロールしていた表示位置（倍率・中心）を復元する
@@ -187,6 +195,23 @@ public sealed class PreviewViewport
     public void ToggleZoom()
     {
         if (Mode == ZoomMode.Fit) RestoreZoomView();
+        else SetFit();
+    }
+
+    /// <summary>
+    /// 指定キャンバス座標 (cx,cy) を基準にフィット ⇄ ズームをトグルする（マウスクリックズーム用）。
+    /// 倍率は <see cref="ToggleZoom"/> と同じ（記憶があればその倍率/モード、無ければ等倍）だが、
+    /// 中心は記憶の相対位置ではなくカーソル位置を基準にする（ホイールズームと同様）。
+    /// ズーム中からの呼び出しはフィットへ戻す（座標は不要）。
+    /// </summary>
+    public void ToggleZoomAround(double cx, double cy)
+    {
+        if (Mode == ZoomMode.Fit)
+        {
+            double target = _rememberedScale is { } s ? Math.Clamp(s, MinScale, MaxScale) : ActualScale;
+            SetScaleAround(target, cx, cy);
+            Mode = _rememberedScale is not null ? _rememberedMode : ZoomMode.ActualSize;
+        }
         else SetFit();
     }
 

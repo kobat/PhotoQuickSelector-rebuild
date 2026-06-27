@@ -92,6 +92,14 @@ public sealed partial class PreviewControl : UserControl
     private void FilmStrip_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         => _filmLoader.Handle(args);
 
+    // フィルムストリップのダブルクリックでサムネイル一覧（グリッド）へ戻る。マウスでのプレビュー終了導線
+    // （旧: メイン大画面のダブルクリック）の受け皿。戻り先はグリッドが FocusedPhoto を選択状態で表示する。
+    private void FilmStrip_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        _viewModel?.ExitPreview();
+        e.Handled = true;
+    }
+
     // フィルムストリップの高さ変更（スプリッター/復元）に合わせてセル一辺を再計算し、現在高を設定へ控える。
     private void FilmStrip_SizeChanged(object sender, SizeChangedEventArgs e)
     {
