@@ -97,8 +97,8 @@ public sealed partial class PreviewControl
         var point = e.GetCurrentPoint(MainCanvas);
         int delta = point.Properties.MouseWheelDelta;
         if (delta == 0) return;
-        double factor = delta > 0 ? 1.15 : 1.0 / 1.15;
-        _viewport.ZoomBy(factor, point.Position.X, point.Position.Y);
+        // 中途半端な倍率にならないよう、round なズーム段（＋フィット段）へスナップする。
+        _viewport.ZoomToStop(delta > 0, point.Position.X, point.Position.Y);
         InvalidateMain();
         e.Handled = true;
     }

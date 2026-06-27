@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace PhotoQuickSelector_App.Controls;
@@ -57,6 +58,17 @@ public sealed class PreviewViewport
 
     private const double MinScale = 0.02;
     private const double MaxScale = 16.0;
+
+    /// <summary>
+    /// ホイールズームのスナップ段（表示倍率 DeviceScale ＝ 物理px/画像px、100%=1.0）。
+    /// ブラウザ/Photoshop 風の round な段。これにフィット倍率を暫定段として動的に挟む
+    /// （<see cref="ZoomToStop"/>）。中途半端な倍率にならないよう、ホイール1ティックで隣の段へ移動する。
+    /// </summary>
+    private static readonly double[] ZoomStops =
+    {
+        0.05, 0.0833, 0.125, 0.1667, 0.25, 0.3333, 0.5, 0.6667, 0.75,
+        1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0,
+    };
 
     // 直近のズーム状態（フィットに戻る直前の倍率・モード・相対中心）を覚えておき、
     // 再度ズーム（Z トグル）したときに同じ表示位置へ復元する。null＝記憶なし。
@@ -203,12 +215,61 @@ public sealed class PreviewViewport
         Clamp();
     }
 
-    /// <summary>指定キャンバス座標を中心に倍率を factor 倍する（ホイールズーム用）。</summary>
+    /// <summary>指定キャンバス座標を中心に倍率を factor 倍する（連続ズーム。ルーペで使用）。</summary>
     public void ZoomBy(double factor, double centerX, double centerY)
     {
         var target = Math.Clamp(Scale * factor, MinScale, MaxScale);
         SetScaleAround(target, centerX, centerY);
         Mode = ZoomMode.Custom;
+    }
+
+    /// <summary>
+    /// ホイール1ティックぶん、次（<paramref name="zoomIn"/>=true）／前のズーム段へスナップする
+    /// （メインのホイールズーム用）。段は <see cref="ZoomStops"/>（表示倍率 DeviceScale 基準）に
+    /// フィット倍率を暫定段として挟んだもの。これにより倍率が round な値に揃い、フィット付近では
+    /// フィットに止まる。これ以上段がなければ何もしない。フィット段に着地したときは
+    /// <see cref="ZoomMode.Fit"/>（リサイズで再フィット）にする。
+    /// </summary>
+    public void ZoomToStop(bool zoomIn, double centerX, double centerY)
+    {
+        if (ImageWidth <= 0 || ImageHeight <= 0 || Scale <= 0) return;
+
+        double current = DeviceScale;
+        double fit = FitScale * DpiScale;
+        double minDev = MinScale * DpiScale, maxDev = MaxScale * DpiScale;
+
+        // 候補段＝固定段（範囲内のみ）＋フィット段。
+        var stops = new List<double>();
+        foreach (var s in ZoomStops)
+            if (s >= minDev - 1e-9 && s <= maxDev + 1e-9) stops.Add(s);
+        if (fit > minDev && fit < maxDev) stops.Add(fit);
+        stops.Sort();
+
+        // 現在値の隣の段を選ぶ（相対イプシロンで「同じ段に居る」状態を弾く）。
+        double? target = null;
+        if (zoomIn)
+        {
+            foreach (var s in stops)
+                if (s > current * (1 + 1e-3)) { target = s; break; }
+        }
+        else
+        {
+            for (int i = stops.Count - 1; i >= 0; i--)
+                if (stops[i] < current * (1 - 1e-3)) { target = stops[i]; break; }
+        }
+        if (target is not { } dev) return; // これ以上段がない
+
+        if (Math.Abs(dev - fit) < 1e-9)
+        {
+            // フィット段に着地。Fit モードへ（中央・リサイズで再フィット）。
+            Mode = ZoomMode.Fit;
+            ApplyMode();
+        }
+        else
+        {
+            SetScaleAround(Math.Clamp(dev / DpiScale, MinScale, MaxScale), centerX, centerY);
+            Mode = ZoomMode.Custom;
+        }
     }
 
     /// <summary>描画をドラッグで移動する。</summary>

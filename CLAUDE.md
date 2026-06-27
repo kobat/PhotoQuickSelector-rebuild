@@ -712,6 +712,31 @@
   - 変更: `Controls/PhotoStatusBar.xaml`、`Controls/PreviewControl.xaml`、`Controls/PreviewControl.xaml.cs`（`FilmChromeHeight`）。
     **Core・ViewModel は非変更**。ユーザー画面確認済み（2026-06-27）。
 
+- **プレビューのズーム改善（ホイール段スナップ＋キーボードズーム）完了（2026-06-27）**: ホイールズームの倍率が中途半端に
+  なる問題を「round なズーム段へのスナップ」で解消し、さらに `+`/`-` でのキーボードズームを追加。**Core 非変更**（`PreviewViewport` は App 側）。
+  - **① ホイール段スナップ（`PreviewViewport.ZoomToStop`）**: 旧「`Scale` を毎ティック ×1.15／÷1.15」（フィット起点の等比で
+    87%・134% 等の半端な倍率になる）をやめ、**round な段ラダー** `ZoomStops`（表示倍率 DeviceScale 基準＝
+    5/8/12/17/25/33/50/67/75/100/125/150/200/300/400/600/800/1200/1600%）の隣の段へスナップ。**フィット倍率を暫定段として
+    動的に挿入**（ユーザー選択）するので、フィット付近では必ずフィットに止まり、そこからさらに動かせば下/上の段へ抜ける。
+    フィット段着地時のみ `ZoomMode.Fit`（リサイズ再フィット）、他は `Custom`。**段は表示倍率基準なので高DPIでも 100% 等に正しく止まる**
+    （内部 `Scale = 目標DeviceScale / DpiScale`）。マウス位置中心は既存 `SetScaleAround` を流用。`MainCanvas_PointerWheelChanged` を
+    `ZoomBy`→`ZoomToStop(delta>0,…)` に差し替え。**ルーペ（`ZoomCanvas`）は 100% 精査用なので `ZoomBy`（連続）のまま据え置き**。
+  - **② キーボードズーム（`+`/`-`）**: プレビュー中に **`+`=ズームイン／`-`=ズームアウト**。`ZoomToStop` を共有するので
+    ホイールと同じ段ラダー（フィット段込み）、中心はキャンバス中心。`Z`/`Shift+Z`（フィット⇄ズーム/100%）は従来どおり併存。
+    実装は `PreviewControl.Input.cs` の `HandleKeyDown` のみ（`ZoomStepFromCenter` ヘルパ追加）。
+    - **JIS/US 配列対応（ユーザー要望）**: テンキー `VirtualKey.Add`(107)/`Subtract`(109)＝配列完全非依存 ＋ メイン段
+      `(VirtualKey)187`(OEM_PLUS)/`(VirtualKey)189`(OEM_MINUS) の2経路を受ける。**`VK_OEM_PLUS`/`VK_OEM_MINUS` は
+      「いかなる国/地域でも『＋』『−』キー」と定義された配列非依存の OEM ペア**で、US(`=`/`-`)・JIS(`;`/`-`)どちらも
+      印字どおりの物理キーで効く。**Shift 不問**（US 素押し `=`／JIS 素押し `;` でもズームイン）。`Ctrl`/`Alt` 併用時は
+      他機能優先で対象外（Alt+矢印パン等と非衝突）。
+    - **判明した既存の落とし穴**: `[`/`]`（レーティング増減）は配列依存の `VK_OEM_4`(219)/`VK_OEM_6`(221) を使っており、
+      JIS 配列では印字どおりに効かない可能性がある（今回の対象外。OEM_PLUS/MINUS と違い `[`/`]` は country 非依存ではない）。
+  - **テスト（+4 件＝計92件緑）**: `PreviewViewportTests` に段スナップ／フィット段通過（Fitモード化）／高DPIでの%基準スナップ／
+    最大段で停止 を追加（`PreviewViewport` はリンク参照で単体テスト）。
+  - 変更: `Controls/PreviewViewport.cs`・`Controls/PreviewControl.MainCanvas.cs`・`Controls/PreviewControl.Input.cs`、
+    `tests/…/PreviewViewportTests.cs`。`BUILD SUCCEEDED`（App x64 Release・警告0）／`dotnet test` 92 件緑。実機でホイール段スナップ・
+    `+`/`-` キーボードズームをユーザー確認済み（2026-06-27）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
@@ -734,6 +759,8 @@
 - プレビュー中: `Z` フィット⇄ズームトグル（ズーム側は**直近のズーム位置=倍率/中心を復元**。初回は等倍＝DPI考慮の
   1画像px=1物理px＝100%）/ `Shift+Z` 等倍 / `Shift+Alt+←/→` フィット/等倍 / ホイール ズーム。倍率はステータスバー
   右端に表示（ピクセル等倍＝100%）。拡大率により補間自動切替（等倍以上＝NearestNeighbor／縮小＝HighQualityCubic）
+- プレビュー中: `+`/`-` 段ズーム（イン/アウト）。ホイールと同じ round な段ラダー（フィット段挟み込み込み）にスナップ。
+  テンキー・メイン段（JIS/US どちらも `+`/`-` 物理キー、Shift 不問）の両対応。ホイールも段スナップ式（中途半端な倍率にならない）
 - プレビュー中: `F` イマーシブ表示トグル（右パネル＋フィルムストリップを畳んでメインを全域表示。F11＋左ペイン非表示と合成で画面一杯）
 - `Shift+F` 完全全画面モード（ウィンドウ全画面＋左ペイン/ステータスバー非表示＋イマーシブ＋余白0 を一括）。グリッド時は
   プレビューに入って全画面化。解除は `Shift+F` または `Esc`（入る前の状態へ正確復元）

@@ -12,6 +12,12 @@ public sealed partial class PreviewControl
     /// <summary>Alt+矢印スクロール 1 回あたりの移動量（DIP）。</summary>
     private const double PanStep = 120;
 
+    // ズームイン/アウトのメイン段キー（OEM_PLUS/OEM_MINUS）。
+    // VK_OEM_PLUS/MINUS は「いかなる国/地域でも『＋』『−』キー」と定義された配列非依存の OEM ペアで、
+    // US（=/-）でも JIS（;/-）でも印字どおりの +/- 物理キーに対応する（ブラケット系と違い安全）。
+    private const VirtualKey OemPlus = (VirtualKey)187;   // メイン段 + キー
+    private const VirtualKey OemMinus = (VirtualKey)189;  // メイン段 - キー
+
     /// <summary>
     /// プレビューのキー操作（ナビ / ズーム / スクロール / 評価）を処理する。処理したら true。
     /// Window 直下のルート集約ハンドラ（<see cref="MainPage.HandleGlobalKeyDown"/>）から呼ばれる。
@@ -71,6 +77,23 @@ public sealed partial class PreviewControl
             }
         }
 
+        // +/- : 段ズーム（イン/アウト）。テンキー（Add/Subtract）とメイン段（OEM_PLUS/MINUS）の両方を受ける。
+        // Shift は不問（US の素押し = / JIS の素押し ; でもズームイン）。Ctrl/Alt 併用時は他機能優先で対象外。
+        if (!ctrl && !alt)
+        {
+            switch (key)
+            {
+                case VirtualKey.Add:
+                case OemPlus:
+                    ZoomStepFromCenter(zoomIn: true);
+                    return true;
+                case VirtualKey.Subtract:
+                case OemMinus:
+                    ZoomStepFromCenter(zoomIn: false);
+                    return true;
+            }
+        }
+
         // Esc ではプレビューを抜けない（ユーザー要望。終了はダブルクリック）。全画面中の Esc は MainWindow 側。
         // Z : フィット ⇄ 直近ズーム位置トグル / Shift+Z : 100%
         if (key == VirtualKey.Z)
@@ -127,5 +150,12 @@ public sealed partial class PreviewControl
         }
 
         return false;
+    }
+
+    /// <summary>キャンバス中心を基準に段ズーム（キーボードの +/- 用。ホイールと同じ段ラダーを共有）。</summary>
+    private void ZoomStepFromCenter(bool zoomIn)
+    {
+        _viewport.ZoomToStop(zoomIn, _viewport.CanvasWidth / 2, _viewport.CanvasHeight / 2);
+        InvalidateMain();
     }
 }

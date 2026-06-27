@@ -108,6 +108,67 @@ public class PreviewViewportTests
     }
 
     [Fact]
+    public void ZoomToStop_In_SnapsToNextRoundStop()
+    {
+        var vp = NewViewport(1000, 800);   // FitScale = 0.5（DeviceScale 0.5）
+        // フィット(50%)から1ティック拡大 → 次の round 段 67% へ。
+        vp.ZoomToStop(zoomIn: true, 250, 200);
+        Assert.Equal(ZoomMode.Custom, vp.Mode);
+        Assert.Equal(0.6667, vp.DeviceScale, Precision);
+
+        // さらに1ティック → 75%。
+        vp.ZoomToStop(zoomIn: true, 250, 200);
+        Assert.Equal(0.75, vp.DeviceScale, Precision);
+
+        // さらに1ティック → 100%。
+        vp.ZoomToStop(zoomIn: true, 250, 200);
+        Assert.Equal(1.0, vp.DeviceScale, Precision);
+    }
+
+    [Fact]
+    public void ZoomToStop_Out_StopsAtFitStop_AsFitMode()
+    {
+        var vp = NewViewport(1000, 800);   // FitScale = 0.5
+        vp.ZoomToStop(zoomIn: true, 250, 200);  // 50% → 67%（Custom）
+        vp.ZoomToStop(zoomIn: true, 250, 200);  // 67% → 75%
+        Assert.Equal(0.75, vp.DeviceScale, Precision);
+
+        // 縮小していくとフィット段(50%)を通過し、そこは Fit モードになる。
+        vp.ZoomToStop(zoomIn: false, 250, 200); // 75% → 67%
+        Assert.Equal(0.6667, vp.DeviceScale, Precision);
+        Assert.Equal(ZoomMode.Custom, vp.Mode);
+
+        vp.ZoomToStop(zoomIn: false, 250, 200); // 67% → 50%（＝フィット段）
+        Assert.Equal(0.5, vp.DeviceScale, Precision);
+        Assert.Equal(ZoomMode.Fit, vp.Mode);
+    }
+
+    [Fact]
+    public void ZoomToStop_HighDpi_SnapsByDisplayPercent()
+    {
+        // 高 DPI でも段は表示倍率（DeviceScale）基準なので 100% などに正しく止まる。
+        var vp = NewViewport(2000, 1600);  // FitScale = 0.25 → DeviceScale はその×DpiScale
+        vp.DpiScale = 1.5;
+        // フィット段（DeviceScale 0.375）から拡大していくと 50% に止まる。
+        vp.ZoomToStop(zoomIn: true, 250, 200);
+        Assert.Equal(0.5, vp.DeviceScale, Precision);
+        // Scale 自体は DeviceScale/DpiScale。
+        Assert.Equal(0.5 / 1.5, vp.Scale, Precision);
+    }
+
+    [Fact]
+    public void ZoomToStop_AtMaxStop_DoesNothing()
+    {
+        var vp = NewViewport(1000, 800);
+        // 16x（最大段）まで上げてから、さらに拡大しても変わらない。
+        for (int i = 0; i < 30; i++) vp.ZoomToStop(zoomIn: true, 250, 200);
+        Assert.Equal(16.0, vp.DeviceScale, Precision);
+        double before = vp.DeviceScale;
+        vp.ZoomToStop(zoomIn: true, 250, 200);
+        Assert.Equal(before, vp.DeviceScale, Precision);
+    }
+
+    [Fact]
     public void PreserveView_FromEmpty_FallsBackToFitCenter()
     {
         // 画像未設定（ImageWidth=0）から呼ばれても破綻せず、フィット中央で初期化される。
