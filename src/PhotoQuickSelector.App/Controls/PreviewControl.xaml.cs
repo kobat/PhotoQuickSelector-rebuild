@@ -181,7 +181,8 @@ public sealed partial class PreviewControl : UserControl
                     ScrollSelectedIntoView();
                 }
                 break;
-            case nameof(MainViewModel.ShowGrid):
+            case nameof(MainViewModel.GridKind):
+            case nameof(MainViewModel.GridReference):
                 MainCanvas.Invalidate();
                 break;
         }

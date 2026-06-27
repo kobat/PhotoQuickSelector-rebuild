@@ -11,26 +11,91 @@ namespace PhotoQuickSelector_App.Controls;
 /// </summary>
 public sealed partial class PreviewControl
 {
-    /// <summary>三分割グリッド線を表示中の画像領域に描く（SPEC §3-6）。</summary>
+    /// <summary>グリッド線の色（半透明白）。種類・基準によらず共通。</summary>
+    private static readonly Color GridColor = Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF);
+
+    /// <summary>
+    /// 構図グリッドを描く（SPEC §3-6）。基準（画像 / Canvas）で領域矩形を決め、種類別に線を引く。
+    /// 画像基準は表示中の画像矩形（ズーム/パン追従・画面外へはみ出しうる）、Canvas 基準はコントロール全面。
+    /// いずれも線はキャンバス枠＋領域でクリップする。
+    /// </summary>
     private void DrawGrid(CanvasDrawingSession ds)
     {
-        double left = _viewport.OffsetX, top = _viewport.OffsetY;
-        double w = _viewport.DrawWidth, h = _viewport.DrawHeight;
-        if (w <= 0 || h <= 0) return;
+        if (_viewModel is not { } vm || vm.GridKind == GridOverlayKind.None) return;
 
-        var color = Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF);
-        float l = (float)Math.Max(left, 0);
-        float r = (float)Math.Min(left + w, MainCanvas.ActualWidth);
-        float t = (float)Math.Max(top, 0);
-        float b = (float)Math.Min(top + h, MainCanvas.ActualHeight);
+        double canvasW = MainCanvas.ActualWidth, canvasH = MainCanvas.ActualHeight;
+        if (canvasW <= 0 || canvasH <= 0) return;
 
-        float vx1 = (float)(left + w / 3), vx2 = (float)(left + 2 * w / 3);
-        float hy1 = (float)(top + h / 3), hy2 = (float)(top + 2 * h / 3);
+        // 領域矩形（rl, rt, rw, rh）を基準で決める。
+        double rl, rt, rw, rh;
+        if (vm.GridReference == GridOverlayReference.Canvas)
+        {
+            rl = 0; rt = 0; rw = canvasW; rh = canvasH;
+        }
+        else
+        {
+            rl = _viewport.OffsetX; rt = _viewport.OffsetY;
+            rw = _viewport.DrawWidth; rh = _viewport.DrawHeight;
+        }
+        if (rw <= 0 || rh <= 0) return;
 
-        ds.DrawLine(vx1, t, vx1, b, color, 1f);
-        ds.DrawLine(vx2, t, vx2, b, color, 1f);
-        ds.DrawLine(l, hy1, r, hy1, color, 1f);
-        ds.DrawLine(l, hy2, r, hy2, color, 1f);
+        // 線の描画範囲は「領域 ∩ キャンバス」にクリップ（縦線は y、横線は x の範囲を限定）。
+        float xLo = (float)Math.Max(rl, 0);
+        float xHi = (float)Math.Min(rl + rw, canvasW);
+        float yLo = (float)Math.Max(rt, 0);
+        float yHi = (float)Math.Min(rt + rh, canvasH);
+        if (xHi <= xLo || yHi <= yLo) return;
+
+        // 縦線 x / 横線 y。可視範囲外（クリップ枠の外）は描かない。
+        void V(double x) { if (x >= xLo - 0.5 && x <= xHi + 0.5) ds.DrawLine((float)x, yLo, (float)x, yHi, GridColor, 1f); }
+        void H(double y) { if (y >= yLo - 0.5 && y <= yHi + 0.5) ds.DrawLine(xLo, (float)y, xHi, (float)y, GridColor, 1f); }
+
+        switch (vm.GridKind)
+        {
+            case GridOverlayKind.CenterCross:
+                V(rl + rw / 2);
+                H(rt + rh / 2);
+                break;
+
+            case GridOverlayKind.RuleOfThirds:
+                V(rl + rw / 3); V(rl + 2 * rw / 3);
+                H(rt + rh / 3); H(rt + 2 * rh / 3);
+                break;
+
+            case GridOverlayKind.Square:
+                DrawSquareGrid(V, H, rl, rt, rw, rh, vm.GridSquareDivisions);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 正方形グリッド。短辺を N 等分した一辺長 cell の正方セルを、領域中心から対称に敷き詰める。
+    /// 中心からの線オフセット集合は、N が偶数なら {0, ±cell, ±2cell…}（中央に線）、
+    /// N が奇数なら {±cell/2, ±3cell/2…}（中央は半セルずれ＝中央線なし）。長辺方向も同位相で延長する。
+    /// </summary>
+    private static void DrawSquareGrid(Action<double> V, Action<double> H,
+        double rl, double rt, double rw, double rh, int divisions)
+    {
+        int n = Math.Max(2, divisions);
+        double cell = Math.Min(rw, rh) / n;
+        if (cell <= 0) return;
+
+        double cx = rl + rw / 2, cy = rt + rh / 2;
+        double halfMax = Math.Max(rw, rh) / 2;
+        double start = (n % 2 == 0) ? 0 : cell / 2;  // 偶数=中央に線 / 奇数=半セルずらし
+
+        for (double d = start; d <= halfMax + 0.5; d += cell)
+        {
+            if (d <= 1e-9)
+            {
+                V(cx); H(cy);  // 中央線（偶数 N のみ）
+            }
+            else
+            {
+                V(cx - d); V(cx + d);
+                H(cy - d); H(cy + d);
+            }
+        }
     }
 
     /// <summary>半透明グリーンの AF 枠色。メイン・ナビゲーターで共通。</summary>

@@ -33,7 +33,7 @@ public sealed partial class PreviewControl
 
         // オーバーレイはキャンバス空間（ImageToCanvas 経由・固定線幅）で描く。
         // AF 枠はメインには重ねず、右上ルーペ（ZoomCanvas）とナビゲーターにのみ表示する。
-        if (_viewModel?.ShowGrid == true) DrawGrid(ds);
+        if (_viewModel is { GridKind: not GridOverlayKind.None }) DrawGrid(ds);
     }
 
     /// <summary>

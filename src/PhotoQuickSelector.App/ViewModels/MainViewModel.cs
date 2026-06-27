@@ -64,6 +64,8 @@ public partial class MainViewModel : ObservableObject
         RebuildShortcuts();
         Filter.Changed += (_, _) => ApplyFilter();
         ShowInfoOverlay = Settings.ShowInfoOverlay;
+        GridKind = Settings.GridKind;
+        GridReference = Settings.GridReference;
     }
 
     /// <summary>
@@ -383,9 +385,22 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsPreviewMode { get; set; }
 
-    /// <summary>三分割グリッド線オーバーレイの表示（SPEC §3-6 / §3-7 の G キー）。</summary>
+    /// <summary>構図グリッドの種類（SPEC §3-6 / G キーで巡回）。変更で Settings へ反映し再描画を促す。</summary>
     [ObservableProperty]
-    public partial bool ShowGrid { get; set; }
+    public partial GridOverlayKind GridKind { get; set; }
+
+    partial void OnGridKindChanged(GridOverlayKind value) =>
+        Settings.GridKind = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
+
+    /// <summary>構図グリッドを描く基準（画像 / Canvas。Shift+G で切替）。</summary>
+    [ObservableProperty]
+    public partial GridOverlayReference GridReference { get; set; }
+
+    partial void OnGridReferenceChanged(GridOverlayReference value) =>
+        Settings.GridReference = value;
+
+    /// <summary>正方形グリッドの短辺分割数 N（設定値。Core/UI 非依存ロジックから参照）。</summary>
+    public int GridSquareDivisions => Settings.GridSquareDivisions;
 
     /// <summary>プレビュー左上のメタ情報オーバーレイ（案B / I キーでトグル）。</summary>
     [ObservableProperty]

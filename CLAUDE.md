@@ -809,6 +809,29 @@
   - 変更/新規: `Assets/AppIcon.svg`（新規）・`tools/generate-app-icon.ps1`（新規）・`Assets/*.png`/`AppIcon.ico`（再生成）・
     `PhotoQuickSelector.App.csproj`（`ApplicationIcon`）。**Core・アプリコードは非変更**。
 
+- **構図グリッドの種類追加＋基準切替 完了（2026-06-27・要実機確認）**: プレビューの「三分割グリッド線」固定トグルを、
+  **種類（中央十字／三分割／正方形）×基準（画像／Canvas）の2軸**に拡張。
+  - **状態モデル**: 旧 `MainViewModel.ShowGrid`(bool) を廃し、**enum 2軸** `GridOverlayKind { None, CenterCross,
+    RuleOfThirds, Square }`／`GridOverlayReference { Image, Canvas }`（新規 `GridOverlayKind.cs`・ルート名前空間）。
+    `MainViewModel` の `GridKind`/`GridReference`（`[ObservableProperty]`）は ctor で `Settings` から初期化、`OnChanged` で
+    `Settings` へ反映（**保存は終了時 `Settings.Save()` に相乗り**＝`ShowInfoOverlay` と同方式）。`GridSquareDivisions` は
+    `Settings` 直読み（既定8）。
+  - **永続化（`AppSettings`）**: `GridKind`/`GridReference`/`GridSquareDivisions` を追加。**enum/int プロパティは source-gen
+    コンテキスト（`AppSettingsJsonContext`）の追加登録不要**（`AppSettings` 登録済みなのでプロパティとして自動対応・既定は数値）。
+  - **キー（`PreviewControl.Input.cs`）**: `G`＝種類を巡回（**None→中央十字→三分割→正方形→None**＝徐々に細かく）／
+    `Shift+G`＝基準トグル（画像⇄Canvas）。既存キーと非衝突（`Shift+Z`は別、`Shift+G`は空き）。
+  - **描画（`PreviewControl.Overlays.cs` の `DrawGrid` 再構成）**: 「基準で領域矩形（画像基準＝`OffsetX/DrawWidth` の表示中
+    画像矩形・ズーム/パン追従／Canvas基準＝コントロール全面）→ 種類別に線」。線は「領域∩キャンバス」にクリップ（ローカル関数
+    `V(x)`/`H(y)`）。三分割は分割点を全画像矩形基準で計算し線をクリップ（旧挙動踏襲）。正方形は新ヘルパ `DrawSquareGrid`＝
+    **cell＝短辺/N の正方セルを領域中心から対称配置**（中心オフセット集合：偶数N=`{0,±cell,±2cell…}`＝中央に線／
+    奇数N=`{±cell/2,±3cell/2…}`＝中央線なし。長辺方向も同位相で延長）。cell が領域比例なのでズーム非依存で線数は概ね一定。
+  - **再描画**: `PreviewControl.xaml.cs` の property 監視を `ShowGrid`→`GridKind`/`GridReference` に差し替え（変更で
+    `MainCanvas.Invalidate()`）。描画条件（`MainCanvas.cs`）も `GridKind != None` に。**スコープはメインキャンバスのみ**
+    （ルーペ/ナビは非対象）。N 調整 UI は未実装（設定値で効く）。
+  - 変更/新規: `GridOverlayKind.cs`（新規）、`AppSettings.cs`、`ViewModels/MainViewModel.cs`、`Controls/PreviewControl.Input.cs`・
+    `.MainCanvas.cs`・`.Overlays.cs`・`.xaml.cs`。**Core・XAML は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）／
+    `dotnet test` 92 件緑。実機目視（G 巡回・Shift+G 基準切替・正方形の対称性/偶奇・永続化）はユーザー確認推奨。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
@@ -843,7 +866,10 @@
 - プレビュー中: `F` イマーシブ表示トグル（右パネル＋フィルムストリップを畳んでメインを全域表示。F11＋左ペイン非表示と合成で画面一杯）
 - `Shift+F` 完全全画面モード（ウィンドウ全画面＋左ペイン/ステータスバー非表示＋イマーシブ＋余白0 を一括）。グリッド時は
   プレビューに入って全画面化。解除は `Shift+F` または `Esc`（入る前の状態へ正確復元）
-- プレビュー中: `I` メタ情報オーバーレイ（案B）トグル / `G` 三分割グリッド線 / `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
+- プレビュー中: `I` メタ情報オーバーレイ（案B）トグル / `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
+- プレビュー中: `G` 構図グリッド種類を巡回（None→中央十字→三分割→正方形→None）/ `Shift+G` グリッド基準を切替
+  （画像⇄Canvas）。正方形は短辺を N 等分した正方セルを画像中央から対称配置（N＝`AppSettings.GridSquareDivisions`・既定8。
+  偶数Nは中央に線・奇数Nは中央線なし）。種類/基準は `AppSettings` に永続化（次回起動で復元）
 
 ## 既知の注意点
 - 検証で `DSC09432.JPG` の rating が null→0 に変わっている（実効値は同じ）。

@@ -128,10 +128,25 @@ public sealed partial class PreviewControl
             return true;
         }
 
-        // G : 三分割グリッド線トグル（ShowGrid 変更で再描画される）
+        // G : 構図グリッドの種類を巡回（None→十字→三分割→正方形→None。徐々に細かく）
         if (KeyboardModifiers.None && key == VirtualKey.G)
         {
-            _viewModel.ShowGrid = !_viewModel.ShowGrid;
+            _viewModel.GridKind = _viewModel.GridKind switch
+            {
+                GridOverlayKind.None => GridOverlayKind.CenterCross,
+                GridOverlayKind.CenterCross => GridOverlayKind.RuleOfThirds,
+                GridOverlayKind.RuleOfThirds => GridOverlayKind.Square,
+                _ => GridOverlayKind.None,
+            };
+            return true;
+        }
+
+        // Shift+G : グリッドの基準を切替（画像 ⇄ Canvas）
+        if (KeyboardModifiers.Shift && key == VirtualKey.G)
+        {
+            _viewModel.GridReference = _viewModel.GridReference == GridOverlayReference.Image
+                ? GridOverlayReference.Canvas
+                : GridOverlayReference.Image;
             return true;
         }
 

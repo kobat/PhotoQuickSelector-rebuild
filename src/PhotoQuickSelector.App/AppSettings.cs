@@ -38,6 +38,15 @@ public sealed class AppSettings
     /// <summary>プレビューのメタ情報オーバーレイ（案B / I キー）を表示するか。</summary>
     public bool ShowInfoOverlay { get; set; } = true;
 
+    /// <summary>プレビューの構図グリッドの種類（G キーで巡回）。</summary>
+    public GridOverlayKind GridKind { get; set; } = GridOverlayKind.None;
+
+    /// <summary>構図グリッドを描く基準（画像 / Canvas、Shift+G で切替）。</summary>
+    public GridOverlayReference GridReference { get; set; } = GridOverlayReference.Image;
+
+    /// <summary>正方形グリッドの短辺分割数 N（≧2）。セル一辺＝短辺/N。</summary>
+    public int GridSquareDivisions { get; set; } = 8;
+
     /// <summary>「リネームしてコピー」で最後に使ったファイル名テンプレート（次回の初期値）。</summary>
     public string CopyRenameTemplate { get; set; } = "{name}";
 
