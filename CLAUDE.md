@@ -789,6 +789,26 @@
     変更: `ViewModels/MainViewModel.cs`、`Controls/PreviewControl.xaml`・`PhotoGridView.xaml`。`BUILD SUCCEEDED`（x64 Release・警告0）。
     ユーザー確認済み（2026-06-27）。
 
+- **アプリアイコン作成 完了（2026-06-27）**: 旧テンプレート（VS 既定の WinUI ロゴ）から自前デザインへ差し替え。
+  デザイン＝**青の角丸タイル ＋ 白い写真フレーム（太陽＋山）＋ 右下にゴールドの星**（「写真を選別＝レーティング」を表現）。
+  星色はアプリの★と同じ `#FFD700`（`Colors.Gold`／`PhotoItemViewModel.NormalRatingBrush`）。星位置はユーザー選定で
+  フレーム右下角から **-8px 上**（「案1」）。山の下に白い余白を残し外枠（青）と内枠（写真）を区別。
+  - **テキスト形式のソース（再生成可能）**: `Assets/AppIcon.svg`（200×200 座標系のマスター。ジオメトリの単一情報源）と
+    `tools/generate-app-icon.ps1`（GDI+ で SVG と同一ジオメトリを各サイズへラスタライズ）。デザイン変更は両者の座標
+    （特に星の頂点）を直して PS スクリプトを再実行＝全 PNG/.ico を一括再生成。
+  - **生成物**: `Assets/AppIcon.ico`（16/24/32/48/64/128/256px の **PNG 埋め込み複数解像度**。ICONDIR を手書きで構築）＋
+    パッケージ用 PNG 一式を新デザインで上書き（StoreLogo 50／Square44x44 scale-200=88・targetsize 24/48／Square150x150
+    scale-200=300／LockScreenLogo 48／Wide310x150 scale-200=620×300／SplashScreen scale-200=1240×600）。正方は全面、
+    ワイド/スプラッシュは中央配置＋左右透明。
+  - **組み込み**: csproj に `<ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>` を追加（unpackaged EXE 用）。
+    `Package.appxmanifest` は既存のロゴ参照のまま PNG を差し替え＝packaged 開発時のタスクバー/タイルも更新。
+  - **落とし穴**: 生成スクリプトに日本語コメントを入れると Windows PowerShell 5.1 が UTF-8(BOMなし)を ANSI 誤読し
+    文字化け→パースエラー。**PS スクリプトは ASCII のみ**で書く（SVG の日本語コメントは UTF-8 で読まれるので可）。
+  - **検証**: 生成 PNG を目視・`.ico` 構造を検査（7 解像度・全 PNG）・`dotnet build -c Release -p:Platform=x64` 成功（警告0）・
+    ビルド済み EXE からアイコン抽出成功（リソース埋め込み確認）。実機タスクバー/エクスプローラの最終見た目はユーザー確認推奨。
+  - 変更/新規: `Assets/AppIcon.svg`（新規）・`tools/generate-app-icon.ps1`（新規）・`Assets/*.png`/`AppIcon.ico`（再生成）・
+    `PhotoQuickSelector.App.csproj`（`ApplicationIcon`）。**Core・アプリコードは非変更**。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
