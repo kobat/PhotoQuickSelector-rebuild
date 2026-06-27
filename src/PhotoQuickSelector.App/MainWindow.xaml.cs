@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
@@ -26,6 +27,13 @@ public sealed partial class MainWindow : Window
         // （TitleBar コントロール／旧来 SetTitleBar の双方で再現、false でのみ100%確実）。
         // 詳細はメモリ close-button-titlebar-focus-race を参照。
         ExtendsContentIntoTitleBar = false;
+
+        // 標準タイトルバー（ExtendsContentIntoTitleBar=false）を、OS テーマに関わらず暗色で描かせる。
+        // アプリは Dark 固定（RootGrid の RequestedTheme="Dark"）だが、非クライアント領域＝タイトルバーは
+        // DWM が描くため別途このフラグが要る。ExtendsContentIntoTitleBar=true（カスタムタイトルバー）に
+        // すると ×ボタンのフォーカスレースが再発するので、標準タイトルバーのまま色だけ暗くする。
+        // 詳細はメモリ close-button-titlebar-focus-race を参照。
+        EnableDarkTitleBar();
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
 
@@ -142,6 +150,22 @@ public sealed partial class MainWindow : Window
         if (AppWindow.Presenter.Kind != kind)
             AppWindow.SetPresenter(kind);
     }
+
+    /// <summary>
+    /// DWM のイマーシブ ダークモード属性を ON にし、標準タイトルバーを暗色（濃いグレー＋明るいグリフ）で
+    /// 描かせる。AppWindow ではなく Win32 の HWND に対する属性なので P/Invoke で設定する。
+    /// </summary>
+    private void EnableDarkTitleBar()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        int useDark = 1; // TRUE
+        _ = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDark, sizeof(int));
+    }
+
+    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+
+    [DllImport("dwmapi.dll", SetLastError = true)]
+    private static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int pvAttribute, int cbAttribute);
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {

@@ -943,6 +943,42 @@
   - 変更: `Core/ImageMetadata.cs`・`Core/MetadataReader.cs`、`ViewModels/PhotoItemViewModel.cs`。`BUILD SUCCEEDED`／
     `dotnet test` 96 件緑。表示箇所はメタ情報パネル案A（ステータスバー）／案B（プレビュー左上オーバーレイ）の `CameraLensText` 両方。
 
+- **アプリ全体を黒系（Dark テーマ）化 完了（2026-06-28）**: 「写真選別アプリを黒背景にしたい」要望に対応。Dark テーマ固定＋
+  タイトルバー暗色化＋選択/焦点強調色の調整を実施。ユーザー画面確認済み。**Core・ViewModel は非変更**（App の表示のみ）。
+  - **① Dark テーマ固定（方法1）**: `MainWindow.xaml` のルート `Grid`（`RootGrid`）に `RequestedTheme="Dark"` を付与。
+    背景は全て `ThemeResource`（`SolidBackgroundFillColorBaseBrush`/`SubtleFillColorSecondaryBrush`/`CardBackgroundFillColorDefaultBrush`
+    等）経由なので一括で暗化。Win2D の `ClearColor="Transparent"` も親ブラシ追従で暗くなる。色味は Fluent の暗グレー（純黒ではない）。
+    - メモ: `Application` レベルでなく `RootGrid`（子要素）に付けたため、**ポップアップ/フライアウト/ダイアログは継承しない**
+      （別ビジュアルツリー）。今回それらは問題にならなかったが、将来ポップアップも暗くするなら `App.xaml` の `<Application RequestedTheme="Dark">` へ移すのが本筋。
+  - **② タイトルバーの暗色化（案A＝DWM イマーシブ ダークモード）**: 標準タイトルバー（`ExtendsContentIntoTitleBar=false`）は OS が描く
+    ため Dark テーマでも白いまま。`MainWindow` ctor に `EnableDarkTitleBar()` を追加し、HWND（`WinRT.Interop.WindowNative.GetWindowHandle`）へ
+    `dwmapi.dll` の `DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE=20, 1, 4)` を P/Invoke。標準タイトルバーを Windows 標準の
+    暗色（濃いグレー＋明るいグリフ）で描かせる。**`ExtendsContentIntoTitleBar=false` のままなので ×ボタンのフォーカスレース
+    （`close-button-titlebar-focus-race`）は再発しない**。属性は HWND に残るので全画面⇄復帰でも維持。色は Windows 標準ダーク色固定
+    （任意の真っ黒指定は不可。それには `AppWindow.TitleBar` 色指定＝`ExtendsContentIntoTitleBar=true` が要りレース再発のため不採用）。
+  - **③ フィルムストリップの焦点リング色**: 暗背景で `#FF333333`（濃いグレー）が溶けて見えないため `#FFE0E0E0`（薄グレー）へ
+    （`PreviewControl.xaml`・焦点 overlay の `BorderBrush`）。
+  - **④ 複数選択（選択集合）メンバーの強調を青→白系へ**: 暗背景＋焦点リング変更で青がちぐはぐになったため、メンバー強調を
+    枠 `#FF66B2FF`→`#FFFFFFFF`／背景ウォッシュ `#4066B2FF`→`#33FFFFFF`（半透明白）に。**フィルムストリップ（`PreviewControl.xaml`）と
+    グリッド（`PhotoGridView.xaml`）の両方**で統一。焦点（薄グレーの外周リング・塗りなし）とメンバー（白枠＋塗りウォッシュ）は
+    「塗りの有無」で見分ける。
+  - **⑤ グリッドの焦点（=選択）枠を白系へ＋外周の白フォーカス矩形を除去**: グリッドは焦点＝選択（`SelectionMode=Single`＋
+    `FocusedPhoto`↔`SelectedItem` 同期）なので、GridViewItem 既定の**選択枠**（`SelectedBorderBrush`＝既定アクセント青＝水色）が
+    焦点インジケータ。これを白系へ。`PhotoGridView.xaml` の `GridView.Resources` で `GridViewItemSelectedBorderBrush`／
+    `…SelectedPointerOverBorderBrush`／`…SelectedPressedBorderBrush` を `#FFE0E0E0` に上書き。加えて GridViewItem 既定の
+    **キーボードフォーカス枠（外周の白い矩形）**を `ItemContainerStyle` の `UseSystemFocusVisuals="False"` で無効化。
+    - **重要な落とし穴（実機で発覚→修正）**: `ItemContainerStyle` を **`BasedOn` なし**で書くと既定スタイル
+      （`DefaultGridViewItemStyle`）を丸ごと置き換え、**選択枠を描く `ListViewItemPresenter` の配線（`SelectedBorderBrush`/
+      `SelectedBorderThickness` を持つ Template）が失われて焦点セルの枠が一切出なくなる**（中身はフォールバック Template で表示される
+      ので画像は見える＝症状が分かりにくい）。SDK の `generic.xaml` で確認: 選択枠は `DefaultGridViewItemStyle` の Template 内に
+      `SelectedBorderBrush="{ThemeResource GridViewItemSelectedBorderBrush}"` として配線（暗黙スタイルも `BasedOn DefaultGridViewItemStyle`）。
+      → **`<Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">` 必須**。フィルムストリップ（ListView）は
+      独自の焦点リング overlay で焦点を示すため BasedOn なしでも顕在化しなかった（システム選択枠に非依存）。複数選択メンバーの白枠は
+      `DataTemplate` 内の独自 overlay `Border` なのでコンテナスタイル置き換えの影響を受けない（だから「メンバーだけ白枠」状態になった）。
+  - 変更: `MainWindow.xaml`（`RequestedTheme="Dark"`）・`MainWindow.xaml.cs`（`EnableDarkTitleBar`＋P/Invoke）、
+    `Controls/PreviewControl.xaml`（焦点リング/メンバー強調色）、`Controls/PhotoGridView.xaml`（メンバー強調色＋`GridView.Resources`
+    選択枠色上書き＋`ItemContainerStyle` BasedOn＋`UseSystemFocusVisuals=False`）。`BUILD SUCCEEDED`（x64 Release・警告0）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**

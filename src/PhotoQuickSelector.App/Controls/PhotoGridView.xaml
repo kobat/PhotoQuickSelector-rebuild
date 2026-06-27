@@ -19,6 +19,22 @@
         SelectionChanged="PhotoGrid_SelectionChanged"
         DoubleTapped="PhotoGrid_DoubleTapped"
         ContainerContentChanging="PhotoGrid_ContainerContentChanging">
+        <GridView.Resources>
+            <!-- 焦点（=選択）の枠を既定のアクセント色（青＝水色）から白系へ差し替える。
+                 焦点＝選択として同期しているため、GridViewItem の「選択」枠が焦点インジケータになる。
+                 フィルムストリップの焦点リング（#FFE0E0E0）と色を揃える。 -->
+            <SolidColorBrush x:Key="GridViewItemSelectedBorderBrush" Color="#FFE0E0E0" />
+            <SolidColorBrush x:Key="GridViewItemSelectedPointerOverBorderBrush" Color="#FFE0E0E0" />
+            <SolidColorBrush x:Key="GridViewItemSelectedPressedBorderBrush" Color="#FFE0E0E0" />
+        </GridView.Resources>
+        <GridView.ItemContainerStyle>
+            <!-- BasedOn 必須: 既定スタイルを丸ごと置き換えると選択枠（SelectedBorderBrush を描く
+                 ListViewItemPresenter の配線）が失われ、焦点セルの枠が出なくなる。既定を継承した上で
+                 キーボードフォーカス枠（外周の白い矩形）だけ無効化する。焦点は上で白系へ上書きした選択枠で示す。 -->
+            <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                <Setter Property="UseSystemFocusVisuals" Value="False" />
+            </Style>
+        </GridView.ItemContainerStyle>
         <GridView.ItemTemplate>
             <DataTemplate x:DataType="vm:PhotoItemViewModel">
                 <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
@@ -64,10 +80,10 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- 選択集合メンバーのハイライト（薄い青の外枠＋背景ウォッシュ）。焦点は GridView
+                        <!-- 選択集合メンバーのハイライト（白の外枠＋半透明白の背景ウォッシュ）。焦点は GridView
                              標準の選択ビジュアル。メンバー時のみ SelectionHighlightOpacity(1.0) で可視。 -->
                         <Border CornerRadius="4" BorderThickness="3"
-                                BorderBrush="#FF66B2FF" Background="#4066B2FF"
+                                BorderBrush="#FFFFFFFF" Background="#33FFFFFF"
                                 IsHitTestVisible="False"
                                 Opacity="{x:Bind SelectionHighlightOpacity, Mode=OneWay}" />
                     </Grid>

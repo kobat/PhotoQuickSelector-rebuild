@@ -270,13 +270,13 @@
                              焦点時のみ FocusFrameOpacity(1.0) で可視。子が無いので Opacity=0 でも画像は残る。
                              枠は常設しレイアウト不変。カラーラベル枠（内側）とは別レイヤで併存。 -->
                         <Border CornerRadius="6" BorderThickness="3"
-                                BorderBrush="#FF333333"
+                                BorderBrush="#FFE0E0E0"
                                 IsHitTestVisible="False"
                                 Opacity="{x:Bind FocusFrameOpacity, Mode=OneWay}" />
-                        <!-- 選択集合メンバーのハイライト（薄い青の外枠＋背景ウォッシュ）。焦点リングの内側に
+                        <!-- 選択集合メンバーのハイライト（白の外枠＋半透明白の背景ウォッシュ）。焦点リングの内側に
                              別レイヤで重ね、メンバー時のみ SelectionHighlightOpacity(1.0) で可視。 -->
                         <Border CornerRadius="5" BorderThickness="2" Margin="1"
-                                BorderBrush="#FF66B2FF" Background="#4066B2FF"
+                                BorderBrush="#FFFFFFFF" Background="#33FFFFFF"
                                 IsHitTestVisible="False"
                                 Opacity="{x:Bind SelectionHighlightOpacity, Mode=OneWay}" />
                         </Grid>

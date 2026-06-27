@@ -18,7 +18,7 @@
         RootGrid はキー入力集約（RootGrid_PreviewKeyDown）の土台として残す。
         Frame がアプリ本体（MainPage）をホストする。
     -->
-    <Grid x:Name="RootGrid">
+    <Grid x:Name="RootGrid" RequestedTheme="Dark">
         <Frame x:Name="RootFrame" />
     </Grid>
 </Window>
