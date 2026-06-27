@@ -13,9 +13,10 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
-# Visual Studio / Rider
+# Visual Studio / Rider / VS Code
 .vs/
 .idea/
+.vscode/
 *.user
 *.suo
 *.userprefs

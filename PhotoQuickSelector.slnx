@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/PhotoQuickSelector.App/PhotoQuickSelector.App.csproj">
-      <Platform Project="x86" />
+      <Platform Project="x64" />
     </Project>
     <Project Path="src/PhotoQuickSelector.Core/PhotoQuickSelector.Core.csproj" />
   </Folder>
