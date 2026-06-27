@@ -113,6 +113,9 @@ public sealed partial class MainWindow : Window
         AppWindow.SetPresenter(kind);
     }
 
+    /// <summary>現在フルスクリーン表示中か（メニューのチェック表示用にステータスバーから参照）。</summary>
+    public bool IsFullScreen => AppWindow.Presenter.Kind == AppWindowPresenterKind.FullScreen;
+
     /// <summary>
     /// ウィンドウ全画面の ON/OFF を明示指定する。完全全画面モード（<see cref="MainPage.ToggleFullImageMode"/>）の
     /// コーディネータが他要素（左ペイン/ステータスバー等）と同時に切り替えるために使う。

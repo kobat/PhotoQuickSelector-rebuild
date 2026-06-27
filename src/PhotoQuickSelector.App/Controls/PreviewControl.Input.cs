@@ -128,25 +128,17 @@ public sealed partial class PreviewControl
             return true;
         }
 
-        // G : 構図グリッドの種類を巡回（None→十字→三分割→正方形→None。徐々に細かく）
+        // G : 構図グリッドの種類を巡回（None→十字→三分割→正方形→None。徐々に細かく）。メニューと共用。
         if (KeyboardModifiers.None && key == VirtualKey.G)
         {
-            _viewModel.GridKind = _viewModel.GridKind switch
-            {
-                GridOverlayKind.None => GridOverlayKind.CenterCross,
-                GridOverlayKind.CenterCross => GridOverlayKind.RuleOfThirds,
-                GridOverlayKind.RuleOfThirds => GridOverlayKind.Square,
-                _ => GridOverlayKind.None,
-            };
+            _viewModel.CycleGridKind();
             return true;
         }
 
-        // Shift+G : グリッドの基準を切替（画像 ⇄ Canvas）
+        // Shift+G : グリッドの基準を切替（画像 ⇄ Canvas）。メニューと共用。
         if (KeyboardModifiers.Shift && key == VirtualKey.G)
         {
-            _viewModel.GridReference = _viewModel.GridReference == GridOverlayReference.Image
-                ? GridOverlayReference.Canvas
-                : GridOverlayReference.Image;
+            _viewModel.ToggleGridReference();
             return true;
         }
 

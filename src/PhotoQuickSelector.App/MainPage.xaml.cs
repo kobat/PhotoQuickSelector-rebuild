@@ -43,6 +43,19 @@ public sealed partial class MainPage : Page
         StatusBar.ToggleLeftPaneRequested += (_, _) => ToggleLeftPane();
         // 全画面ボタンは AppWindow を持つ MainWindow で切り替える（F11 と同じ経路）。
         StatusBar.ToggleFullScreenRequested += (_, _) => (App.Window as MainWindow)?.ToggleFullScreen();
+        // メニュー「完全全画面」は複数要素にまたがるので MainPage のコーディネータへ（Shift+F と同じ経路）。
+        StatusBar.ToggleFullImageRequested += (_, _) => ToggleFullImageMode();
+        // メニュー「イマーシブ表示」は Preview 内の操作。プレビュー時のみ有効（F キーと同じ）。
+        StatusBar.ToggleImmersiveRequested += (_, _) =>
+        {
+            if (ViewModel.IsPreviewMode) Preview.SetImmersive(!Preview.IsImmersive);
+        };
+        // メニューのチェック表示用の状態プロバイダ（Preview / MainWindow から供給）。
+        StatusBar.IsImmersiveProvider = () => Preview.IsImmersive;
+        StatusBar.IsFullScreenProvider = () => (App.Window as MainWindow)?.IsFullScreen ?? false;
+        // 左ペインの幅変化（ボタン/スプリッター/完全全画面/復元のいずれでも）を唯一の起点に開閉ボタンの
+        // グリフ／ツールチップを追従させる。LeftNav は左カラムの子なので幅0で ActualWidth=0 になる。
+        LeftNav.SizeChanged += (_, _) => StatusBar.UpdateLeftPaneGlyph(LeftNav.ActualWidth > 0);
         // 評価データファイル（sqlite）の初回作成確認ダイアログ。VM は XamlRoot を持たないので View が出す。
         ViewModel.ConfirmCreateAsync = ConfirmCreateStoreAsync;
     }
@@ -79,6 +92,7 @@ public sealed partial class MainPage : Page
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
     {
         RestoreLeftPaneLayout();
+        StatusBar.UpdateLeftPaneGlyph(LeftColumn.ActualWidth > 0); // 復元直後の初期同期（以後は SizeChanged が追従）
         _ = RestoreSessionAsync();
     }
 

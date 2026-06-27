@@ -399,6 +399,22 @@ public partial class MainViewModel : ObservableObject
     partial void OnGridReferenceChanged(GridOverlayReference value) =>
         Settings.GridReference = value;
 
+    /// <summary>構図グリッドの種類を巡回する（None→十字→三分割→正方形→None）。G キーとメニューから共用。</summary>
+    public void CycleGridKind() =>
+        GridKind = GridKind switch
+        {
+            GridOverlayKind.None => GridOverlayKind.CenterCross,
+            GridOverlayKind.CenterCross => GridOverlayKind.RuleOfThirds,
+            GridOverlayKind.RuleOfThirds => GridOverlayKind.Square,
+            _ => GridOverlayKind.None,
+        };
+
+    /// <summary>構図グリッドの基準を切替する（画像 ⇄ Canvas）。Shift+G キーとメニューから共用。</summary>
+    public void ToggleGridReference() =>
+        GridReference = GridReference == GridOverlayReference.Image
+            ? GridOverlayReference.Canvas
+            : GridOverlayReference.Image;
+
     /// <summary>正方形グリッドの短辺分割数 N（設定値。Core/UI 非依存ロジックから参照）。</summary>
     public int GridSquareDivisions => Settings.GridSquareDivisions;
 

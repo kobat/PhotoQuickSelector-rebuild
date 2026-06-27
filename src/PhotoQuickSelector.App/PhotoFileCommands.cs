@@ -47,6 +47,32 @@ public static class PhotoFileCommands
         return false;
     }
 
+    // === メニューからの直接呼び出し用（キー処理 TryHandle と同じ実体を共有する） ===
+
+    /// <summary>エクスプローラで対象を選択表示する（メニュー「エクスプローラーで表示」）。</summary>
+    public static void OpenInExplorer(PhotoItemViewModel item)
+    {
+        if (item is not null) ShowInExplorer(item.Meta.Path);
+    }
+
+    /// <summary>既定アプリで開く（メニュー「既定のアプリで開く」）。</summary>
+    public static void OpenWithDefault(PhotoItemViewModel item)
+    {
+        if (item is not null) OpenWithDefault(item.Meta.Path);
+    }
+
+    /// <summary>パスをクリップボードへコピー（メニュー「パスをコピー」）。</summary>
+    public static void CopyPath(PhotoItemViewModel item)
+    {
+        if (item is not null) CopyPath(item.Meta.Path);
+    }
+
+    /// <summary>共有（メニュー「共有」。設定済み exe ／未設定なら Windows 標準共有シート）。</summary>
+    public static void Share(PhotoItemViewModel item, AppSettings settings)
+    {
+        if (item is not null) _ = ShareHelper.ShareAsync(item.Meta.Path, settings);
+    }
+
     /// <summary>エクスプローラで対象ファイルを選択状態にして表示する（<c>/select,</c>）。</summary>
     private static void ShowInExplorer(string path)
     {

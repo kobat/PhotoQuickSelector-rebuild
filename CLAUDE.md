@@ -855,6 +855,43 @@
     （`FilmStrip_DoubleTapped`）、`tests/…/PreviewViewportTests.cs`。**Core・キー処理（Input.cs）は非変更**。
     `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。
 
+- **ハンバーガーメニュー追加（案A＝MenuFlyout・クリック実行可）完了（2026-06-27）**: ステータスバー右端に
+  ハンバーガー（`&#xE700;`）ボタンを追加し、既存ショートカットのうち「トグル/単発アクション」系をメニュー化。
+  各項目は**クリックで実行**＋ショートカットを `KeyboardAcceleratorTextOverride` で右側にグレー表示（**表示専用**＝
+  実キー処理は従来の `MainWindow` ルート集約のまま＝二重ハンドリングなし）。**歯車ボタンは廃止し「設定…」をメニューへ集約**。
+  - **メニュー構成**: フィルタ ON/OFF(`Ctrl+L`)・全画面表示(`F11`)・完全全画面(`Shift+F`)／プレビュー▶(プレビュー時のみ有効)＝
+    イマーシブ(`F`)・メタ情報(`I`)・構図グリッド種類(`G`)/基準(`Shift+G`)／ファイル▶(写真選択時のみ有効)＝エクスプローラ(`Ctrl+E`)・
+    既定アプリ(`Alt+E`)・パスをコピー(`Ctrl+Alt+E`)・共有(`Alt+S`)／設定…。評価キー・前後移動・ズーム・複数選択・一括評価は
+    「高速反復操作」なので**メニューに載せない**（ユーザー確定スコープ）。リネームコピー/Reject 移動はショートカット未割当のため
+    対象外（フィルタのフライアウト内に維持）。
+  - **状態同期**: `ToggleMenuFlyoutItem.IsChecked` はバインドせず `MenuFlyout.Opening` で毎回 VM 状態から再設定（メニューは短命。
+    既存 `FilterFlyout_Opening` と同パターン）。同 `Opening` で `PreviewSubItem.IsEnabled=IsPreviewMode`／
+    `FileSubItem.IsEnabled=FocusedPhoto!=null` も更新。「完全全画面」はメニュー到達時は常に「入る」操作（ON 時はステータスバー
+    非表示で到達不能）なのでトグルではなく通常項目。
+  - **配線（単一ソース維持）**: 設定/フィルタ/メタ情報は VM 直接。全画面/完全全画面/イマーシブは `PhotoStatusBar` のイベント
+    （既存 `ToggleFullScreenRequested`＋新規 `ToggleFullImageRequested`/`ToggleImmersiveRequested`）で `MainPage` へ委譲。
+    チェック表示用に `IsImmersiveProvider`/`IsFullScreenProvider`（`Func<bool>`）を `MainPage` が Preview/MainWindow から供給
+    （`MainWindow.IsFullScreen` 追加）。構図グリッドは `MainViewModel.CycleGridKind()`/`ToggleGridReference()` を新設し
+    `G`/`Shift+G` キー（`PreviewControl.Input.cs`）とメニューで共用。ファイル連携は `PhotoFileCommands` に
+    `OpenInExplorer/OpenWithDefault/CopyPath/Share`(写真受け取り版)を抽出し `TryHandle`(キー)と共用。
+  - 変更: `Controls/PhotoStatusBar.xaml(.cs)`・`Controls/FilterBar.xaml`、`MainPage.xaml.cs`、`MainWindow.xaml.cs`、
+    `PhotoFileCommands.cs`、`ViewModels/MainViewModel.cs`、`Controls/PreviewControl.Input.cs`。**Core 非変更**。
+    `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。ユーザー画面確認済み（2026-06-27）。
+
+- **左ペイン開閉ボタンのグリフを開閉状態へ追従＋向き修正＋ボタン寸法統一 完了（2026-06-27）**:
+  - **グリフ追従（案2＝幅変化を唯一の起点に一元更新）**: 旧・固定グリフをやめ、左ペインの開閉状態に追従。
+    `PhotoStatusBar.UpdateLeftPaneGlyph(bool open)`（`FontIcon`＋ツールチップ切替）を、`MainPage` が `LeftNav.SizeChanged` を
+    観測して `ActualWidth>0` で呼ぶ。開閉のきっかけ（ボタン/スプリッタードラッグで幅0/完全全画面/起動復元）すべてを 1 経路でカバー
+    （各経路への個別更新コード不要）。`MainPage_Loaded` の復元直後に初期同期。
+  - **重要（向きの確定）**: グリフをフォント（Segoe Fluent Icons）で実レンダリングして確認＝**`U+E89F`(ClosePane)＝右矢印→／
+    `U+E8A0`(OpenPane)＝左矢印←**。左ペインは左側にあるので「開＝左へ畳む＝左矢印`E8A0`／閉＝右へ展開＝右矢印`E89F`」が正解。
+    最初の実装は MDL2 の名前を額面どおり対応させて**逆**だった（ユーザー指摘で実測→修正）。
+  - **ボタン寸法統一**: アイコンのみのボタンはテキスト持ちのフィルタボタンより低かった（`FontIcon` の行ボックス＜テキスト行）。
+    左ペイン/全画面/メニューに `Height="32" Width="32" Padding="0"`＝**32×32 正方形**、フィルタボタンは `Height="32"`（幅は件数テキストで可変）。
+    32 は WinUI 標準のボタン高さ。実機で正方形・アイコン中央・はみ出しなしを確認。
+  - 変更: `Controls/PhotoStatusBar.xaml(.cs)`・`Controls/FilterBar.xaml`、`MainPage.xaml.cs`。**Core・ViewModel は非変更**。
+    `BUILD SUCCEEDED`。`dotnet run` で実機確認・拡大目視（グリフ向き／開閉追従／4ボタンの高さ・3ボタンの幅統一）済み（2026-06-27）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
@@ -877,7 +914,8 @@
   ときのみ一括フラグ／無いときは従来のルーペ縦スクロール**。集合が無ければ一括系は無効
 - `Ctrl+L` フィルタ ON/OFF トグル（両モード共通、フライアウトは開かない）
 - `Ctrl+E` エクスプローラで表示 / `Alt+E` 既定アプリで開く / `Ctrl+Alt+E` パスをコピー / `Alt+S` 共有
-  （両モード共通。共有は `AppSettings.SharePath` 設定時はその exe 起動、未設定なら Windows 標準共有シート。設定はステータスバー右端の歯車から）
+  （両モード共通。共有は `AppSettings.SharePath` 設定時はその exe 起動、未設定なら Windows 標準共有シート。設定はステータスバー右端のメニュー＞設定…から）
+- ステータスバー右端の**ハンバーガーメニュー**（`&#xE700;`）から上記トグル/外部連携/設定をクリック実行も可（ショートカット併記）
 - `F11` フルスクリーン表示トグル（ステータスバー右端の全画面ボタンも同じ）/ `Esc` 全画面中なら通常表示へ復帰
   （全画面でない通常時の `Esc` は無反応＝プレビューを抜けない。プレビュー終了はフィルムストリップのダブルクリック）
 - プレビュー中（マウス）: メイン大画面の**シングルクリック**＝フィット⇄ズーム切替（`Z` と同一倍率）/ **ダブルクリック**＝100%

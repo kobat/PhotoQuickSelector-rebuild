@@ -21,10 +21,11 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <Button Grid.Column="0" Click="ToggleButton_Click" Margin="0,0,8,0"
-                VerticalAlignment="Center"
-                ToolTipService.ToolTip="左ペインの表示/非表示">
-            <FontIcon Glyph="&#xE700;" FontSize="14" />
+        <!-- 左ペイン開閉。グリフ/ツールチップは実際の開閉状態に追従（MainPage が幅変化で UpdateLeftPaneGlyph を呼ぶ） -->
+        <Button Grid.Column="0" x:Name="LeftPaneButton" Click="ToggleButton_Click" Margin="0,0,8,0"
+                Height="32" Width="32" Padding="0" VerticalAlignment="Center"
+                ToolTipService.ToolTip="左ペインを隠す">
+            <FontIcon x:Name="LeftPaneIcon" Glyph="&#xE8A0;" FontSize="14" />
         </Button>
         <!-- フィルタボタン（開閉ボタンと件数テキストの間） -->
         <ctl:FilterBar Grid.Column="1" x:Name="FilterControl" Margin="0,0,8,0" />
@@ -124,16 +125,71 @@
 
         <!-- 全画面表示の切替ボタン（F11 と同じ。AppWindow を操作するため MainWindow へ委譲） -->
         <Button Grid.Column="6" Click="FullScreenButton_Click" Margin="8,0,0,0"
-                VerticalAlignment="Center"
+                Height="32" Width="32" Padding="0" VerticalAlignment="Center"
                 ToolTipService.ToolTip="全画面表示の切替 (F11)">
             <FontIcon Glyph="&#xE740;" FontSize="14" />
         </Button>
 
-        <!-- 設定（歯車）。共有先 exe パス等を編集するダイアログを開く -->
-        <Button Grid.Column="7" Click="SettingsButton_Click" Margin="8,0,0,0"
-                VerticalAlignment="Center"
-                ToolTipService.ToolTip="設定">
-            <FontIcon Glyph="&#xE713;" FontSize="14" />
+        <!-- メニュー（ハンバーガー）。設定・各種トグル・ファイル連携をショートカット付きで集約。
+             歯車ボタンは廃止し「設定…」をこのメニューへ集約した。各項目はクリックでも実行可能。
+             KeyboardAcceleratorTextOverride は表示専用（実キー処理は MainWindow の RootGrid 集約のまま）。 -->
+        <Button Grid.Column="7" Margin="8,0,0,0"
+                Height="32" Width="32" Padding="0" VerticalAlignment="Center"
+                ToolTipService.ToolTip="メニュー">
+            <FontIcon Glyph="&#xE700;" FontSize="14" />
+            <Button.Flyout>
+                <MenuFlyout Opening="Menu_Opening">
+                    <ToggleMenuFlyoutItem x:Name="FilterToggleItem" Text="フィルタ ON/OFF"
+                                          KeyboardAcceleratorTextOverride="Ctrl+L"
+                                          Click="MenuFilter_Click" />
+                    <ToggleMenuFlyoutItem x:Name="FullScreenToggleItem" Text="全画面表示"
+                                          KeyboardAcceleratorTextOverride="F11"
+                                          Click="MenuFullScreen_Click" />
+                    <MenuFlyoutItem Text="完全全画面"
+                                    KeyboardAcceleratorTextOverride="Shift+F"
+                                    Click="MenuFullImage_Click" />
+
+                    <MenuFlyoutSeparator />
+
+                    <!-- プレビュー専用群（Opening でプレビュー時のみ有効化） -->
+                    <MenuFlyoutSubItem x:Name="PreviewSubItem" Text="プレビュー">
+                        <ToggleMenuFlyoutItem x:Name="ImmersiveToggleItem" Text="イマーシブ表示"
+                                              KeyboardAcceleratorTextOverride="F"
+                                              Click="MenuImmersive_Click" />
+                        <ToggleMenuFlyoutItem x:Name="InfoToggleItem" Text="メタ情報オーバーレイ"
+                                              KeyboardAcceleratorTextOverride="I"
+                                              Click="MenuInfo_Click" />
+                        <MenuFlyoutItem Text="構図グリッド: 種類を変更"
+                                        KeyboardAcceleratorTextOverride="G"
+                                        Click="MenuGridKind_Click" />
+                        <MenuFlyoutItem Text="構図グリッド: 基準を切替"
+                                        KeyboardAcceleratorTextOverride="Shift+G"
+                                        Click="MenuGridRef_Click" />
+                    </MenuFlyoutSubItem>
+
+                    <MenuFlyoutSeparator />
+
+                    <!-- ファイル連携（Opening で写真選択時のみ有効化。対象＝FocusedPhoto） -->
+                    <MenuFlyoutSubItem x:Name="FileSubItem" Text="ファイル">
+                        <MenuFlyoutItem Text="エクスプローラーで表示"
+                                        KeyboardAcceleratorTextOverride="Ctrl+E"
+                                        Click="MenuExplorer_Click" />
+                        <MenuFlyoutItem Text="既定のアプリで開く"
+                                        KeyboardAcceleratorTextOverride="Alt+E"
+                                        Click="MenuOpenDefault_Click" />
+                        <MenuFlyoutItem Text="パスをコピー"
+                                        KeyboardAcceleratorTextOverride="Ctrl+Alt+E"
+                                        Click="MenuCopyPath_Click" />
+                        <MenuFlyoutItem Text="共有"
+                                        KeyboardAcceleratorTextOverride="Alt+S"
+                                        Click="MenuShare_Click" />
+                    </MenuFlyoutSubItem>
+
+                    <MenuFlyoutSeparator />
+
+                    <MenuFlyoutItem Text="設定…" Click="MenuSettings_Click" />
+                </MenuFlyout>
+            </Button.Flyout>
         </Button>
     </Grid>
 </UserControl>

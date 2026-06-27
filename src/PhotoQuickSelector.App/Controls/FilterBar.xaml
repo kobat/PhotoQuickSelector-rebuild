@@ -10,7 +10,7 @@
     <!-- フィルタボタン（SPEC §3-4 / §3-5）。クリックで条件＋クリップボード出力のフライアウトを開く。
          フライアウト内の入力は DataContext=ViewModel.Filter に対するクラシック Binding（null セーフ）、
          件数・コピー操作は x:Bind / コードビハインドで処理する。 -->
-    <Button x:Name="FilterButton" VerticalAlignment="Center"
+    <Button x:Name="FilterButton" Height="32" VerticalAlignment="Center"
             ToolTipService.ToolTip="フィルタ (Ctrl+L)">
         <StackPanel Orientation="Horizontal" Spacing="6">
             <FontIcon Glyph="&#xE71C;" FontSize="14" />
