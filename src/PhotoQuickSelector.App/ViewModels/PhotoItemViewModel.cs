@@ -47,15 +47,18 @@ public partial class PhotoItemViewModel : ObservableObject
 
     public string TakenDateTimeText => Meta.TakenDateTimeDescription;
 
-    /// <summary>カメラ・レンズ名（"SONY ILCE-1 / FE 50mm…"）。空要素は省く。</summary>
+    /// <summary>カメラ・レンズ名（"SONY ILCE-1 / SONY FE 50mm…"）。空要素は省く。
+    /// レンズはメーカー名（<see cref="ImageMetadata.LensMake"/>）をモデル名の前に付ける。</summary>
     public string CameraLensText
     {
         get
         {
             var body = string.Join(" ", new[] { Meta.CameraMaker, Meta.CameraModel }
                 .Where(s => !string.IsNullOrWhiteSpace(s)));
-            if (string.IsNullOrWhiteSpace(Meta.LensModel)) return body;
-            return string.IsNullOrWhiteSpace(body) ? Meta.LensModel : $"{body} / {Meta.LensModel}";
+            var lens = string.Join(" ", new[] { Meta.LensMake, Meta.LensModel }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
+            if (string.IsNullOrWhiteSpace(lens)) return body;
+            return string.IsNullOrWhiteSpace(body) ? lens : $"{body} / {lens}";
         }
     }
 

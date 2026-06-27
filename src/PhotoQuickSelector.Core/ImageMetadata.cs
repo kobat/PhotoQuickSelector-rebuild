@@ -42,6 +42,7 @@ public sealed class ImageMetadata
     // カメラ
     public string CameraMaker { get; init; } = "";
     public string CameraModel { get; init; } = "";
+    public string LensMake { get; init; } = "";
     public string LensModel { get; init; } = "";
 
     // 撮影設定

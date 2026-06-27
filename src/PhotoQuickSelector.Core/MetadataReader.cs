@@ -68,6 +68,7 @@ public static class MetadataReader
 
             CameraMaker = GetString(ifd0, ExifDirectoryBase.TagMake),
             CameraModel = GetString(ifd0, ExifDirectoryBase.TagModel),
+            LensMake = GetString(subIfd, ExifDirectoryBase.TagLensMake),
             LensModel = ReadLensModel(subIfd),
 
             FocalLength = focalLength,

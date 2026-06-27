@@ -929,6 +929,20 @@
   - 変更/新規: `ShortcutCheatSheet.cs`（新規）・`Controls/ShortcutsDialog.xaml(.cs)`（新規）、`Controls/PhotoStatusBar.xaml(.cs)`、
     `MainWindow.xaml.cs`。`BUILD SUCCEEDED`（x64 Release・警告0）。ユーザー画面確認済み（2026-06-28）。
 
+- **レンズ名の前にレンズメーカーを表示（案A＝EXIF `LensMake` タグ）完了（2026-06-28）**: 詳細メタ情報パネルの
+  「カメラ・レンズ名」（`CameraLensText`）で、レンズ名の前に EXIF のレンズメーカー（`LensMake` タグ 0xA433）を付ける。
+  - **Core**: `ImageMetadata.LensMake` を追加し、`MetadataReader` で `GetString(subIfd, ExifDirectoryBase.TagLensMake)` を読む
+    （`LensModel` と対のタグ）。
+  - **App（`PhotoItemViewModel.CameraLensText`）**: レンズ部を `{LensMake} {LensModel}`（メーカー空なら従来どおりモデルのみ）に変更。
+    例 `SONY ILCE-1 / SONY FE 50mm…`。**メーカーがカメラ側と重複してもそのまま出す**（ユーザー確定）。空要素は従来どおり省略。
+  - **重要な検証結果（割り切り）**: テストデータ（Sony α1＋OM-1）は **`LensMake` タグを書き込んでおらず全て空**だった
+    （実機材ではメーカー表示は出ず、従来どおりレンズ名のみ）。多くのカメラがこのタグを省略する（exiftool 等はタグでなく内蔵
+    レンズ DB 照合で表示）。実データの SIGMA/`OM 90mm` 等はボディ `Make`(SONY) と別物のため「空ならカメラメーカー代用」は誤りになる。
+    レンズ名からのメーカー推定（ヒューリスティック補完）も検討したが**ユーザー選択で案A（タグ依存）のまま据え置き**＝
+    タグを書く機材/レンズでのみ有効・無い機材では無害なフォールバック（レンズ名のみ）。
+  - 変更: `Core/ImageMetadata.cs`・`Core/MetadataReader.cs`、`ViewModels/PhotoItemViewModel.cs`。`BUILD SUCCEEDED`／
+    `dotnet test` 96 件緑。表示箇所はメタ情報パネル案A（ステータスバー）／案B（プレビュー左上オーバーレイ）の `CameraLensText` 両方。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
