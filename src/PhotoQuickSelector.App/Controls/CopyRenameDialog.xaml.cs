@@ -39,9 +39,9 @@ public sealed partial class CopyRenameDialog : ContentDialog
     {
         _viewModel = viewModel;
         _targets = targets;
-        // コピー先の初期値は現在表示中のフォルダ（参照ボタンで変更可能）。
+        // コピー先の初期値：セッション中に指定済みならそれを再利用、初回は表示中フォルダ（参照ボタンで変更可能）。
         if (string.IsNullOrEmpty(DestinationBox.Text))
-            DestinationBox.Text = viewModel.CurrentFolder ?? "";
+            DestinationBox.Text = viewModel.LastCopyDestination ?? viewModel.CurrentFolder ?? "";
         // ファイル名テンプレートの初期値は前回使った内容（保存済みなら復元）。
         var saved = viewModel.Settings.CopyRenameTemplate;
         if (!string.IsNullOrEmpty(saved))

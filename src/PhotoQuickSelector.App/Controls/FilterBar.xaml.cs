@@ -148,6 +148,9 @@ public sealed partial class FilterBar : UserControl
         vm.Settings.CopyRenameTemplate = dialog.RenameTemplate;
         vm.Settings.Save();
 
+        // 指定したコピー先をセッション中だけ記憶（永続化しない＝再起動後は表示中フォルダに戻る）。
+        vm.LastCopyDestination = dialog.DestinationPath;
+
         // 2) bat をメモリ生成 → 内容を確認ダイアログで表示。
         var now = DateTime.Now;
         var timestamp = now.ToString("yyyyMMddHHmmss");

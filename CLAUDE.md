@@ -551,6 +551,14 @@
     開始パスが無ければ**直近の存在する親へ遡り**、キャンセル/例外は握りつぶして null。発行時もトリミング無効なので従来型
     `[ComImport]` で安全。`Browse_Click` は WinRT → ネイティブに差し替え（同期化、`using Windows.Storage.Pickers;` 撤去）。
     変更/新規: `Controls/NativeFolderPicker.cs`（新規）、`Controls/CopyRenameDialog.xaml.cs`。Core/ViewModel/XAML 非変更。
+  - **コピー先のセッション記憶＋同名時の既定変更（追記・2026-06-27）**: ①「リネームしてコピー」のコピー先フォルダを
+    **アプリ起動中だけ記憶**（前回指定先を次回ダイアログの初期値に。**永続化しない**＝再起動後は表示中フォルダに戻る。
+    テンプレート永続化とは別扱い）。`MainViewModel.LastCopyDestination`（インメモリ・非永続）を追加し、`CopyRenameDialog.Configure`
+    の初期値を `LastCopyDestination ?? CurrentFolder` に。記憶の更新は **OK（バッチ生成）押下時のみ**（`FilterBar.CopyRename_Click`
+    でテンプレート保存と同箇所。キャンセルは記憶しない）。②同名存在時の既定を「上書きする」→**「コピーしない（無視）」**へ
+    （`CopyRenameDialog.xaml` の `PolicyButtons` を `SelectedIndex="0"`→`"1"`。`Policy` ゲッターは既に index 1→`Skip` 対応済みで
+    コード変更不要）。変更: `ViewModels/MainViewModel.cs`、`Controls/CopyRenameDialog.xaml(.cs)`、`Controls/FilterBar.xaml.cs`。
+    **Core 非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。ユーザー画面確認済み（2026-06-27）。
   - **モーダル表示中にグローバルキーが効かない問題を修正（追記・2026-06-21）**: ダイアログ（`ContentDialog`）の TextBox に
     `z`・`←`・`→`・数字等を入力しようとしても、ルート集約 `RootGrid_PreviewKeyDown`(tunneling) が先取りして
     「ズーム/前後移動/評価」として消費し入力できなかった。`RootGrid_PreviewKeyDown` 冒頭に

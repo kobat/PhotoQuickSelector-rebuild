@@ -57,7 +57,7 @@
             <!-- 同名存在時 -->
             <StackPanel Spacing="6">
                 <TextBlock Text="コピー先に同名がある場合" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-                <RadioButtons x:Name="PolicyButtons" SelectedIndex="0">
+                <RadioButtons x:Name="PolicyButtons" SelectedIndex="1">
                     <x:String>上書きする</x:String>
                     <x:String>コピーしない（無視）</x:String>
                 </RadioButtons>

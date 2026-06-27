@@ -301,6 +301,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string? CurrentFolder { get; set; }
 
+    /// <summary>
+    /// 「リネームしてコピー」で最後に指定したコピー先。アプリ起動中だけ保持する（永続化しない＝
+    /// 再起動後の初期値は表示中フォルダに戻る）。OK（バッチ生成）時にのみ更新する。
+    /// </summary>
+    public string? LastCopyDestination { get; set; }
+
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
 
