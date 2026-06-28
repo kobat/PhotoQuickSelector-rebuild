@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 200 200">
   <!-- PhotoQuickSelector アプリアイコン（案A ＋ ゴールド星 / 星オフセット -8 = 案1） -->
-  <!-- 青タイル -->
-  <rect x="0" y="0" width="200" height="200" rx="44" fill="#3478F6"/>
+  <!-- チャコールタイル（Dark テーマ対応） -->
+  <rect x="0" y="0" width="200" height="200" rx="44" fill="#2A2A2A"/>
   <!-- 写真フレーム（白） -->
   <rect x="47" y="53" width="106" height="83" rx="10" fill="#ffffff"/>
   <!-- 太陽 -->

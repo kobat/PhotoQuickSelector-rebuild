@@ -16,9 +16,10 @@ $ErrorActionPreference = 'Stop'
 $assets = Join-Path $PSScriptRoot '..\src\PhotoQuickSelector.App\Assets'
 $assets = [System.IO.Path]::GetFullPath($assets)
 
-$blue  = [System.Drawing.Color]::FromArgb(255, 0x34, 0x78, 0xF6)
-$white = [System.Drawing.Color]::FromArgb(255, 0xFF, 0xFF, 0xFF)
-$gold  = [System.Drawing.Color]::FromArgb(255, 0xFF, 0xD7, 0x00)
+$charcoal = [System.Drawing.Color]::FromArgb(255, 0x2A, 0x2A, 0x2A)
+$blue     = [System.Drawing.Color]::FromArgb(255, 0x34, 0x78, 0xF6)
+$white    = [System.Drawing.Color]::FromArgb(255, 0xFF, 0xFF, 0xFF)
+$gold     = [System.Drawing.Color]::FromArgb(255, 0xFF, 0xD7, 0x00)
 
 function Add-RoundedRect($path, [float]$x, [float]$y, [float]$w, [float]$h, [float]$r) {
     $d = $r * 2
@@ -38,14 +39,15 @@ function Draw-Icon($g, [float]$offsetX, [float]$offsetY, [float]$side) {
     $s = $side / 200.0
     $g.ScaleTransform($s, $s)
 
+    $bCharcoal = New-Object System.Drawing.SolidBrush($charcoal)
     $bBlue  = New-Object System.Drawing.SolidBrush($blue)
     $bWhite = New-Object System.Drawing.SolidBrush($white)
     $bGold  = New-Object System.Drawing.SolidBrush($gold)
 
-    # Blue tile
+    # Charcoal tile (Dark theme)
     $tile = New-Object System.Drawing.Drawing2D.GraphicsPath
     Add-RoundedRect $tile 0 0 200 200 44
-    $g.FillPath($bBlue, $tile)
+    $g.FillPath($bCharcoal, $tile)
 
     # Photo frame (white)
     $frame = New-Object System.Drawing.Drawing2D.GraphicsPath
@@ -72,7 +74,7 @@ function Draw-Icon($g, [float]$offsetX, [float]$offsetY, [float]$side) {
     $g.FillPolygon($bGold, $star)
 
     $tile.Dispose(); $frame.Dispose()
-    $bBlue.Dispose(); $bWhite.Dispose(); $bGold.Dispose()
+    $bCharcoal.Dispose(); $bBlue.Dispose(); $bWhite.Dispose(); $bGold.Dispose()
     $g.Restore($state)
 }
 

@@ -808,6 +808,12 @@
     ビルド済み EXE からアイコン抽出成功（リソース埋め込み確認）。実機タスクバー/エクスプローラの最終見た目はユーザー確認推奨。
   - 変更/新規: `Assets/AppIcon.svg`（新規）・`tools/generate-app-icon.ps1`（新規）・`Assets/*.png`/`AppIcon.ico`（再生成）・
     `PhotoQuickSelector.App.csproj`（`ApplicationIcon`）。**Core・アプリコードは非変更**。
+  - **タイルをチャコール化（Dark テーマ対応・2026-06-28）**: アプリ全体の黒系化に合わせ、アイコンの**タイル（枠）色を
+    青 `#3478F6` → チャコール `#2A2A2A`** に変更。**山は元の青 `#3478F6` のまま残しアクセントに**（白フレーム・ゴールドの
+    太陽/星も維持）。`AppIcon.svg`（タイルの `fill`）と `generate-app-icon.ps1`（`$charcoal` を追加しタイルへ適用・山は `$bBlue`
+    継続）を更新し PS スクリプト再実行で PNG/.ico を一括再生成。`dotnet build -c Release -p:Platform=x64` 成功（警告0）。
+    実機タスクバー/タイルの見た目はユーザー確認推奨。変更: `Assets/AppIcon.svg`・`tools/generate-app-icon.ps1`・
+    `Assets/*.png`/`AppIcon.ico`（再生成）。**Core・アプリコードは非変更**。
 
 - **構図グリッドの種類追加＋基準切替 完了（2026-06-27・要実機確認）**: プレビューの「三分割グリッド線」固定トグルを、
   **種類（中央十字／三分割／正方形）×基準（画像／Canvas）の2軸**に拡張。
