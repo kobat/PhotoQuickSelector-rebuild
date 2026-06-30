@@ -1042,13 +1042,19 @@
     `IsPathInWindow`）。**Core・XAML は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。`C` オーバーレイで「`(waiting)` が一瞬並ぶ→
     ゲートを通った最大2枚が `(loading)`→着地後にデコード済みへ昇格」をユーザー確認済み（2026-06-30）。案1 ブランチは比較用に残置。
   - **オーバーレイの状態色分け（main・2026-06-30）**: `C` オーバーレイを状態別の文字色に。**cached=白 `#E8FFFFFF`／
-    loading=緑系 `#FF7CE38B`／waiting=灰系 `#FF9AA0A6`**。並び順は**挿入順のまま**（ユーザー選択。並べ替えはしない）。
+    loading=緑系 `#FF7CE38B`／waiting=灰系 `#FF9AA0A6`**。
     実装＝`Snapshot()` が `(string Name, CacheItemState State)`（enum＝`Cached`/`Loading`/`Waiting`、**色は持たず UI 非依存**）を
     返し、`PreviewControl` 側で状態→（接尾辞＋ブラシ）にマッピングして表示項目 `CacheEntry`（`Text`＋`Brush Foreground`）を構築。
     XAML の DataTemplate を `x:String`→`ctl:CacheEntry`（`Foreground="{x:Bind Foreground}"`）に。
     - **落とし穴**: 表示項目をポジショナル `record` にすると `init` 専用プロパティになり、XAML 生成（`XamlTypeInfo.g.cs` の
       setter 代入）と衝突して **CS8852** でビルド失敗。→ **get-only クラス**にして読み取り専用 OneWay バインドへ揃える。
     変更: `Controls/PreviewBitmapCache.cs`（`SnapshotFileNames`→`Snapshot()`＋`CacheItemState`）・`Controls/PreviewControl.xaml(.cs)`。
+  - **オーバーレイを状態でグループ化（main・2026-06-30）**: 「loading の上に waiting が混ざる」現象を整理。**真因＝表示順が
+    `_inflight`（`Dictionary`）の列挙順で、Dictionary は挿入順を保証しない**（追加/削除churnでフリーリストのスロット再利用が起き
+    崩れる）こと。ゲート（`SemaphoreSlim`）の取得自体は概ね FIFO で問題なし＝**表示順がそれを反映していないだけ**だった。
+    対策＝`Snapshot()` の**最終段で状態ソート**（`OrderBy((int)State)`＝enum 宣言順 `cached→loading→waiting`。安定ソートで
+    グループ内の相対順は保持）。**`_inflight`/`_loading` 等の状態管理コレクションは無変更**（並べ替えは表示用スナップショットのみ）。
+    変更: `Controls/PreviewBitmapCache.cs`（`Snapshot()` 末尾の `OrderBy` 1行）。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

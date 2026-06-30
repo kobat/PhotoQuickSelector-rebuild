@@ -65,8 +65,10 @@ internal sealed class PreviewBitmapCache
 
     /// <summary>
     /// 現在キャッシュ中の画像のファイル名と状態の一覧（デバッグオーバーレイ用）。
-    /// デコード済みに続けて、ゲート取得済みで読み込み中（<see cref="CacheItemState.Loading"/>）、
-    /// ゲート順番待ち（<see cref="CacheItemState.Waiting"/>）を挿入順のまま列挙する。
+    /// 状態でグループ化して返す（cached → loading → waiting）。
+    /// <see cref="_inflight"/> は <see cref="Dictionary{TKey,TValue}"/> で列挙順が挿入順を保証せず
+    /// （削除によるスロット再利用で崩れる）、loading の上に waiting が混ざって見えるため、
+    /// 表示用に状態でソートする（状態管理コレクションには手を付けない）。
     /// 色（UI 型）はここでは決めず、状態 enum までに留める（キャッシュは UI 非依存）。
     /// </summary>
     public IReadOnlyList<(string Name, CacheItemState State)> Snapshot()
@@ -78,7 +80,10 @@ internal sealed class PreviewBitmapCache
             if (!_cache.ContainsKey(path))
                 list.Add((Path.GetFileName(path)!,
                           _loading.Contains(path) ? CacheItemState.Loading : CacheItemState.Waiting));
-        return list;
+
+        // 状態でグループ化して表示（enum 宣言順 = cached → loading → waiting）。
+        // OrderBy は安定ソートなので各グループ内の相対順はそのまま。
+        return list.OrderBy(x => (int)x.Item2).ToList();
     }
 
     /// <summary>キャッシュ優先で <see cref="CanvasBitmap"/> を取得する。読み込み中なら同一タスクを共有。</summary>
