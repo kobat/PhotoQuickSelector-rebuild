@@ -1019,6 +1019,29 @@
   - 変更: `Controls/PreviewControl.xaml.cs` のみ（早期 return 直前に Trim を追加）。**Core・`PreviewBitmapCache`・XAML は非変更**。
     `BUILD SUCCEEDED`（x64 Release・警告0）。実機目視（`C` オーバーレイでキャッシュ件数が頭打ち・メモリが増え続けない）はユーザー確認推奨。
 
+- **左右キー押しっぱなしで「読み込み中（loading）」が膨張する続発不具合 修正完了（2026-06-30・案2採用）**: 上の Trim 漏れ修正で
+  「デコード済みキャッシュ」は頭打ちになったが、続いて **`C` オーバーレイで「読み込み中（loading）の写真」が増え続ける**ことを観測。
+  **真因＝`PreviewBitmapCache` の進行中ロード（`_inflight`）に同時実行数・本数の上限が無く、`Trim` は完了済み `_cache` のみ破棄して
+  `_inflight` には手を付けない**こと。押しっぱなしで通過した写真ごとに `GetAsync`→`LoadCoreAsync` が起動し、多数のデコードが
+  並行して各々ファイル全バイトの `byte[]`（JPEG 数MB）＋デコード面を抱える＝loading とメモリが増え続けた。
+  - **対策2案を別ブランチで実装し比較（ユーザーが案2を採用）**:
+    - 案1 `feature/inflight-cancel`（`d027b8a`・プッシュ済み）＝各 inflight に `CancellationTokenSource` を紐付け、`Trim` で保持窓外を
+      `Cancel`（`File.ReadAllBytesAsync(ct)`/`CanvasBitmap.LoadAsync(...).AsTask(ct)` へ伝播）。走り出したロードを途中で打ち切る。
+    - **案2 `feature/inflight-gate`（採用・main へマージ）＝同時実行ゲート＋窓外バイパス**。重い「バイト読み込み＋デコード」を
+      `SemaphoreSlim(MaxConcurrentDecodes=2)` で同時2本に制限。ゲート取得時点で `IsWanted`（現在の保持窓内か）を評価し、外れていれば
+      **`byte[]` を確保せず即破棄**。押しっぱなしで通過した写真はゲート順が回る頃には窓外になっているので、メモリを使わず安価に捨てられる
+      （実デコードは着地写真＋近傍のみ＝同時 `byte[]` は最大2本に固定）。`IsWanted` は `PreviewControl` が `IsPathInWindow`（`WindowPaths()`
+      メンバー判定）で設定。
+  - **案2 採用の理由**: 「そもそもデコードを始めない」ぶん無駄CPUが少なく、同時 `byte[]` 上限が固定でメモリのピークが読みやすい。
+    案1 はデコード終盤でのキャンセルだと読み込み済みバイトが無駄になり、キャンセル伝播が効くまで `byte[]` が一瞬残りうる。
+  - **オーバーレイで waiting/loading を区別（`494a0cd`）**: ゲート取得済み＝実読み込み中のパスを `_loading`（`HashSet`）で追跡し、
+    `SnapshotFileNames` で **ゲート取得済み=`(loading)`／ゲート順番待ち=`(waiting)`** と表示し分け。待機中→読み込み中の遷移は
+    `_inflight` の増減を伴わないため、遷移時に `Changed` を発火してオーバーレイを更新する（変数名は従来表現の踏襲＋ファイル読み込みも
+    兼ねるため `_loading`）。辞書/集合操作はすべて UI スレッド上の継続（`ConfigureAwait(false)` 不使用）なのでロック不要。
+  - 変更（案2）: `Controls/PreviewBitmapCache.cs`（ゲート＋`IsWanted`＋`_loading`）・`Controls/PreviewControl.xaml.cs`（`IsWanted` 設定＋
+    `IsPathInWindow`）。**Core・XAML は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。`C` オーバーレイで「`(waiting)` が一瞬並ぶ→
+    ゲートを通った最大2枚が `(loading)`→着地後にデコード済みへ昇格」をユーザー確認済み（2026-06-30）。案1 ブランチは比較用に残置。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
