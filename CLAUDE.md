@@ -1041,6 +1041,14 @@
   - 変更（案2）: `Controls/PreviewBitmapCache.cs`（ゲート＋`IsWanted`＋`_loading`）・`Controls/PreviewControl.xaml.cs`（`IsWanted` 設定＋
     `IsPathInWindow`）。**Core・XAML は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。`C` オーバーレイで「`(waiting)` が一瞬並ぶ→
     ゲートを通った最大2枚が `(loading)`→着地後にデコード済みへ昇格」をユーザー確認済み（2026-06-30）。案1 ブランチは比較用に残置。
+  - **オーバーレイの状態色分け（main・2026-06-30）**: `C` オーバーレイを状態別の文字色に。**cached=白 `#E8FFFFFF`／
+    loading=緑系 `#FF7CE38B`／waiting=灰系 `#FF9AA0A6`**。並び順は**挿入順のまま**（ユーザー選択。並べ替えはしない）。
+    実装＝`Snapshot()` が `(string Name, CacheItemState State)`（enum＝`Cached`/`Loading`/`Waiting`、**色は持たず UI 非依存**）を
+    返し、`PreviewControl` 側で状態→（接尾辞＋ブラシ）にマッピングして表示項目 `CacheEntry`（`Text`＋`Brush Foreground`）を構築。
+    XAML の DataTemplate を `x:String`→`ctl:CacheEntry`（`Foreground="{x:Bind Foreground}"`）に。
+    - **落とし穴**: 表示項目をポジショナル `record` にすると `init` 専用プロパティになり、XAML 生成（`XamlTypeInfo.g.cs` の
+      setter 代入）と衝突して **CS8852** でビルド失敗。→ **get-only クラス**にして読み取り専用 OneWay バインドへ揃える。
+    変更: `Controls/PreviewBitmapCache.cs`（`SnapshotFileNames`→`Snapshot()`＋`CacheItemState`）・`Controls/PreviewControl.xaml(.cs)`。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

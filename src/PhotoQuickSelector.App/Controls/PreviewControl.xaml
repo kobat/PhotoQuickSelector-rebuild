@@ -118,8 +118,8 @@
                                FontSize="11" FontWeight="SemiBold" />
                     <ItemsControl ItemsSource="{x:Bind CachedFileNames, Mode=OneWay}">
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="x:String">
-                                <TextBlock Text="{x:Bind}" Foreground="#E8FFFFFF"
+                            <DataTemplate x:DataType="ctl:CacheEntry">
+                                <TextBlock Text="{x:Bind Text}" Foreground="{x:Bind Foreground}"
                                            FontSize="11" FontFamily="Consolas" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

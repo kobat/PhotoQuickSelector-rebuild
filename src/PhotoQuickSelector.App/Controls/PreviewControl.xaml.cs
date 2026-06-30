@@ -7,6 +7,7 @@ using Microsoft.Graphics.Canvas;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using PhotoQuickSelector.Core;
 using PhotoQuickSelector_App.ViewModels;
 using Windows.Foundation;
@@ -60,8 +61,13 @@ public sealed partial class PreviewControl : UserControl
 
     private MainViewModel? _viewModel;
 
-    /// <summary>キャッシュ中の画像ファイル名一覧（デバッグオーバーレイ用。C キーでトグル）。</summary>
-    public ObservableCollection<string> CachedFileNames { get; } = new();
+    /// <summary>キャッシュ中の画像（状態色付き）一覧（デバッグオーバーレイ用。C キーでトグル）。</summary>
+    public ObservableCollection<CacheEntry> CachedFileNames { get; } = new();
+
+    // 先読みキャッシュオーバーレイの状態別文字色（cached=白／loading=緑系／waiting=灰系）。
+    private static readonly Brush CachedBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE8, 0xFF, 0xFF, 0xFF));
+    private static readonly Brush LoadingBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x7C, 0xE3, 0x8B));
+    private static readonly Brush WaitingBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x9A, 0xA0, 0xA6));
 
     // フィルムストリップのサムネイル・デコード/破棄＋デコード済み LRU（小さめ容量）。
     // 高さ調節で大きめに広げてもボケないよう、デコード幅は最大セル一辺ぶんを見込む。
@@ -351,8 +357,16 @@ public sealed partial class PreviewControl : UserControl
         DispatcherQueue.TryEnqueue(() =>
         {
             CachedFileNames.Clear();
-            foreach (var name in _cache.SnapshotFileNames())
-                CachedFileNames.Add(name);
+            foreach (var (name, state) in _cache.Snapshot())
+            {
+                var (suffix, brush) = state switch
+                {
+                    CacheItemState.Loading => (" (loading)", LoadingBrush),
+                    CacheItemState.Waiting => (" (waiting)", WaitingBrush),
+                    _ => ("", CachedBrush),
+                };
+                CachedFileNames.Add(new CacheEntry(name + suffix, brush));
+            }
         });
     }
 
@@ -378,4 +392,21 @@ public sealed partial class PreviewControl : UserControl
                 return true;
         return false;
     }
+}
+
+/// <summary>先読みキャッシュオーバーレイの 1 行（表示文字＋状態色）。XAML の <c>x:Bind</c> 用に top-level 公開。</summary>
+/// <remarks>
+/// ポジショナル record だと <c>init</c> 専用プロパティになり XamlTypeInfo の生成（setter 代入）と
+/// 衝突する（CS8852）。get-only クラスにして読み取り専用バインド（OneWay）に揃える。
+/// </remarks>
+public sealed class CacheEntry
+{
+    public CacheEntry(string text, Brush foreground)
+    {
+        Text = text;
+        Foreground = foreground;
+    }
+
+    public string Text { get; }
+    public Brush Foreground { get; }
 }

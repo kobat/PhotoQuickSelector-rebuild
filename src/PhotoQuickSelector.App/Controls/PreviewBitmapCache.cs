@@ -10,6 +10,17 @@ using Windows.Storage.Streams;
 
 namespace PhotoQuickSelector_App.Controls;
 
+/// <summary>先読みキャッシュ項目の状態（デバッグオーバーレイの色分け用）。</summary>
+internal enum CacheItemState
+{
+    /// <summary>デコード済み（_cache 在籍）。</summary>
+    Cached,
+    /// <summary>ゲート取得済みでファイル読み込み＋デコード中。</summary>
+    Loading,
+    /// <summary>ゲートの順番待ち（まだ読み込みを開始していない）。</summary>
+    Waiting,
+}
+
 /// <summary>
 /// プレビューの前後 N 枚先読みキャッシュ（SPEC §4）。キーはファイルパス。
 /// <para>
@@ -53,20 +64,21 @@ internal sealed class PreviewBitmapCache
     public PreviewBitmapCache(ICanvasResourceCreator device) => _device = device;
 
     /// <summary>
-    /// 現在キャッシュ中の画像のファイル名一覧（デバッグオーバーレイ用）。
-    /// デコード済み（接尾辞なし）に続けて、ゲート取得済みで読み込み中のものを <c>(loading)</c>、
-    /// ゲート順番待ちのものを <c>(waiting)</c> 付きで列挙する。
+    /// 現在キャッシュ中の画像のファイル名と状態の一覧（デバッグオーバーレイ用）。
+    /// デコード済みに続けて、ゲート取得済みで読み込み中（<see cref="CacheItemState.Loading"/>）、
+    /// ゲート順番待ち（<see cref="CacheItemState.Waiting"/>）を挿入順のまま列挙する。
+    /// 色（UI 型）はここでは決めず、状態 enum までに留める（キャッシュは UI 非依存）。
     /// </summary>
-    public IReadOnlyList<string> SnapshotFileNames()
+    public IReadOnlyList<(string Name, CacheItemState State)> Snapshot()
     {
-        var list = _cache.Keys.Select(Path.GetFileName).ToList();
+        var list = _cache.Keys
+            .Select(k => (Path.GetFileName(k)!, CacheItemState.Cached))
+            .ToList();
         foreach (var path in _inflight.Keys)
             if (!_cache.ContainsKey(path))
-            {
-                var state = _loading.Contains(path) ? " (loading)" : " (waiting)";
-                list.Add(Path.GetFileName(path) + state);
-            }
-        return list!;
+                list.Add((Path.GetFileName(path)!,
+                          _loading.Contains(path) ? CacheItemState.Loading : CacheItemState.Waiting));
+        return list;
     }
 
     /// <summary>キャッシュ優先で <see cref="CanvasBitmap"/> を取得する。読み込み中なら同一タスクを共有。</summary>
