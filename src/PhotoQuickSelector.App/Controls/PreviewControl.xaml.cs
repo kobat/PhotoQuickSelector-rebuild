@@ -82,6 +82,9 @@ public sealed partial class PreviewControl : UserControl
         _filmMetrics = (FilmStripMetrics)Resources["FilmMetrics"];
         _cache = new PreviewBitmapCache(MainCanvas);
         _cache.Changed += RefreshCacheOverlay;
+        // 【案2】デコード順が回ってきた時点で「まだ保持窓内か」を判定し、窓外なら読み込みを破棄する。
+        // 押しっぱなしで通過した写真の不要ロードを安価に捨て、同時実行ゲートと併せて膨張を抑える。
+        _cache.IsWanted = IsPathInWindow;
 
         // Esc ではプレビューを抜けない（ユーザー要望）。プレビュー表示のまま維持する。
         // プレビュー終了はダブルクリック（SPEC §2）で行う。以前あった Esc→ExitPreview の
@@ -365,5 +368,14 @@ public sealed partial class PreviewControl : UserControl
         int end = Math.Min(vm.Photos.Count - 1, index + PrefetchForward);
         for (int i = start; i <= end; i++)
             yield return vm.Photos[i].Meta.Path;
+    }
+
+    /// <summary>【案2】指定パスが現在の保持窓内かどうか。キャッシュのデコード可否判定に使う。</summary>
+    private bool IsPathInWindow(string path)
+    {
+        foreach (var p in WindowPaths())
+            if (string.Equals(p, path, StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
     }
 }
