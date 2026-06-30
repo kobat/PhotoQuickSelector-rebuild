@@ -35,6 +35,8 @@ internal sealed class PreviewBitmapCache
     private readonly ICanvasResourceCreator _device;
     private readonly Dictionary<string, CanvasBitmap> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Task<CanvasBitmap?>> _inflight = new(StringComparer.OrdinalIgnoreCase);
+    // ゲートを取得してファイル読み込み＋デコード中のパス（ゲート順番待ちの待機中と区別する）。
+    private readonly HashSet<string> _loading = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _gate = new(MaxConcurrentDecodes, MaxConcurrentDecodes);
     private int _generation; // デバイス再生成でキャッシュを無効化する世代
 
@@ -52,14 +54,18 @@ internal sealed class PreviewBitmapCache
 
     /// <summary>
     /// 現在キャッシュ中の画像のファイル名一覧（デバッグオーバーレイ用）。
-    /// デコード済みに続けて、読込中（inflight）のものを <c>(loading)</c> 付きで列挙する。
+    /// デコード済み（接尾辞なし）に続けて、ゲート取得済みで読み込み中のものを <c>(loading)</c>、
+    /// ゲート順番待ちのものを <c>(waiting)</c> 付きで列挙する。
     /// </summary>
     public IReadOnlyList<string> SnapshotFileNames()
     {
         var list = _cache.Keys.Select(Path.GetFileName).ToList();
         foreach (var path in _inflight.Keys)
             if (!_cache.ContainsKey(path))
-                list.Add(Path.GetFileName(path) + " (loading)");
+            {
+                var state = _loading.Contains(path) ? " (loading)" : " (waiting)";
+                list.Add(Path.GetFileName(path) + state);
+            }
         return list!;
     }
 
@@ -88,6 +94,11 @@ internal sealed class PreviewBitmapCache
                 if (generation != _generation) return null;
                 if (IsWanted != null && !IsWanted(path)) return null;
 
+                // 待機中 → 読み込み中（ファイル読み込み＋デコード）へ遷移。
+                // _inflight の増減を伴わない遷移なので、ここで Changed を発火してオーバーレイを更新する。
+                _loading.Add(path);
+                Changed?.Invoke();
+
                 // ファイルパスを直接 CanvasBitmap.LoadAsync に渡すと、生成された CanvasBitmap が
                 // 生きている間ずっと元ファイルをロックし続ける（Win2D の既知挙動）。すると Reject 移動
                 // などの move がキャッシュ中のファイルだけ「使用中」で失敗する。バイトを読み切って
@@ -109,6 +120,7 @@ internal sealed class PreviewBitmapCache
             }
             finally
             {
+                _loading.Remove(path); // 読み込み終了（成功/失敗/破棄いずれも）
                 _gate.Release();
             }
         }
