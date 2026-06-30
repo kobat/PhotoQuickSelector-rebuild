@@ -1003,6 +1003,22 @@
     （`-p:PublishProfile=win-x64-singlefile`）後の実機タスクバーアイコンの最終目視はユーザー推奨。再利用知見はメモリ `winui-seticon-singlefile`。
   - 変更: `MainWindow.xaml.cs` のみ（`SetIcon(path)` → `SetWindowIconFromEmbedded()` ＋ P/Invoke 3 件）。
 
+- **左右キー押しっぱなしで先読みキャッシュが膨張するメモリリーク 修正完了（2026-06-30）**: 「←/→を押し続けるとメモリが
+  増え続け、離すと元に戻る」不具合を解消。先読みキャッシュ一覧オーバーレイ（`C`）で「押している間はキャッシュが増え続け
+  解放されない」ことを観測。**真因＝`PreviewControl.LoadCurrentAsync` の追い越し検出 `if (token != _loadToken) return;` が
+  `_cache.Trim()`（保持窓外の破棄）まで一緒にスキップしていた**こと。
+  - **機序**: ←/→ 押しっぱなしで `FocusedPhoto` が次々変わるたび `LoadCurrentAsync` が `_loadToken` をインクリメントし
+    `await _cache.GetAsync(path)` で中断。1枚のデコードはキーのオートリピート間隔より長いので、await 復帰前に次の呼び出しが
+    `_loadToken` を進める → 中断側は復帰時に必ず `token != _loadToken` で**早期 return**。`Trim` 呼び出しはコード全体でこの
+    関数末尾の 1 箇所のみのため、**押している間は一度も Trim が走らない**。一方 `GetAsync` は通り過ぎた中間写真も
+    `LoadCoreAsync` 完了時に `_cache[path]=bmp` で追加し続ける（世代はナビ中不変＝破棄もされない）→ 増え続ける。離すと
+    最後の 1 回だけ `token==_loadToken` で末尾に到達し `Trim` が走り保持窓（前1/後2）外を一括破棄＝元に戻る。
+  - **修正**: 追い越された場合でも `return` の前に `_cache.Trim(WindowPaths(), _bitmap)` を通す。`WindowPaths()` は現在の
+    `FocusedPhoto` 基準なので追い越し側から呼んでも常に最新窓へ収束。`Trim` は冪等・軽量なのでキャッシュは「窓＋進行中の
+    数枚」に収まる。表示の確定は従来どおり最新側（token 一致）の呼び出しに任せる。
+  - 変更: `Controls/PreviewControl.xaml.cs` のみ（早期 return 直前に Trim を追加）。**Core・`PreviewBitmapCache`・XAML は非変更**。
+    `BUILD SUCCEEDED`（x64 Release・警告0）。実機目視（`C` オーバーレイでキャッシュ件数が頭打ち・メモリが増え続けない）はユーザー確認推奨。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
