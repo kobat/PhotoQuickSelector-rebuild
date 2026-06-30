@@ -249,7 +249,14 @@ public sealed partial class PreviewControl : UserControl
         }
 
         var bmp = await _cache.GetAsync(photo.Meta.Path);
-        if (token != _loadToken) return; // 新しい読み込みに追い越された
+        if (token != _loadToken)
+        {
+            // 新しい読み込みに追い越された。表示は最新側に任せるが、ここで Trim を
+            // 通さないと押しっぱなしナビ中に Trim が一度も走らずキャッシュが膨張する。
+            // WindowPaths() は現在の FocusedPhoto 基準なので常に最新窓へ収束する。
+            _cache.Trim(WindowPaths(), _bitmap);
+            return;
+        }
 
         _bitmap = bmp;
         _currentMeta = bmp != null ? photo.Meta : null;
