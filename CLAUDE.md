@@ -985,6 +985,24 @@
     `Controls/PreviewControl.xaml`（焦点リング/メンバー強調色）、`Controls/PhotoGridView.xaml`（メンバー強調色＋`GridView.Resources`
     選択枠色上書き＋`ItemContainerStyle` BasedOn＋`UseSystemFocusVisuals=False`）。`BUILD SUCCEEDED`（x64 Release・警告0）。
 
+- **単一ファイル発行で窓/タスクバーのアイコンが反映されない不具合 修正完了（2026-06-30）**: `dotnet publish` の
+  単一ファイル（`PublishSingleFile=true`）で起動後のアイコンが既定に戻る不具合を解消。**Core 非変更**（`MainWindow.xaml.cs` のみ）。
+  - **真因（アイコンは2系統）**: ①エクスプローラ上の **exe ファイルアイコン**（`<ApplicationIcon>` による exe 埋め込み＝
+    `RT_GROUP_ICON`）は単一ファイルでも正しく入る（実バイナリ解析で確認：1 グループ・7 解像度・PNG エントリがソース
+    `AppIcon.ico` と一致）。壊れていたのは ②**実行時に設定する窓/タスクバーのアイコン**で、旧コードは
+    `AppWindow.SetIcon("Assets/AppIcon.ico")`＝**ディスク上の .ico ファイルを相対パスで読む** API だった。単一ファイル発行では
+    `Assets\AppIcon.ico` も `resources.pri` も exe 内へ埋め込まれて**ディスクに残らない**（出力フォルダに Assets なし）ため
+    `SetIcon` が黙って失敗し既定アイコンへ。フォルダ発行/packaged では loose ファイルが残るので顕在化しなかった。
+  - **修正（埋め込みアイコンを HICON でロード＝ファイルパス非依存）**: 新ヘルパー `SetWindowIconFromEmbedded()`＝
+    `GetModuleHandleW(null)`（自 exe）→ `EnumResourceNamesW(h, RT_GROUP_ICON=14, …)` で**最初の**グループアイコン ID を
+    列挙取得（ID 決め打ちせず堅牢。apphost では実測 id=32512）→ `LoadImageW(…, IMAGE_ICON, LR_DEFAULTSIZE|LR_SHARED)` で
+    HICON → `Microsoft.UI.Win32Interop.GetIconIdFromIcon(hIcon)` → `AppWindow.SetIcon(iconId)`。packaged/フォルダ/単一ファイル
+    すべてで効く。`EnableDarkTitleBar` と同じ P/Invoke 区画に declarations を追加。
+  - **検証**: `BUILD SUCCEEDED`（x64 Release・警告0）。発行済み単一ファイル exe に同じ P/Invoke 経路（`LoadLibraryExW(...,0x20)`
+    →Enum→`LoadImageW`）を当て、最初の `RT_GROUP_ICON` id が解決し `LoadImage` が有効な HICON を返すことを確認。再発行
+    （`-p:PublishProfile=win-x64-singlefile`）後の実機タスクバーアイコンの最終目視はユーザー推奨。再利用知見はメモリ `winui-seticon-singlefile`。
+  - 変更: `MainWindow.xaml.cs` のみ（`SetIcon(path)` → `SetWindowIconFromEmbedded()` ＋ P/Invoke 3 件）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**

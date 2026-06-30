@@ -35,7 +35,12 @@ public sealed partial class MainWindow : Window
         // 詳細はメモリ close-button-titlebar-focus-race を参照。
         EnableDarkTitleBar();
 
-        AppWindow.SetIcon("Assets/AppIcon.ico");
+        // 窓/タスクバーのアイコンを設定する。
+        // AppWindow.SetIcon(path) は「ディスク上の .ico ファイル」を相対パスで読むため、単一ファイル発行
+        // （Assets\AppIcon.ico も resources.pri も exe 内へ埋め込まれてディスクに残らない）では失敗し、
+        // 既定アイコンに戻ってしまう。そこで exe 自身に埋め込んだアイコンリソース（<ApplicationIcon> 由来）
+        // を直接ロードして適用する＝ファイルパスに依存しないので packaged/フォルダ/単一ファイルすべてで効く。
+        SetWindowIconFromEmbedded();
 
         // Navigate the root frame to the main page on startup.
         RootFrame.Navigate(typeof(MainPage));
@@ -166,6 +171,59 @@ public sealed partial class MainWindow : Window
 
     [DllImport("dwmapi.dll", SetLastError = true)]
     private static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int pvAttribute, int cbAttribute);
+
+    /// <summary>
+    /// exe に埋め込まれたアイコンリソース（<c>&lt;ApplicationIcon&gt;</c> が埋めた RT_GROUP_ICON）を
+    /// ディスクのファイルに依存せず HICON としてロードし、窓/タスクバーへ適用する。
+    /// 単一ファイル発行で Assets\AppIcon.ico がディスクに存在しないケースに対応する。
+    /// </summary>
+    private void SetWindowIconFromEmbedded()
+    {
+        IntPtr hModule = GetModuleHandleW(null); // 自プロセス（exe）のモジュールハンドル
+        if (hModule == IntPtr.Zero)
+        {
+            return;
+        }
+
+        // 最初の RT_GROUP_ICON のリソース ID を取得する（ApplicationIcon が埋めたメインアイコン）。
+        IntPtr iconResId = IntPtr.Zero;
+        EnumResourceNamesW(hModule, RT_GROUP_ICON, (m, t, name, l) =>
+        {
+            iconResId = name; // 整数 ID（MAKEINTRESOURCE 形式）として渡される
+            return false;     // 最初の 1 件で列挙を打ち切る
+        }, IntPtr.Zero);
+
+        if (iconResId == IntPtr.Zero)
+        {
+            return;
+        }
+
+        // 既定サイズ（システム大アイコン）でロード。LR_SHARED なので解放不要。
+        IntPtr hIcon = LoadImageW(hModule, iconResId, IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_SHARED);
+        if (hIcon == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var iconId = Microsoft.UI.Win32Interop.GetIconIdFromIcon(hIcon);
+        AppWindow.SetIcon(iconId);
+    }
+
+    private static readonly IntPtr RT_GROUP_ICON = (IntPtr)14;
+    private const uint IMAGE_ICON = 1;
+    private const uint LR_DEFAULTSIZE = 0x00000040;
+    private const uint LR_SHARED = 0x00008000;
+
+    private delegate bool EnumResNameProc(IntPtr hModule, IntPtr lpszType, IntPtr lpszName, IntPtr lParam);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr GetModuleHandleW(string? lpModuleName);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool EnumResourceNamesW(IntPtr hModule, IntPtr lpszType, EnumResNameProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr LoadImageW(IntPtr hInst, IntPtr name, uint type, int cx, int cy, uint fuLoad);
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
