@@ -53,13 +53,20 @@ public sealed partial class PreviewControl : UserControl
     private const int PrefetchBackward = 1;
 
     // 連打中のフル解像度デコード（≈200MB/枚）抑制。素の毎キー・デコードは VRAM 生成レートを
-    // 飽和させ（回収が追いつかず増え続ける）ため、FocusedPhoto 変更を throttle する:
-    //   ・先頭（前回デコードから LoadThrottleInterval 以上経過）＝即デコード（遅延なし）
-    //   ・連打継続中＝間引く。ただし周期的（数秒に1回）に現在位置をデコードして中間フィードバック
+    // 飽和させ（回収が追いつかず増え続ける）ため、未キャッシュ（＝重いデコードが要る）画像の読み込みを
+    // 「直近 RateWindow 内のデコード回数」でレート制限する:
+    //   ・キャッシュ済み＝デコード不要（VRAM 生成なし）→ 常に即表示（別途 IsCached で判定）
+    //   ・未キャッシュでも直近のデコード回数が RateBudget 未満＝レートに余裕あり → 即デコード
+    //     （離れたファイルへ数枚ジャンプ、通常の連続切替はここで遅延なく通る）
+    //   ・未キャッシュでレート超過（押しっぱなしの大量連発）→ 間引く
     //   ・停止後 LoadSettleDelay ＝最終位置を確定デコード＋近傍を先読み
+    // 経過時間ではなく「回数（レート）」で絞るので、キーリピート速度の OS 設定に依存しない。
+    // 持続レート上限は概ね RateBudget ÷ RateWindow（＝許容バーストと連動）。VRAM が増えるなら
+    // RateBudget を下げる／RateWindow を延ばす。バーストが足りず遅延を感じるなら逆に緩める。
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _settleTimer;
-    private DateTime _lastFullLoadUtc = DateTime.MinValue;
-    private static readonly TimeSpan LoadThrottleInterval = TimeSpan.FromMilliseconds(2000); // 連打継続中の周期（数秒に1回）
+    private readonly Queue<DateTime> _recentDecodes = new();                                  // 直近のフル解像度デコード時刻（レート判定用）
+    private static readonly TimeSpan RateWindow = TimeSpan.FromMilliseconds(1500);            // レートを見る窓
+    private const int RateBudget = 3;                                                         // 窓内で即デコードを許す枚数
     private static readonly TimeSpan LoadSettleDelay = TimeSpan.FromMilliseconds(150);        // 停止後の確定＋先読み
 
     private bool _isPanning;
@@ -203,9 +210,9 @@ public sealed partial class PreviewControl : UserControl
             case nameof(MainViewModel.IsPreviewMode):
                 if (_viewModel?.IsPreviewMode == true)
                 {
-                    // 入場時はフィット表示から始める（throttle はバイパスして即時ロード）。
+                    // 入場時はフィット表示から始める（レート制限はバイパスして即時ロード）。
                     _settleTimer?.Stop();
-                    _lastFullLoadUtc = DateTime.MinValue; // 入場後の最初のナビは必ず先頭＝即デコード
+                    _recentDecodes.Clear(); // 入場後の最初のナビは必ず即デコード
                     LoadCurrentAsync(preserveView: false);
                     FocusForKeys();
                     ScrollSelectedIntoView();
@@ -261,7 +268,7 @@ public sealed partial class PreviewControl : UserControl
     {
         if (_viewModel?.IsPreviewMode != true) return;
 
-        // 既にデコード済み（キャッシュ在籍）ならデコード不要＝VRAM を生成しない。throttle せず即表示する。
+        // 既にデコード済み（キャッシュ在籍）ならデコード不要＝VRAM を生成しない。レート制限せず即表示する。
         // 通常のゆっくりした前後移動は settle 先読みで近傍が温まっているため、これで2枚目以降も遅延なく出る。
         var photo = _viewModel.FocusedPhoto;
         if (photo != null && _cache.IsCached(photo.Meta.Path))
@@ -271,16 +278,24 @@ public sealed partial class PreviewControl : UserControl
             return;
         }
 
-        // 未キャッシュ＝重いフル解像度デコード（≈200MB/枚）。連打中の生成レート飽和を防ぐため throttle する:
-        //   ・先頭 or 周期（LoadThrottleInterval 経過）＝即デコード
-        //   ・それ以外＝間引き。停止後の settle で最終位置を確定＋先読み。
+        // 未キャッシュ＝重いフル解像度デコード（≈200MB/枚）。直近 RateWindow 内のデコード回数で絞る:
+        //   ・回数が RateBudget 未満＝レートに余裕あり → 即デコード（数枚のジャンプ・通常連続切替はここを通る）
+        //   ・超過＝押しっぱなしの大量連発 → 間引き。停止後の settle で最終位置を確定＋先読み。
         var now = DateTime.UtcNow;
-        if (now - _lastFullLoadUtc >= LoadThrottleInterval)
+        if (PrunedDecodeCount(now) < RateBudget)
         {
-            _lastFullLoadUtc = now;
+            _recentDecodes.Enqueue(now);
             LoadCurrentAsync(preserveView: true, prefetch: false);
         }
         RestartSettleTimer();
+    }
+
+    /// <summary>直近 <see cref="RateWindow"/> より古いデコード時刻を捨て、窓内の残数を返す。</summary>
+    private int PrunedDecodeCount(DateTime now)
+    {
+        while (_recentDecodes.Count > 0 && now - _recentDecodes.Peek() > RateWindow)
+            _recentDecodes.Dequeue();
+        return _recentDecodes.Count;
     }
 
     private void RestartSettleTimer()
@@ -300,7 +315,14 @@ public sealed partial class PreviewControl : UserControl
             s.Stop();
             if (_viewModel?.IsPreviewMode != true) return;
             // 停止後の確定: 最終位置をデコード（既にデコード済みならキャッシュヒットで無駄なし）＋近傍を先読み。
-            _lastFullLoadUtc = DateTime.UtcNow;
+            // 未キャッシュ＝実デコードするならレート窓に計上する（停止後なので通常は低レート）。
+            var photo = _viewModel.FocusedPhoto;
+            if (photo != null && !_cache.IsCached(photo.Meta.Path))
+            {
+                var now = DateTime.UtcNow;
+                PrunedDecodeCount(now);
+                _recentDecodes.Enqueue(now);
+            }
             LoadCurrentAsync(preserveView: true, prefetch: true);
         };
         return timer;
@@ -414,9 +436,9 @@ public sealed partial class PreviewControl : UserControl
         _cache.Clear();
         _bitmap = null;
         _currentMeta = null;
-        // デバイス再生成/DPI 変更時は現在のズーム状態を保ったまま即時再ロードする（throttle はバイパス）。
+        // デバイス再生成/DPI 変更時は現在のズーム状態を保ったまま即時再ロードする（レート制限はバイパス）。
         _settleTimer?.Stop();
-        _lastFullLoadUtc = DateTime.MinValue;
+        _recentDecodes.Clear();
         LoadCurrentAsync(preserveView: true);
     }
 

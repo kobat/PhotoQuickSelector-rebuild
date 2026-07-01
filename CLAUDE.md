@@ -1088,6 +1088,21 @@
   - 変更: `Controls/PreviewControl.xaml.cs`（throttle 一式・`LoadCurrentAsync` に `prefetch` 引数）・
     `Controls/PreviewBitmapCache.cs`（`IsCached` 追加）。**Core・XAML は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。
     実機で「連打中 VRAM 非増加」「通常の連続切替が遅延なし」「先頭即時・連打中は数秒周期・停止後に最終位置」をユーザー確認済み（2026-07-01）。
+  - **時間ベース → レートベースへ改良（`2d2c48c` の後・2026-07-02）**: 上記 throttle は「前回デコードからの経過時間
+    （`LoadThrottleInterval=2s`）」で判定していたため、**Ctrl+Space の複数選択などで場所が離れた（＝キャッシュにない）ファイルへ
+    左右キーで数枚ジャンプすると、2枚目以降が throttle に引っかかって遅延**する不満が残った（連発ではないのに抑制される）。
+    → 未キャッシュ画像の読み込み判定を**「直近 `RateWindow`（1500ms）内のデコード回数」で絞るレート制限**に変更:
+    窓内のデコード回数が `RateBudget`（3枚）未満なら即デコード、超過（押しっぱなしの大量連発）なら間引き。
+    `Queue<DateTime> _recentDecodes`＋`PrunedDecodeCount(now)`（窓外を捨てて残数を返す）で実装。旧
+    `_lastFullLoadUtc`/`LoadThrottleInterval` は撤去。周期デコード（数秒に1回）はレート窓が中間フィードバックを兼ねるため不要に。
+    キャッシュ済み即表示・停止後 settle 確定＋先読み・入場/デバイス再生成のバイパスは踏襲（バイパスは `_recentDecodes.Clear()` に変更）。
+    settle の確定デコードも未キャッシュ時はレート窓に計上。
+    - **利点**: ①離れたファイルへ数枚ジャンプ／通常の連続切替は遅延なく通る ②経過時間でなく**回数**で絞るので
+      **キーリピート速度の OS 設定に依存しない**（時間間隔で「連打か」を当てる方式は遅いリピート設定で誤判定し得る）。
+    - **トレードオフ**: 純レート制限なので持続レート上限 ≒ `RateBudget ÷ RateWindow`（許容バーストと連動）。VRAM がまだ増えるなら
+      `RateBudget` を下げる／`RateWindow` を延ばす。数枚ジャンプで遅延を感じるなら逆に緩める（調整ノブ）。
+    - 変更: `Controls/PreviewControl.xaml.cs` のみ。**Core・XAML・`PreviewBitmapCache` は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。
+      実機で「離れたファイルへの数枚ジャンプが遅延なし」「連打中 VRAM 非増加」「通常連続切替が快適」をユーザー確認済み（2026-07-02）。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
