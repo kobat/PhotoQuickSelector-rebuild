@@ -86,6 +86,12 @@ internal sealed class PreviewBitmapCache
         return list.OrderBy(x => (int)x.Item2).ToList();
     }
 
+    /// <summary>
+    /// 指定パスが既にデコード済み（キャッシュ在籍）かどうか。true なら <see cref="GetAsync"/> は
+    /// 追加デコードなし（VRAM 生成なし）で即返せる＝throttle せず即表示してよい、の判定に使う。
+    /// </summary>
+    public bool IsCached(string path) => _cache.ContainsKey(path);
+
     /// <summary>キャッシュ優先で <see cref="CanvasBitmap"/> を取得する。読み込み中なら同一タスクを共有。</summary>
     public Task<CanvasBitmap?> GetAsync(string path)
     {

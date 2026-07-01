@@ -1056,6 +1056,39 @@
     グループ内の相対順は保持）。**`_inflight`/`_loading` 等の状態管理コレクションは無変更**（並べ替えは表示用スナップショットのみ）。
     変更: `Controls/PreviewBitmapCache.cs`（`Snapshot()` 末尾の `OrderBy` 1行）。
 
+- **左右キー連打でビデオメモリ（VRAM）が増え続けるリーク 修正完了（2026-07-01）**: 「先読みキャッシュの件数は頭打ちなのに、
+  ←/→ を押し続けると VRAM が毎秒約2GB のペースで増え続け、離すと解放される（メインメモリは横ばい）」不具合を解消。
+  **真因＝フル解像度 `CanvasBitmap` の生成レート飽和**（Dispose しても回収がレートに追いつかず、ドライバがコミット済み VRAM を溜め込む）。
+  発生源そのものを断つ throttle で対処。
+  - **切り分けの経緯（重要）**: ①キャッシュは `Trim`/`Clear` で `Dispose()` 済み＝件数は頭打ち。②規模で犯人を特定＝
+    **2GB/秒 ÷ 約200MB/枚（α1 8640×5760×4＝BGRA8）≒ 毎秒10枚**でフル解像度デコード相当。サムネイル（140px≒52KB/枚）では
+    毎秒4万枚必要＝4桁足りず**サムネイルは原因になり得ない**。③診断で `Trim` に `GC.Collect()`＋`WaitForPendingFinalizers()` を
+    一時挿入 → **連打中の増加は止まらず**＝finalizer 保持ではなく**生成レート飽和**（GC では解決不可）と確定。診断コードは撤去済み。
+  - **なぜ churn するか**: キーのオートリピート（毎秒20〜30）が毎回 `FocusedPhoto` を変え → `LoadCurrentAsync`→`GetAsync`で
+    200MB デコード。着地ごとの `Prefetch(WindowPaths())`（前1後2）が要求を約4倍に増幅。`SemaphoreSlim` ゲート（同時2）は
+    **同時実行数を絞るだけで累積レートは絞らない**ため、パイプラインが飽和し続ける。加えて `LoadCoreAsync` は
+    `ConfigureAwait(false)` を持たず（サムネイル側とは非対称）、継続・`Trim`/`Dispose`・描画が UI スレッドに戻るため、
+    生成が回収を追い越す。
+  - **対策＝発生源を断つ throttle（`PreviewControl.RequestPreviewLoad`）**: `FocusedPhoto` 変更を直接ロードせず throttle 経由に。
+    リーディング（先頭即時＝遅延なし）＋周期（連打継続中は数秒に1回だけデコードして中間フィードバック。既定
+    `LoadThrottleInterval=2000ms`）＋トレーリング（停止後 `LoadSettleDelay=150ms` に最終位置を確定デコード＋近傍先読み。
+    `DispatcherQueueTimer`）。連打中メインは直前の画像のまま（選択位置はフィルムストリップのハイライトで分かる）。
+    先読み（`Prefetch`）は連打中の間引きロードでは走らせず（`LoadCurrentAsync(prefetch:false)`）、settle の確定ロードでのみ実行。
+    これで連打中のフル解像度デコードは「先頭1＋2秒に1＋末尾1」に激減＝生成レート約100MB/秒（従来の1/20）で VRAM は増えなくなる。
+  - **通常の連続切替が遅延する回帰への追修正（同日・重要）**: 上記だけだと throttle が**キャッシュ済み（＝デコード不要）の写真まで
+    待たせて**しまい、「短時間に連続で ←/→ を叩くと2枚目以降が150ms 遅延」という快適度低下が出た。→ **キャッシュ済みは throttle を
+    無視して即表示**に修正（`PreviewBitmapCache.IsCached(path)` を追加し、`RequestPreviewLoad` 冒頭でヒットなら即
+    `LoadCurrentAsync(prefetch:false)`＋settle 張り直しで return）。デコード不要＝VRAM を生成しないので待たせる理由がない。
+    通常のゆっくりした前後移動は settle 先読みで近傍が温まっているため2枚目以降も遅延なく出て、連打（窓が追いつかず未キャッシュ連発）
+    だけが従来どおり抑制される。
+  - **入場/デバイス再生成は throttle をバイパス**（`IsPreviewMode`入場・`ResetCacheAndReload` は `_settleTimer?.Stop()`＋
+    `_lastFullLoadUtc=MinValue` で即時ロード＝入場後の最初のナビも必ず先頭＝即デコード）。
+  - 調整ノブ: `LoadThrottleInterval`（連打中の周期）／`LoadSettleDelay`（停止後の確定待ち）。効かない/遅い場合は先読み窓
+    `PrefetchForward`/`PrefetchBackward` を広げる手もある。
+  - 変更: `Controls/PreviewControl.xaml.cs`（throttle 一式・`LoadCurrentAsync` に `prefetch` 引数）・
+    `Controls/PreviewBitmapCache.cs`（`IsCached` 追加）。**Core・XAML は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。
+    実機で「連打中 VRAM 非増加」「通常の連続切替が遅延なし」「先頭即時・連打中は数秒周期・停止後に最終位置」をユーザー確認済み（2026-07-01）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**

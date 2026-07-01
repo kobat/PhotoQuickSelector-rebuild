@@ -52,6 +52,16 @@ public sealed partial class PreviewControl : UserControl
     private const int PrefetchForward = 2;
     private const int PrefetchBackward = 1;
 
+    // 連打中のフル解像度デコード（≈200MB/枚）抑制。素の毎キー・デコードは VRAM 生成レートを
+    // 飽和させ（回収が追いつかず増え続ける）ため、FocusedPhoto 変更を throttle する:
+    //   ・先頭（前回デコードから LoadThrottleInterval 以上経過）＝即デコード（遅延なし）
+    //   ・連打継続中＝間引く。ただし周期的（数秒に1回）に現在位置をデコードして中間フィードバック
+    //   ・停止後 LoadSettleDelay ＝最終位置を確定デコード＋近傍を先読み
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _settleTimer;
+    private DateTime _lastFullLoadUtc = DateTime.MinValue;
+    private static readonly TimeSpan LoadThrottleInterval = TimeSpan.FromMilliseconds(2000); // 連打継続中の周期（数秒に1回）
+    private static readonly TimeSpan LoadSettleDelay = TimeSpan.FromMilliseconds(150);        // 停止後の確定＋先読み
+
     private bool _isPanning;
     private Point _lastPointer;
 
@@ -186,13 +196,16 @@ public sealed partial class PreviewControl : UserControl
         {
             case nameof(MainViewModel.FocusedPhoto):
                 // プレビュー中の写真切替はズーム状態（モード/フィット比/相対中心）を維持する。
-                LoadCurrentAsync(preserveView: true);
+                // 連打中のフル解像度デコード膨張を防ぐため throttle 経由で要求する。
+                RequestPreviewLoad();
                 ScrollSelectedIntoView();
                 break;
             case nameof(MainViewModel.IsPreviewMode):
                 if (_viewModel?.IsPreviewMode == true)
                 {
-                    // 入場時はフィット表示から始める。
+                    // 入場時はフィット表示から始める（throttle はバイパスして即時ロード）。
+                    _settleTimer?.Stop();
+                    _lastFullLoadUtc = DateTime.MinValue; // 入場後の最初のナビは必ず先頭＝即デコード
                     LoadCurrentAsync(preserveView: false);
                     FocusForKeys();
                     ScrollSelectedIntoView();
@@ -238,11 +251,70 @@ public sealed partial class PreviewControl : UserControl
 
     // --- 画像ロード ---
 
+    /// <summary>
+    /// FocusedPhoto 変更時のプレビュー読み込み要求（連打時の VRAM 膨張対策の throttle）。
+    /// 先頭は即デコード（遅延なし）、連打継続中は間引きつつ周期的（数秒に1回）に更新、
+    /// 停止後に最終位置を確定デコード＋近傍先読み。連打中メインは直前の画像のまま
+    /// （どの写真かはフィルムストリップのハイライトで分かる）。
+    /// </summary>
+    private void RequestPreviewLoad()
+    {
+        if (_viewModel?.IsPreviewMode != true) return;
+
+        // 既にデコード済み（キャッシュ在籍）ならデコード不要＝VRAM を生成しない。throttle せず即表示する。
+        // 通常のゆっくりした前後移動は settle 先読みで近傍が温まっているため、これで2枚目以降も遅延なく出る。
+        var photo = _viewModel.FocusedPhoto;
+        if (photo != null && _cache.IsCached(photo.Meta.Path))
+        {
+            LoadCurrentAsync(preserveView: true, prefetch: false);
+            RestartSettleTimer(); // 止まった後に近傍を先読みして次の移動も温める
+            return;
+        }
+
+        // 未キャッシュ＝重いフル解像度デコード（≈200MB/枚）。連打中の生成レート飽和を防ぐため throttle する:
+        //   ・先頭 or 周期（LoadThrottleInterval 経過）＝即デコード
+        //   ・それ以外＝間引き。停止後の settle で最終位置を確定＋先読み。
+        var now = DateTime.UtcNow;
+        if (now - _lastFullLoadUtc >= LoadThrottleInterval)
+        {
+            _lastFullLoadUtc = now;
+            LoadCurrentAsync(preserveView: true, prefetch: false);
+        }
+        RestartSettleTimer();
+    }
+
+    private void RestartSettleTimer()
+    {
+        _settleTimer ??= CreateSettleTimer();
+        _settleTimer.Stop();
+        _settleTimer.Start();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateSettleTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = LoadSettleDelay;
+        timer.IsRepeating = false;
+        timer.Tick += (s, _) =>
+        {
+            s.Stop();
+            if (_viewModel?.IsPreviewMode != true) return;
+            // 停止後の確定: 最終位置をデコード（既にデコード済みならキャッシュヒットで無駄なし）＋近傍を先読み。
+            _lastFullLoadUtc = DateTime.UtcNow;
+            LoadCurrentAsync(preserveView: true, prefetch: true);
+        };
+        return timer;
+    }
+
     /// <param name="preserveView">
     /// true なら現在のズーム状態（モード/フィット比/相対中心）を維持して差し替える（写真切替）。
     /// false なら新画像をフィット表示で初期化する（プレビュー入場時）。
     /// </param>
-    private async void LoadCurrentAsync(bool preserveView = false)
+    /// <param name="prefetch">
+    /// true なら読み込み後に近傍を先読みする。連打中の間引きロード（<see cref="RequestPreviewLoad"/> の
+    /// 先頭/周期）では false にして近傍デコードの膨張を避け、停止後の確定ロードでのみ先読みする。
+    /// </param>
+    private async void LoadCurrentAsync(bool preserveView = false, bool prefetch = true)
     {
         if (_viewModel?.IsPreviewMode != true) return;
 
@@ -297,7 +369,7 @@ public sealed partial class PreviewControl : UserControl
         }
         InvalidateAll();
 
-        _cache.Prefetch(WindowPaths());
+        if (prefetch) _cache.Prefetch(WindowPaths());
         _cache.Trim(WindowPaths(), _bitmap);
     }
 
@@ -342,7 +414,9 @@ public sealed partial class PreviewControl : UserControl
         _cache.Clear();
         _bitmap = null;
         _currentMeta = null;
-        // デバイス再生成/DPI 変更時は現在のズーム状態を保ったまま再ロードする。
+        // デバイス再生成/DPI 変更時は現在のズーム状態を保ったまま即時再ロードする（throttle はバイパス）。
+        _settleTimer?.Stop();
+        _lastFullLoadUtc = DateTime.MinValue;
         LoadCurrentAsync(preserveView: true);
     }
 
