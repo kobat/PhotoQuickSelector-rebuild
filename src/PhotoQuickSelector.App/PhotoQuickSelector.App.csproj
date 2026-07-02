@@ -71,9 +71,11 @@
   <ItemGroup>
     <Content Include="..\..\LICENSE" Link="LICENSE">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\..\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>
 
@@ -86,6 +88,15 @@
     <EmbeddedResource Include="..\..\LICENSE" LogicalName="LICENSE" />
     <EmbeddedResource Include="..\..\THIRD-PARTY-NOTICES.txt" LogicalName="THIRD-PARTY-NOTICES.txt" />
   </ItemGroup>
+
+  <!--
+    EnableMsixTooling=true の下では Content の CopyToPublishDirectory が publish 出力へ反映されない
+    （WinAppSDK/MSIX 側の publish パイプラインが ResolvedFileToPublish を独自に計算するため）。
+    dotnet publish（フォルダ／単一ファイルいずれも）の後に確実に配置する。
+  -->
+  <Target Name="CopyLicenseFilesToPublishDir" AfterTargets="Publish">
+    <Copy SourceFiles="..\..\LICENSE;..\..\THIRD-PARTY-NOTICES.txt" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
 
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution

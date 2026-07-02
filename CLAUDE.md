@@ -1104,6 +1104,22 @@
     - 変更: `Controls/PreviewControl.xaml.cs` のみ。**Core・XAML・`PreviewBitmapCache` は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。
       実機で「離れたファイルへの数枚ジャンプが遅延なし」「連打中 VRAM 非増加」「通常連続切替が快適」をユーザー確認済み（2026-07-02）。
 
+- **publish 出力に LICENSE／THIRD-PARTY-NOTICES.txt が出ない不具合 修正完了（2026-07-02）**: `dotnet publish`（単一ファイル・
+  フォルダ両プロファイル）の出力フォルダに `LICENSE`/`THIRD-PARTY-NOTICES.txt` が配置されていなかった問題を解消。
+  - **真因**: 既存の `Content`（`CopyToOutputDirectory=PreserveNewest`）は `dotnet build` 出力（`bin\…\win-x64\` 直下）へは
+    コピーされるが、本 csproj は `EnableMsixTooling=true`（WinAppSDK/MSIX の publish パイプライン）が有効なため、**publish では
+    標準の `CopyToPublishDirectory` によるファイル解決が効かず**両ライセンス文が publish 出力に入っていなかった（実発行で再現確認。
+    `CopyToPublishDirectory` を Content に明示追加しても改善せず）。＝アプリ内表示用の `EmbeddedResource` 埋め込みは効いていたが、
+    **配布物同梱＝法的要件のほうの loose ファイルが欠落**していた。
+  - **修正（パイプライン非依存の `AfterTargets="Publish"` Target）**: csproj に
+    `<Target Name="CopyLicenseFilesToPublishDir" AfterTargets="Publish"><Copy SourceFiles="..\..\LICENSE;..\..\THIRD-PARTY-NOTICES.txt"
+    DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" /></Target>` を追加。`Publish` 完了後に `$(PublishDir)` へ直接コピー
+    するのでフォルダ配布／単一ファイルのどちらでも確実に配置される。既存の Content（`CopyToOutputDirectory`＝build 出力用・実害なし）と
+    `EmbeddedResource`（アプリ内表示用）はそのまま残置。`CopyToPublishDirectory` も対で残したが効果はなし。
+  - **検証**: `win-x64-singlefile`／`win-x64` 両プロファイルを実発行し、各 publish フォルダ（`…\win-x64\publish-singlefile\`／
+    `…\win-x64\publish\`）に両ファイルが出力されることを確認済み。変更: `PhotoQuickSelector.App.csproj` のみ（`CopyToPublishDirectory`
+    2 行＋Copy Target）。**Core・アプリコードは非変更**。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
