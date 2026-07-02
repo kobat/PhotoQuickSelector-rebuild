@@ -1,0 +1,80 @@
+{
+  "title": "ショートカット一覧",
+  "keysLabel": "キー",
+  "descriptionLabel": "説明",
+  "groups": [
+    {
+      "title": "全般",
+      "items": [
+        { "keys": "F1", "description": "ショートカット一覧を表示" },
+        { "keys": "Ctrl+L", "description": "フィルタ ON/OFF を切替（フライアウトは開かない）" },
+        { "keys": "F11", "description": "全画面表示の切替" },
+        { "keys": "Shift+F", "description": "完全全画面モード（全画面＋左ペイン/ステータスバー非表示＋イマーシブ）の切替" },
+        { "keys": "Esc", "description": "全画面/完全全画面を解除（選択集合があれば解除）" }
+      ]
+    },
+    {
+      "title": "表示",
+      "items": [
+        { "keys": "クリック", "description": "メイン画像をフィット⇄ズーム切替（クリック位置が中心）" },
+        { "keys": "ダブルクリック", "description": "メイン画像を 100% 表示（クリック位置が中心）" },
+        { "keys": "ドラッグ", "description": "パン（表示位置を移動）" },
+        { "keys": "ホイール", "description": "段ズーム（カーソル位置が中心）" },
+        { "keys": "+ / -", "description": "段ズーム イン/アウト" },
+        { "keys": "Z", "description": "フィット⇄ズーム切替（ズーム側は直近の倍率/位置を復元）" },
+        { "keys": "Shift+Z", "description": "等倍 100% 表示" },
+        { "keys": "Shift+Alt+← / →", "description": "フィット / 等倍" },
+        { "keys": "F", "description": "イマーシブ表示（右パネル/フィルムストリップを畳む）の切替" },
+        { "keys": "I", "description": "メタ情報オーバーレイの切替" },
+        { "keys": "G", "description": "構図グリッドの種類を巡回（なし→中央十字→三分割→正方形）" },
+        { "keys": "Shift+G", "description": "構図グリッドの基準を切替（画像⇄Canvas）" },
+        { "keys": "C", "description": "先読みキャッシュ一覧の切替（デバッグ）" }
+      ]
+    },
+    {
+      "title": "移動",
+      "items": [
+        { "keys": "← / →", "description": "前後の写真へ移動（移動後フォーカスはフィルムストリップへ）" },
+        { "keys": "ダブルクリック", "description": "フィルムストリップ：グリッド表示へ戻る" },
+        { "keys": "PageUp / PageDown / Home / End", "description": "フィルムストリップ内を移動" },
+        { "keys": "Alt+← / → / ↑ / ↓", "description": "パン（画像を上下左右へ移動）" },
+        { "keys": "Alt+F", "description": "フォーカス点へスクロール" },
+        { "keys": "Ctrl+Alt+← / →", "description": "ルーペを横スクロール" },
+        { "keys": "Ctrl+Alt+↑ / ↓", "description": "ルーペを縦スクロール（選択集合があるときは一括フラグ）" },
+        { "keys": "Ctrl+Alt+F", "description": "ルーペをフォーカス点へ" }
+      ]
+    },
+    {
+      "title": "評価",
+      "items": [
+        { "keys": "0 – 5", "description": "レーティング（通常評価は焦点の 1 枚のみに反映）" },
+        { "keys": "6 / 7 / 8 / 9", "description": "カラーラベル（赤 / 橙 / 緑 / 青）" },
+        { "keys": "P", "description": "カラーラベル（紫）" },
+        { "keys": "[ / ]", "description": "レーティングを増減" },
+        { "keys": "Ctrl+↑ / ↓", "description": "フラグ（採用 / 拒否）" }
+      ]
+    },
+    {
+      "title": "複数選択",
+      "items": [
+        { "keys": "Shift+← / →", "description": "レンジ選択（起点から焦点までを連続選択）" },
+        { "keys": "Ctrl+← / →", "description": "焦点のみ移動（選択集合は不変）" },
+        { "keys": "Ctrl+Space", "description": "焦点を選択集合へ参加 / 解除" },
+        { "keys": "← / →（選択集合中）", "description": "メンバー内で焦点を巡回" },
+        { "keys": "Esc", "description": "選択集合を解除" },
+        { "keys": "Alt+0 – 5", "description": "一括レーティング（選択集合の全メンバーへ）" },
+        { "keys": "Alt+6 – 9 / Alt+P", "description": "一括カラーラベル（選択集合の全メンバーへ）" },
+        { "keys": "Ctrl+Alt+↑ / ↓", "description": "一括フラグ（選択集合の全メンバーへ）" }
+      ]
+    },
+    {
+      "title": "ファイル連携",
+      "items": [
+        { "keys": "Ctrl+E", "description": "エクスプローラーで表示" },
+        { "keys": "Alt+E", "description": "既定のアプリで開く" },
+        { "keys": "Ctrl+Alt+E", "description": "パスをコピー" },
+        { "keys": "Alt+S", "description": "共有（設定の共有先 exe、未設定なら標準の共有シート）" }
+      ]
+    }
+  ]
+}

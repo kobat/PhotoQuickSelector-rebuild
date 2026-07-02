@@ -90,6 +90,15 @@
   </ItemGroup>
 
   <!--
+    ショートカット一覧の唯一の情報源（SSOT）。アプリ内 F1（ShortcutCheatSheet）が実行時にパースして表示する。
+    ドキュメント docs/SHORTCUTS.md も同ファイルから tools/gen-shortcuts.ps1 で生成する。
+    single-file 発行でも exe 隣のファイル有無に依存せず読める（GetManifestResourceStream）。
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\shortcuts.json" LogicalName="shortcuts.json" />
+  </ItemGroup>
+
+  <!--
     EnableMsixTooling=true の下では Content の CopyToPublishDirectory が publish 出力へ反映されない
     （WinAppSDK/MSIX 側の publish パイプラインが ResolvedFileToPublish を独自に計算するため）。
     dotnet publish（フォルダ／単一ファイルいずれも）の後に確実に配置する。

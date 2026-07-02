@@ -1139,6 +1139,35 @@
   - 変更: `PhotoQuickSelector.App.csproj`（`<Version>0.1.0</Version>`）、`Package.appxmanifest`（`Version="0.1.0.0"`）。
     **Core・アプリコードは非変更**。
 
+- **ショートカット一覧を JSON へ SSOT 化 完了（2026-07-02）**: 従来 `ShortcutCheatSheet.cs` にハードコードしていたキー一覧を、
+  リポジトリ直下 `shortcuts.json`（唯一の情報源）へ移設。**アプリ内 F1 は埋め込み JSON を実行時パースして表示／ドキュメント
+  `docs/SHORTCUTS.md` は同 JSON から生成**。README とショートカット一覧を人が編集する運用に合わせ、編集点を `shortcuts.json` 1 つに集約。
+  - **JSON 形（ルート＝オブジェクト）**: `title`/`keysLabel`/`descriptionLabel`（＝生成 md 用のメタ）＋`groups[]`（各 `title`＋`items[]`＝
+    `keys`/`description`）。**グループ表示順は配列順**（全般→表示→移動→評価→複数選択→ファイル連携を維持）。
+  - **埋め込み＆読込**: csproj に `<EmbeddedResource Include="..\..\shortcuts.json" LogicalName="shortcuts.json" />`（LICENSE 等と同方式）。
+    `ShortcutCheatSheet.Groups` を静的ハードコード → `Assembly.GetManifestResourceStream("shortcuts.json")`＋
+    `JsonSerializer.Deserialize<CheatSheetData>`（`PropertyNameCaseInsensitive=true`）へ。**型 `ShortcutGroup`/`ShortcutItem`・
+    `Groups` プロパティ名・`ShortcutsDialog.xaml`（`{Binding Title/Items/Keys/Description}`）は不変**＝ダイアログ無変更・低リスク。
+    トリミング無効（`PublishTrimmed=false`）なのでリフレクション逆シリアライズは安全。読み込み失敗時は 1 項目の代替表示（`Fallback`）でクラッシュ回避。
+  - **md 生成（`tools/gen-shortcuts.ps1`・新規）**: `shortcuts.json`（UTF-8）→ `docs/SHORTCUTS.md`（UTF-8 no BOM）を生成。**編集したら手動実行**
+    （`generate-app-icon.ps1` と同じ流儀）。**スクリプトは ASCII のみ**＝日本語は全て JSON から実行時に読む（`Get-Content -Raw -Encoding UTF8`）。
+    これで PS 5.1 の「UTF-8 no BOM を ANSI 誤読してパースエラー」を回避（`generate-app-icon.ps1`/`Publish.ps1` の教訓）。
+  - **検証**: `dotnet build`（x64 Release・警告0）／ビルド済みアセンブリの `GetManifestResourceNames()` に `shortcuts.json` を確認／
+    生成 md の日本語表示を確認。実機 F1 の目視はユーザー確認推奨。**Core 非変更**。
+  - 変更/新規: `shortcuts.json`（新規・リポジトリ直下）、`tools/gen-shortcuts.ps1`（新規）、`docs/SHORTCUTS.md`（生成物）、
+    `ShortcutCheatSheet.cs`（ローダー化）、`PhotoQuickSelector.App.csproj`（EmbeddedResource）。
+
+- **README（公開向け）＋スクリーンショット 完了（2026-07-03）**: GitHub 公開に向け `README.md`（日本語）を新規作成。構成＝一言紹介＋
+  スクショ／特長／動作環境／インストール・起動（Releases＋SmartScreen 注意）／使い方（開く→評価→プレビュー→絞込→書き出し）／
+  ショートカット（抜粋表＋アプリ内 `F1`・`docs/SHORTCUTS.md` へ誘導）／ビルド（`dotnet run`/`dotnet test`/publish）／ライセンス。
+  ショートカット一覧は README で完結させず **`shortcuts.json` を唯一の正**とし、README は抜粋のみ・全量は `F1`／`docs/SHORTCUTS.md` へ誘導。
+  - **スクリーンショット**: `docs/images/` に 2 枚。`screenshot-preview.png`（プレビュー：左ツリー＋大画面＋ルーペ/ナビ＋フィルムストリップ＋
+    メタ情報バー）／`screenshot-grid.png`（グリッド：★/旗/カラードット/採用拒否/選択強調）。撮影は computer-use で実アプリを最大化 →
+    PowerShell の `Screen.PrimaryScreen.WorkingArea` を `CopyFromScreen`（＝タスクバー除外・フル解像度）で `docs/images` へ直接保存。
+    **ユーザーが後日、任意のスクショへ差し替え済み**（README の参照はそのまま `docs/images/screenshot-preview.png` / `-grid.png`）。
+  - **README は人が編集する前提**（ショートカット一覧同様）。文言・画像はユーザーが随時修正。Core/アプリコードは非変更（ドキュメントのみ）。
+  - 変更/新規: `README.md`（新規）、`docs/images/*.png`（新規）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
