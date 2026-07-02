@@ -1130,6 +1130,15 @@
   `RefreshDrivesMenuItem_Click` 追加）。**Core・ViewModel は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。
   実機目視（空白右クリックでメニュー表示・ノード右クリックが従来どおり・F5 動作）はユーザー確認推奨。
 
+- **バージョンを 0.1.0 に設定＋初回公開向け発行 完了（2026-07-02）**: 公開（GitHub 等）に向けてバージョンを **1.0.0 → 0.1.0**
+  へ変更。バージョン情報ダイアログ（About）がリフレクションで参照する単一情報源 `csproj` の `<Version>` と、packaged 開発用
+  マニフェスト `Package.appxmanifest` の `Version`（`0.1.0.0`）を両方更新。配布形態は SPEC §0 の unpackaged 自己完結 EXE のため、
+  実配布物は `dotnet publish -c Release -p:Platform=x64 -p:PublishProfile=win-x64-singlefile`（単一ファイル）で発行。
+  - **落とし穴（再確認）**: `Publish.ps1` は日本語コメント入り UTF-8(BOMなし)のため **Windows PowerShell 5.1 が ANSI 誤読して
+    パースエラー**になる（`generate-app-icon.ps1` と同じ現象）。発行はスクリプトを介さず `dotnet publish` を直接叩くのが確実。
+  - 変更: `PhotoQuickSelector.App.csproj`（`<Version>0.1.0</Version>`）、`Package.appxmanifest`（`Version="0.1.0.0"`）。
+    **Core・アプリコードは非変更**。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
