@@ -1120,6 +1120,16 @@
     `…\win-x64\publish\`）に両ファイルが出力されることを確認済み。変更: `PhotoQuickSelector.App.csproj` のみ（`CopyToPublishDirectory`
     2 行＋Copy Target）。**Core・アプリコードは非変更**。
 
+- **左ペインの「更新」ボタン除去＋空白右クリック「ドライブ一覧を更新」追加 完了（2026-07-02・要実機確認）**:
+  「フォルダ単位の更新は右クリック『更新』で十分」というユーザー判断で `FolderNavigationView` 下部の更新ボタンを除去。
+  ボタン除去で唯一到達不能になる「ドライブ一覧の再列挙（USB 抜き差し等）」への導線として、**`TreeView` 自体に
+  `ContextFlyout`（空白部分の右クリック→「ドライブ一覧を更新」→ `RefreshDrives()`）** を追加。ノード上の右クリックは
+  内側（DataTemplate の `StackPanel`）の ContextFlyout が優先されるため従来のノードメニューのまま。
+  **F5（`FolderTree_KeyDown`→`RefreshSelectedOrDrives`）は残置**＝選択ノード更新／選択なしならドライブ一覧更新。
+  変更: `Controls/FolderNavigationView.xaml(.cs)` のみ（`RefreshButton`/`RefreshButton_Click` 撤去・
+  `RefreshDrivesMenuItem_Click` 追加）。**Core・ViewModel は非変更**。`BUILD SUCCEEDED`（x64 Release・警告0）。
+  実機目視（空白右クリックでメニュー表示・ノード右クリックが従来どおり・F5 動作）はユーザー確認推奨。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**

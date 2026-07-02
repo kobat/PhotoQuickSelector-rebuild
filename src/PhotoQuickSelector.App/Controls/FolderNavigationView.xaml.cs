@@ -57,9 +57,7 @@ public sealed partial class FolderNavigationView : UserControl
         if (args.Item is FolderNode folder) folder.LoadChildren();
     }
 
-    // --- 手動更新（更新ボタン / F5 / 右クリック「更新」） ---
-
-    private void RefreshButton_Click(object sender, RoutedEventArgs e) => RefreshSelectedOrDrives();
+    // --- 手動更新（F5 / ノード右クリック「更新」 / 空白右クリック「ドライブ一覧を更新」） ---
 
     private void FolderTree_KeyDown(object sender, KeyRoutedEventArgs e)
     {
@@ -75,6 +73,8 @@ public sealed partial class FolderNavigationView : UserControl
         if (sender is FrameworkElement fe && fe.DataContext is FolderNode folder)
             RefreshFolder(folder);
     }
+
+    private void RefreshDrivesMenuItem_Click(object sender, RoutedEventArgs e) => RefreshDrives();
 
     private void RefreshSelectedOrDrives()
     {
