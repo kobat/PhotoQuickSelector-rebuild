@@ -8,7 +8,8 @@ using Windows.Foundation;
 namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
-/// メイン大画面キャンバスの描画とポインタ操作（パン / ホイールズーム / ダブルクリックで退出）。
+/// メイン大画面キャンバスの描画とポインタ操作（パン / ホイールズーム / クリック＝フィット⇄ズーム /
+/// ダブルクリック＝100%。プレビュー退出はフィルムストリップ側のダブルクリック）。
 /// グリッド線・AF枠の描画は <c>PreviewControl.Overlays.cs</c> に分離。
 /// </summary>
 public sealed partial class PreviewControl

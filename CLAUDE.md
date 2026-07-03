@@ -10,7 +10,7 @@
 - 構成:
   - `src/PhotoQuickSelector.Core/` … UI 非依存（メタデータ抽出・評価モデル・SQLite 永続化）
   - `src/PhotoQuickSelector.App/` … WinUI アプリ（左右分割UI・サムネイル・キー操作）
-  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（46 件）
+  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（96 件）
 
 ## ビルド / 起動（重要）
 - **packaged（MSIX 開発）構成**で開発している。**exe を直接ダブルクリックしない**（無音終了する）。
@@ -357,6 +357,12 @@
   - **Core・選択同期・評価バッジ部品は非変更**。変更/新規: `AppSettings.cs`、`Controls/FilmStripMetrics.cs`（新規）、
     `Controls/PreviewControl.xaml(.cs)`。`BUILD SUCCEEDED`／`dotnet test` 68 件緑。実機目視（ドラッグでサムネイル連動拡縮・
     再起動で高さ復元・拡大時のボケ）はユーザー確認推奨。
+- **右パネル幅／ナビゲーター高さ／メタ情報オーバーレイ表示状態の永続化 完了（`e5c10ab`・2026-06-20）**:
+  `AppSettings.RightPanelWidth`（既定 260）／`NavigatorHeight`（既定 220）／`ShowInfoOverlay`（既定 true）を追加。
+  フィルムストリップ高さと同方式＝変更時に in-memory へ控え、終了時 `Settings.Save()` で一括保存。ViewModel 注入時に
+  `RestoreRightPanelLayout()` で復元（右パネル列幅とナビ行高の `GridLength` を直接設定）。変更: `AppSettings.cs`、
+  `Controls/PreviewControl.xaml(.cs)`・`.Navigator.cs`、`ViewModels/MainViewModel.cs`。
+  ※ドキュメント突き合わせ（2026-07-04）で記載漏れが判明し追記。
 - **プレビューの DPI 考慮ズーム＋補間ポリシー＋倍率表示 完了（`c174232`＋`ae5f1a3`、`origin/main` プッシュ済み・2026-06-21）**:
   プレビューのズーム表示を DPI 対応化し、拡大率に応じて補間を切り替え、現在倍率をステータスバーへ表示。ユーザー実機確認済み。
   - **① DPI 考慮の等倍（`c174232`）**: 旧「等倍＝`Scale=1.0`（画像1px→1 DIP）」は高DPI（例150%）で画像1pxが1.5物理pxに
@@ -763,7 +769,7 @@
     `MoveFocusWithinSelection(±1)`（集合ありの素 ←/→＝メンバー表示順で焦点巡回。焦点が集合外なら端メンバーへ）／`ClearSelection()`（Esc）。
     `MoveNext`/`MovePrevious` を「集合あり=巡回／無し=`MoveFocus`」へ分岐。
   - **一括評価（Alt+数字）**: `PhotoKeyCommands.ResolveEvaluation` を **`Action<PhotoItemViewModel>` 返し**へリファクタ（item 非依存化）＋
-    新規 `ResolveBulkEvaluation`（**Alt+0–5＝レーティング／Alt+6–9＝赤橙緑青／Alt+P＝紫**。フラグ・増減は対象外）。
+    新規 `ResolveBulkEvaluation`（**Alt+0–5＝レーティング／Alt+6–9＝赤黄緑青／Alt+P＝紫**。フラグ・増減は対象外）。
     `ApplyEvaluationAsync(op, targets)` へバッチ化（sqlite 作成確認は対象複数でも1回）。単一=焦点1枚／一括=`SelectedPhotos` 全員。
     **通常評価（Alt なし）は焦点1枚のみ＝集合不変**（要件どおり）。
   - **キー集約（新規 `SelectionKeyCommands.TryHandle(key, vm)`）**: 評価キーと同じ「App 層の静的ディスパッチャ＋2 呼び出し点」パターン。
@@ -1170,17 +1176,17 @@
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
-- ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（未コミット）。**
+- ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**
   残微調整: ルーペのロード時センタリングは初期レイアウト未確定だと AF 点がやや上寄りになる場合あり（軽微）。
   AF 枠の正確な位置（回転画像）はユーザー最終確認推奨。
 - ~~Phase 4-A: フィルタ／クリップボード出力~~ → **完了（`c073853`）。** 上の「現在の進捗」参照。
 - ~~Phase 4-B: 外部連携（`Ctrl+E`／`Alt+E`／`Ctrl+Alt+E`／`Alt+S`）＋設定（`AppSettings.SharePath` 設定化・歯車→設定ダイアログ）~~
   → **完了（2026-06-26）。** 上の「現在の進捗」参照。`M`（デバッグ GC）は SPEC 通り未実装。
 - ~~パッケージング: 素の自己完結 EXE の publish 構成を組み込み＋発行確認~~ → **完了（2026-06-20）。** 上の「現在の進捗」参照。
-  pubxml 2 系統（フォルダ／単一ファイル）＋`Publish.ps1`。実発行・起動確認済み（未コミット）。
+  pubxml 2 系統（フォルダ／単一ファイル）＋`Publish.ps1`。実発行・起動確認済み（コミット済み）。
 
 ## キー操作（右ペイン・写真選択時）
-- `0`–`5` レーティング / `6`–`9`＋`P` カラーラベル（赤橙緑青紫）/ `[` `]` レーティング増減 / `Ctrl+↑/↓` フラグ
+- `0`–`5` レーティング / `6`–`9`＋`P` カラーラベル（赤黄緑青紫。7=`ColorLabel.Yellow`＝黄 `#FDD835`）/ `[` `]` レーティング増減 / `Ctrl+↑/↓` フラグ
   （複数選択中でも**通常評価は焦点の1枚のみ**に反映）
 - 複数選択（両モード共通。焦点＝常に1枚／選択集合＝0..N枚で別概念）:
   `Shift+←/→` レンジ選択（起点から焦点までを連続選択）/ `Ctrl+←/→` 焦点のみ移動（集合は不変）/

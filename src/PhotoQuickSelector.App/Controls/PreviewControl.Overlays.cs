@@ -6,7 +6,8 @@ using Windows.UI;
 namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
-/// メイン/ナビへ重ねるオーバーレイ描画: 三分割グリッド線と Sony AF フォーカス枠、
+/// オーバーレイ描画: 構図グリッド線（中央十字／三分割／正方形 × 画像/Canvas 基準。メインのみ）と
+/// Sony AF フォーカス枠（ルーペ/ナビに表示。メインには重ねない）、
 /// および AF フォーカス点の幾何計算（メイン/ルーペのセンタリングで共用）。
 /// </summary>
 public sealed partial class PreviewControl

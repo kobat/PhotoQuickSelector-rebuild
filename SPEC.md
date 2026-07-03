@@ -10,7 +10,7 @@
 
 | 論点 | 決定 |
 |------|------|
-| 技術スタック | **WinUI 3 / .NET 8 / Windows App SDK 1.6 系**。Windows 専用。 |
+| 技術スタック | **WinUI 3 / .NET（App は `net10.0-windows`、Core は `net8.0`）/ Windows App SDK 2.2 系**。Windows 専用。 |
 | EXIF 解析 | **公式 NuGet `MetadataExtractor`（最新版）** を使用。フォークは使わない。Sony AF 点の生タグ読取りはアプリ側に実装。 |
 | 再現範囲 | 機能は既存と同等。**既知バグ・デバッグ残骸はリファクタで改善する**（§6）。 |
 | 文字コード | ソース・コメントはすべて **UTF-8**。既存の文字化けは持ち込まない。 |
@@ -18,7 +18,8 @@
 
 ### 主要 NuGet
 - `Microsoft.WindowsAppSDK`
-- `CommunityToolkit.WinUI.UI` / `.Controls` / `.Controls.DataGrid`（SwitchPresenter, RatingControl, DataGrid）
+- `CommunityToolkit.Mvvm`（`ObservableObject` / `[ObservableProperty]`）
+- `CommunityToolkit.WinUI.Controls.Sizers`（GridSplitter）
 - `Microsoft.Graphics.Win2D`（CanvasBitmap による高速描画）
 - `MetadataExtractor`（EXIF/XMP 解析）
 - `System.Data.SQLite.Core`（評価データ永続化）
@@ -26,25 +27,20 @@
 ### 配布・パッケージング
 - 配布形態: **(A) 素の自己完結 EXE（unpackaged / MSIX なし）**。
 - .NET ランタイム・Windows App SDK ランタイムを**同梱**し、未インストール環境でも起動可能にする。
-- アプリ本体プロジェクト（Phase 2 で作成）の `.csproj` に以下を設定:
-  ```xml
-  <WindowsPackageType>None</WindowsPackageType>            <!-- unpackaged -->
-  <SelfContained>true</SelfContained>                       <!-- .NET 同梱 -->
-  <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained> <!-- WinAppSDK 同梱 -->
-  <PublishSingleFile>true</PublishSingleFile>
-  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-  <PublishTrimmed>false</PublishTrimmed>                    <!-- WinUI はトリミング不可 -->
-  ```
+- 開発は packaged（MSIX 開発）構成のまま行い、unpackaged 化の設定は **publish プロファイル
+  （`.pubxml`）側にのみ**置く（csproj のグローバル設定にすると `dotnet run` / 開発時起動が壊れるため。
+  csproj には全構成で安全な `PublishTrimmed=false` のみ）:
+  - `Properties/PublishProfiles/win-x64.pubxml` … フォルダ配布（`PublishSingleFile=false`）
+  - `Properties/PublishProfiles/win-x64-singlefile.pubxml` … 単一ファイル EXE
+  - 共通設定: `WindowsPackageType=None` / `SelfContained=true` / `WindowsAppSDKSelfContained=true` /
+    `PublishReadyToRun=true` / `PublishTrimmed=false`（WinUI/Win2D はトリミング不可）
 - 発行コマンド:
   ```
-  dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained
+  dotnet publish -c Release -p:Platform=x64 -p:PublishProfile=win-x64[-singlefile]
   ```
-- 既知の制約（WinUI3 特有）:
-  - 完全な単一ファイルにはならない場合がある。ネイティブ依存（WinAppSDK ネイティブ、Win2D、
-    `SQLite.Interop.dll`）は exe 内に取り込み**初回起動時に自己展開**。`resources.pri` 等が
-    隣に残ることがある → 「**大きな exe 1 個＋数個の付随ファイル**」を前提とする。
-  - exe サイズは概ね 150〜250MB、初回起動にひと呼吸。
+- 実発行の結果（win-x64・実測）:
+  - 単一ファイル版: ルート直下 exe 1 個（約 290MB）＋ pdb（`resources.pri` も exe 内に埋め込み）。
+  - フォルダ版: 約 525 ファイル / 273MB。
   - SQLite は `System.Data.SQLite.Core` を維持（`SQLite.Interop.dll` は自己展開対象）。
 
 ---
@@ -69,25 +65,27 @@
   - 上部に **最近開いたフォルダ** と **お気に入り** を表示（フォルダノードを右クリック等で
     お気に入り登録／解除）。最近・お気に入りはアプリ設定として永続化（後述 §5）。
   - **読み込みは明示操作**：ツリーでフォルダを選んでも自動ロードはしない。
-    フォルダノードの**ダブルクリック**、または左ペインの「**読み込み**」ボタンで右ペインに反映する。
+    左ペインの「**読み込み**」ボタン（またはお気に入り／最近開いたフォルダのクリック）で右ペインに反映する。
+    フォルダノードの**ダブルクリック**は下位フォルダの展開／折りたたみ（読み込みはしない）。
 - **右ペイン: 閲覧**（旧 ViewPhoto 相当。内部に 2 レイアウト）
   - `Thumbnail`: タイル状グリッド
   - `Preview`: 横スクロールのフィルムストリップ ＋ 大画面プレビュー（メイン＋ナビゲーター）
-  - ダブルクリックで Thumbnail ⇄ Preview を相互遷移。
+  - サムネイルのダブルクリックで Preview へ、**フィルムストリップのダブルクリック**で Thumbnail へ戻る
+    （メイン大画面のダブルクリックは 100% 表示に割当てているため終了導線ではない）。
 - **左右の境界**
   - `GridSplitter` で**幅をリサイズ可能**。さらに**左ペインを折りたたみ/展開**できる
     トグルボタンを用意し、閲覧領域を最大化できる。
-- **フォーカスと操作の分離**
-  - 旧実装はモードでキー入力を振り分けていたが、新実装は**フォーカス位置**で決まる:
-    左ペイン（ツリー）にフォーカスがあるときはツリー操作、右ペイン（ビューア）に
-    フォーカスがあるときは §3-7 のレーティング等ショートカットが効く。
+- **キー入力の集約**
+  - 旧実装はモードでキー入力を振り分けていたが、新実装は Window ルートの `PreviewKeyDown`
+    （tunneling）で集約し、§3-7 のレーティング等ショートカットは**フォーカス位置に依存せず**効く
+    （ダイアログ／フライアウト表示中は集約を停止し、入力をそちらへ委ねる）。
 
 ---
 
 ## 3. 機能仕様
 
 ### 3-1. フォルダ読み込み
-- 左ペインのフォルダツリーで選択し、**明示操作（ダブルクリック / 「読み込み」ボタン）でロード**
+- 左ペインのフォルダツリーで選択し、**明示操作（「読み込み」ボタン／お気に入り・最近のクリック）でロード**
   （§2 参照。旧来のモーダルなフォルダピッカーは使わない）。
 - 対象拡張子: **`.jpg` / `.jpeg`**（将来 RAW/HEIC 拡張を見据え、拡張子集合を一箇所に集約）。
 - 列挙は `Directory.GetFiles`（WinRT の StorageFile 列挙は遅いため回避）。
@@ -108,7 +106,7 @@
 - 評価項目:
   - `rating`（0–5）
   - `flag`（拒否 -1 / 中立 0 / 採用 +1）
-  - カラーラベル **6 色**: 赤・橙(黄)・緑・青・紫
+  - カラーラベル **5 色**: 赤・黄・緑・青・紫（DB カラムも `color_label_yellow`＝黄）
 - 保存先: **対象フォルダ直下の `PhotoQuickSelector.sqlite3`**。
 - テーブル `image_file_metadata`（PK = `file_name`）。
 - 値変更時に即時 UPDATE（トランザクション）。
@@ -140,7 +138,8 @@ CREATE TABLE image_file_metadata (
 
 ### 3-5. クリップボード出力
 - 通常: 絞込結果のファイル名一覧をコピー。
-- **Ctrl 押下時**: 採用写真を移動する **`.bat` スクリプトを生成**。
+- 採用写真を移動する **`.bat` スクリプトの生成**（旧実装の「Ctrl 押下で切替」の隠し挙動は廃止し、
+  コピーメニューの明示項目「移動 bat を生成してコピー」にする）。
   - フォルダ名・件数・フィルタ条件を `@rem` コメントで埋め込む。
   - 本体は `set FROMDIR=..` / `set TODIR=.` ＋ 各ファイルの
     `move %FROMDIR%\<名前(拡張子なし)>* %TODIR%`（RAW+JPEG をまとめて移動する意図）。
@@ -148,10 +147,11 @@ CREATE TABLE image_file_metadata (
 ### 3-6. プレビュー表示（描画の中核）
 - 縮小表示 / ズーム表示の切替、ドラッグでパン、ズーム倍率変更（フィット / 100% / DPI 考慮）。
 - **AF フォーカス点へスクロール**。
-- **グリッド線オーバーレイ**（三分割）トグル。
+- **構図グリッド線オーバーレイ**: 種類（中央十字／三分割／正方形）×基準（画像／Canvas）を切替。
 - **右側ナビゲーター**: 全体縮小画像 ＋ 現在表示領域の矩形 ＋ AF フォーカス枠。
-- 描画は Win2D `CanvasBitmap` ＋ `SetPixelBytes`。表示 W/H 計算用のカスタムコントロール
-  （ResizeImage / OriginalSizeImage 相当：`DrawOffsetX/Y`, `DrawWidth/Height` を公開）。
+- 描画は Win2D `CanvasBitmap`（ストリーム経由 `LoadAsync`＝元ファイルをロックしない）。
+  表示ジオメトリ（ズーム/パン/フィット、`OffsetX/Y`・`DrawWidth/Height`）は UI 非依存の
+  `PreviewViewport` が担う（旧 ResizeImage / OriginalSizeImage 相当）。
 
 ### 3-7. キーボードショートカット（Preview 時）
 
@@ -160,8 +160,8 @@ CREATE TABLE image_file_metadata (
 | ← / → | 前後移動（複数選択時は選択内を巡回）。**移動後フォーカスをフィルムストリップへ移し PageUp/PageDown/Home/End を有効化** |
 | PageUp / PageDown / Home / End | フィルムストリップ上の ListView ナビ（← / → 移動でフォーカスが移った後に有効） |
 | 0–5 | レーティング 0–5 |
-| 6 / 7 / 8 / 9 | カラーラベル 赤 / 橙 / 緑 / 青 をトグル |
-| **改善:** 紫ラベル | 既存は未割当。**新規でキーを割り当てる**（候補: `P` もしくは `0` 列の拡張） |
+| 6 / 7 / 8 / 9 | カラーラベル 赤 / 黄 / 緑 / 青 をトグル |
+| P | カラーラベル 紫 をトグル（**改善:** 既存は未割当 → `P` に割当済み） |
 | `[` / `]` | レーティング −1 / +1 |
 | Ctrl+↑ / Ctrl+↓ | フラグを採用方向 / 拒否方向へ |
 | Esc | **プレビューでは無反応（プレビューを抜けない）。終了はダブルクリック**。全画面中のみ通常表示へ復帰 |
@@ -170,11 +170,14 @@ CREATE TABLE image_file_metadata (
 | Ctrl+Alt+矢印 | 右プレビューをスクロール |
 | Shift+Alt+← / → | フィット / 100% |
 | Alt+F / Ctrl+Alt+F | フォーカス点へスクロール（左 / 右） |
-| G | グリッド線トグル |
+| G / Shift+G | 構図グリッドの種類を巡回 / 基準（画像⇄Canvas）を切替 |
 | Ctrl+L | フィルタ ON/OFF |
 | Ctrl+E / Alt+E / Ctrl+Alt+E | エクスプローラで表示 / 既定アプリで開く / パスをコピー |
 | Alt+S | 共有（Nearby Share 等。パスは**設定化**する） |
-| M | （デバッグ用 GC。リリースでは無効化または削除） |
+| M | （デバッグ用 GC）**未実装**（意図した割り切り。必要になれば追加） |
+
+上表は代表的なもの。実装済みの全ショートカットは **`shortcuts.json`（唯一の情報源）**／
+生成物 `docs/SHORTCUTS.md`／アプリ内 `F1` を参照。
 
 ### 3-8. 外部連携
 - エクスプローラ `/select`、既定アプリ起動、共有送信、クリップボード。
@@ -194,25 +197,27 @@ CREATE TABLE image_file_metadata (
 ## 5. アーキテクチャ / プロジェクト構成
 
 ```
-PhotoQuickSelector.sln
+PhotoQuickSelector.slnx
 ├── src/
-│   ├── PhotoQuickSelector.Core/        … UI 非依存のコア（メタデータ・永続化・キャッシュ方針）
+│   ├── PhotoQuickSelector.Core/        … UI 非依存のコア（メタデータ・評価・永続化・出力生成）
 │   │     ├── ImageMetadata             … 1 枚分の不変メタデータ（EXIF/XMP 抽出結果）
 │   │     ├── MetadataReader            … MetadataExtractor を用いた抽出
-│   │     ├── ImageRating               … rating/flag/colorlabel のドメインモデル
-│   │     └── MetadataStore             … SQLite 永続化（スキーマ移行込み）
+│   │     ├── PhotoEvaluation           … rating/flag/colorlabel のドメインモデル
+│   │     ├── MetadataStore             … SQLite 永続化（スキーマ移行込み・初回書き込みまで遅延作成）
+│   │     └── PhotoFilter / ClipboardExport / RejectMove / CopyRename … 絞込・bat 出力の純ロジック
 │   └── PhotoQuickSelector.App/         … WinUI 3 アプリ（画面・描画・入力）
-│         ├── MainWindow               … 左右分割レイアウト（GridSplitter + 折りたたみ）
-│         ├── FolderPaneControl        … 左ペイン: フォルダツリー＋最近/お気に入り
-│         ├── ViewerControl            … 右ペイン: Thumbnail / Preview（旧 ViewPhoto 相当）
-│         └── AppSettings              … 最近フォルダ・お気に入り・ペイン幅 等の永続化
+│         ├── MainWindow / MainPage     … キー入力の集約と 3 カラム骨組み（GridSplitter + 折りたたみ）
+│         ├── Controls/FolderNavigationView … 左ペイン: フォルダツリー＋最近/お気に入り
+│         ├── Controls/PhotoStatusBar / PhotoGridView / PreviewControl
+│         │                             … 右ペイン: ステータスバー＋ Thumbnail / Preview（旧 ViewPhoto 相当）
+│         └── AppSettings               … 最近フォルダ・お気に入り・ペイン幅 等の永続化
 └── tests/
-      └── PhotoQuickSelector.Core.Tests … xUnit。抽出ロジックと永続化を検証
+      └── PhotoQuickSelector.Core.Tests … xUnit。抽出・永続化・絞込・bat 生成・ビューポートを検証
 ```
 
 - 単一ウィンドウの**左右分割**（§2）。`SwitchPresenter` によるモード切替は廃止。
 - MVVM 寄りに整理（既存の `AppState` 相当を ViewModel 化、INotifyPropertyChanged は
-  `CommunityToolkit.Mvvm` の `ObservableObject` / `[ObservableProperty]` を検討）。
+  `CommunityToolkit.Mvvm` の `ObservableObject` / `[ObservableProperty]` を採用）。
 - **アプリ設定の永続化**: 最近開いたフォルダ・お気に入り・左ペイン幅/折りたたみ状態を、
   ローカルアプリデータの JSON 等に保存（評価データの SQLite とは別物）。
 - `[Windows.UI.Xaml.Data.Bindable]`（UWP 旧名前空間）は使わず、必要なら
@@ -222,7 +227,7 @@ PhotoQuickSelector.sln
 
 ## 6. 既存からの改善点（本再構築で必ず直す）
 
-1. **紫カラーラベルにキーを割り当てる**（既存は 6–9 で赤橙緑青のみ）。
+1. **紫カラーラベルにキーを割り当てる**（既存は 6–9 で赤黄緑青のみ）→ `P` に割当済み。
 2. **デバッグ用ハードコードパスを完全排除**（`O:\…`, `P:\…` 等）。
 3. **共有先パスのハードコード廃止** → 設定化。
 4. **UWP 旧名前空間 `Windows.UI.Xaml.*` を排除**。

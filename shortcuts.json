@@ -48,7 +48,7 @@
       "title": "評価",
       "items": [
         { "keys": "0 – 5", "description": "レーティング（通常評価は焦点の 1 枚のみに反映）" },
-        { "keys": "6 / 7 / 8 / 9", "description": "カラーラベル（赤 / 橙 / 緑 / 青）" },
+        { "keys": "6 / 7 / 8 / 9", "description": "カラーラベル（赤 / 黄 / 緑 / 青）" },
         { "keys": "P", "description": "カラーラベル（紫）" },
         { "keys": "[ / ]", "description": "レーティングを増減" },
         { "keys": "Ctrl+↑ / ↓", "description": "フラグ（採用 / 拒否）" }

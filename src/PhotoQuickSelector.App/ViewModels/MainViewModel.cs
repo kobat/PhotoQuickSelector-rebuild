@@ -464,7 +464,7 @@ public partial class MainViewModel : ObservableObject
         IsPreviewMode = true;
     }
 
-    /// <summary>プレビューからサムネイル一覧へ戻る（Esc / 再ダブルクリック）。</summary>
+    /// <summary>プレビューからサムネイル一覧へ戻る（フィルムストリップのダブルクリック。Esc では抜けない）。</summary>
     public void ExitPreview() => IsPreviewMode = false;
 
     /// <summary>

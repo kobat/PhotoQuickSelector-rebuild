@@ -185,8 +185,8 @@ public sealed class FilterState
 }
 
 /// <summary>
-/// トリミング発行（Release は <c>PublishTrimmed=true</c>）でも安全なように、
-/// JSON を source generator で扱う。
+/// JSON を source generator で扱う（リフレクション非依存）。現在は全構成 <c>PublishTrimmed=false</c>
+/// （WinUI/Win2D はトリミング不可）だが、将来の構成変更にも安全なように維持する。
 /// </summary>
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(AppSettings))]

@@ -23,7 +23,7 @@ namespace PhotoQuickSelector_App.Controls;
 /// <list type="bullet">
 ///   <item><c>PreviewControl.xaml.cs</c> … 骨組み・ViewModel 配線・ライフサイクル（本ファイル）</item>
 ///   <item><c>PreviewControl.MainCanvas.cs</c> … メイン描画・パン/ズーム・ポインタ</item>
-///   <item><c>PreviewControl.Overlays.cs</c> … 三分割グリッド線・AF フォーカス枠</item>
+///   <item><c>PreviewControl.Overlays.cs</c> … 構図グリッド線・AF フォーカス枠</item>
 ///   <item><c>PreviewControl.Loupe.cs</c> … 右上ズームプレビュー（100% ルーペ）</item>
 ///   <item><c>PreviewControl.Navigator.cs</c> … ナビゲーター（全体縮小＋表示領域矩形）</item>
 ///   <item><c>PreviewControl.Input.cs</c> … キー処理（<see cref="HandleKeyDown"/>）</item>
@@ -259,9 +259,10 @@ public sealed partial class PreviewControl : UserControl
     // --- 画像ロード ---
 
     /// <summary>
-    /// FocusedPhoto 変更時のプレビュー読み込み要求（連打時の VRAM 膨張対策の throttle）。
-    /// 先頭は即デコード（遅延なし）、連打継続中は間引きつつ周期的（数秒に1回）に更新、
-    /// 停止後に最終位置を確定デコード＋近傍先読み。連打中メインは直前の画像のまま
+    /// FocusedPhoto 変更時のプレビュー読み込み要求（連打時の VRAM 膨張対策のレート制限）。
+    /// キャッシュ済みは常に即表示。未キャッシュは直近 <see cref="RateWindow"/> 内のデコード回数が
+    /// <see cref="RateBudget"/> 未満なら即デコード、超過（押しっぱなしの大量連発）なら間引き、
+    /// 停止後に最終位置を確定デコード＋近傍先読み。間引かれている間メインは直前の画像のまま
     /// （どの写真かはフィルムストリップのハイライトで分かる）。
     /// </summary>
     private void RequestPreviewLoad()
@@ -333,8 +334,9 @@ public sealed partial class PreviewControl : UserControl
     /// false なら新画像をフィット表示で初期化する（プレビュー入場時）。
     /// </param>
     /// <param name="prefetch">
-    /// true なら読み込み後に近傍を先読みする。連打中の間引きロード（<see cref="RequestPreviewLoad"/> の
-    /// 先頭/周期）では false にして近傍デコードの膨張を避け、停止後の確定ロードでのみ先読みする。
+    /// true なら読み込み後に近傍を先読みする。ナビ中のロード（<see cref="RequestPreviewLoad"/> の
+    /// キャッシュヒット/レート内デコード）では false にして近傍デコードの膨張を避け、
+    /// 停止後（settle）の確定ロードでのみ先読みする。
     /// </param>
     private async void LoadCurrentAsync(bool preserveView = false, bool prefetch = true)
     {
