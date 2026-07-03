@@ -8,7 +8,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <!-- ステータスバー（2段組）。左=開閉ボタン＋件数、右=選択写真のメタ情報を右寄せで密集表示。
+    <!-- ステータスバー（2段組）。左=開閉ボタン＋ステータス（フォルダパス・読み込み中/エラー等）、右=選択写真のメタ情報を右寄せで密集表示。
+         枚数はフィルタボタンの件数表示（FilteredCountText）と重複するためステータスには出さない。
          開閉ボタンは LeftColumn（骨組み側）を操作するため ToggleLeftPaneRequested イベントで MainPage へ委譲。 -->
     <Grid>
         <Grid.ColumnDefinitions>
@@ -27,7 +28,7 @@
                 ToolTipService.ToolTip="左ペインを隠す">
             <FontIcon x:Name="LeftPaneIcon" Glyph="&#xE8A0;" FontSize="14" />
         </Button>
-        <!-- フィルタボタン（開閉ボタンと件数テキストの間） -->
+        <!-- フィルタボタン（開閉ボタンとステータステキストの間）。件数表示はこのボタン内（FilteredCountText）に集約。 -->
         <ctl:FilterBar Grid.Column="1" x:Name="FilterControl" Margin="0,0,8,0" />
         <TextBlock Grid.Column="2" VerticalAlignment="Center"
                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"

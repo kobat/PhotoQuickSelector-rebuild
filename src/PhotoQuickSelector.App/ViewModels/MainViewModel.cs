@@ -731,7 +731,8 @@ public partial class MainViewModel : ObservableObject
             }
 
             ApplyFilter();
-            StatusText = $"{AllPhotos.Count} 枚  ({folderPath})";
+            // 枚数はフィルタボタンの件数表示（FilteredCountText）と重複するため、ここでは開いているフォルダのパスのみ表示する。
+            StatusText = folderPath;
 
             // 選択の復元: 指定ファイルが絞込結果に在れば選択する（消えた/絞り込みで外れた場合は下のフォールバック）。
             if (restoreSelectedFile != null)

@@ -7,7 +7,8 @@ using Windows.System;
 namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
-/// 右ペイン上部のステータスバー（件数＋選択写真のメタ情報パネル案A＋GPS＋読み込み中表示）。
+/// 右ペイン上部のステータスバー（フォルダパス等のステータス＋選択写真のメタ情報パネル案A＋GPS＋読み込み中表示）。
+/// 件数はフィルタボタン（<see cref="FilterBar"/>）の FilteredCountText に集約し、ここには表示しない。
 /// 共有 <see cref="MainViewModel"/> を <see cref="MainPage"/> が注入する。
 /// 左ペイン開閉ボタンは骨組み側（<see cref="MainPage"/> の LeftColumn）を操作するため、
 /// <see cref="ToggleLeftPaneRequested"/> イベントで委譲する。
