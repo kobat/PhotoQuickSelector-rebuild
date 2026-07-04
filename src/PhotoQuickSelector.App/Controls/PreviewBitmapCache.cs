@@ -22,12 +22,34 @@ internal enum CacheItemState
 }
 
 /// <summary>
+/// デコード済みピクセル（BGRA8・Premultiplied・密詰め＝stride なし）＋寸法。
+/// <see cref="BitmapDecoder.GetPixelDataAsync"/> の <c>DetachPixelData()</c> は
+/// 幅×高さ×4 ちょうどの密詰め配列を返すため、そのまま
+/// <see cref="Microsoft.Graphics.Canvas.CanvasBitmap.SetPixelBytes(byte[])"/> /
+/// <c>CreateFromBytes</c> に渡せる。
+/// </summary>
+internal sealed class PixelFrame
+{
+    public PixelFrame(byte[] bytes, int width, int height)
+    {
+        Bytes = bytes;
+        Width = width;
+        Height = height;
+    }
+
+    public byte[] Bytes { get; }
+    public int Width { get; }
+    public int Height { get; }
+}
+
+/// <summary>
 /// プレビューの前後 N 枚先読みキャッシュ（SPEC §4）。キーはファイルパス。
 /// <para>
-/// デコード結果は <see cref="SoftwareBitmap"/>（BGRA8・メインメモリ常駐）で保持し、GPU（VRAM）を
-/// 消費しない。表示時は <see cref="CanvasBitmap.CreateFromSoftwareBitmap"/> による GPU への転送のみ
-/// （デコード不要の生コピー）なので速い。デバイス非依存＝Win2D のデバイス再生成（デバイスロスト/
-/// DPI 変更）が起きてもこのキャッシュ自体は生き残る。
+/// デコード結果は <see cref="PixelFrame"/>（BGRA8 の <c>byte[]</c>・メインメモリ常駐）で保持し、
+/// GPU（VRAM）を消費しない。表示時は <see cref="Microsoft.Graphics.Canvas.CanvasBitmap.SetPixelBytes(byte[])"/>
+/// （同寸再利用）／<c>CreateFromBytes</c>（作り直し）による GPU への転送のみ。キャッシュのバイト列を
+/// 直接転送 API へ渡すため、切替時の CPU コピーは 0 回。デバイス非依存＝Win2D のデバイス再生成
+/// （デバイスロスト/DPI 変更）が起きてもこのキャッシュ自体は生き残る。
 /// </para>
 /// <para>
 /// デコードは重いので、表示中とその近傍だけをメモリに保持する。
@@ -48,8 +70,8 @@ internal sealed class PreviewBitmapCache
 {
     private const int MaxConcurrentDecodes = 2; // 同時に走らせるデコードの上限
 
-    private readonly Dictionary<string, SoftwareBitmap> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Task<SoftwareBitmap?>> _inflight = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PixelFrame> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Task<PixelFrame?>> _inflight = new(StringComparer.OrdinalIgnoreCase);
     // ゲートを取得してファイル読み込み＋デコード中のパス（ゲート順番待ちの待機中と区別する）。
     private readonly HashSet<string> _loading = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _gate = new(MaxConcurrentDecodes, MaxConcurrentDecodes);
@@ -94,10 +116,10 @@ internal sealed class PreviewBitmapCache
     /// </summary>
     public bool IsCached(string path) => _cache.ContainsKey(path);
 
-    /// <summary>キャッシュ優先で <see cref="SoftwareBitmap"/> を取得する。読み込み中なら同一タスクを共有。</summary>
-    public Task<SoftwareBitmap?> GetAsync(string path)
+    /// <summary>キャッシュ優先で <see cref="PixelFrame"/> を取得する。読み込み中なら同一タスクを共有。</summary>
+    public Task<PixelFrame?> GetAsync(string path)
     {
-        if (_cache.TryGetValue(path, out var cached)) return Task.FromResult<SoftwareBitmap?>(cached);
+        if (_cache.TryGetValue(path, out var cached)) return Task.FromResult<PixelFrame?>(cached);
         if (_inflight.TryGetValue(path, out var running)) return running;
 
         var task = LoadCoreAsync(path, _generation);
@@ -106,7 +128,7 @@ internal sealed class PreviewBitmapCache
         return task;
     }
 
-    private async Task<SoftwareBitmap?> LoadCoreAsync(string path, int generation)
+    private async Task<PixelFrame?> LoadCoreAsync(string path, int generation)
     {
         try
         {
@@ -136,20 +158,22 @@ internal sealed class PreviewBitmapCache
                 await stream.WriteAsync(bytes.AsBuffer());
                 stream.Seek(0);
 
+                // GetPixelDataAsync + DetachPixelData は「幅×高さ×4」ちょうどの密詰め配列を返す
+                // （stride パディングなし）。SetPixelBytes / CreateFromBytes へそのまま渡せる。
                 var decoder = await BitmapDecoder.CreateAsync(stream);
-                var sb = await decoder.GetSoftwareBitmapAsync(
+                var pixels = await decoder.GetPixelDataAsync(
                     BitmapPixelFormat.Bgra8,
                     BitmapAlphaMode.Premultiplied,
                     new BitmapTransform(),
                     ExifOrientationMode.RespectExifOrientation,
                     ColorManagementMode.ColorManageToSRgb);
-                if (generation != _generation)
-                {
-                    sb.Dispose(); // Clear で世代が進んだ（全破棄要求後）
-                    return null;
-                }
-                _cache[path] = sb;
-                return sb;
+                var frame = new PixelFrame(
+                    pixels.DetachPixelData(),
+                    (int)decoder.OrientedPixelWidth,
+                    (int)decoder.OrientedPixelHeight);
+                if (generation != _generation) return null; // byte[] は GC 管理なので Dispose 不要
+                _cache[path] = frame;
+                return frame;
             }
             finally
             {
@@ -178,8 +202,9 @@ internal sealed class PreviewBitmapCache
     /// <summary>
     /// <paramref name="keep"/> に含まれないキャッシュを破棄する。
     /// 表示中の 1 枚は呼び出し側（<see cref="PreviewControl"/>）が独立した
-    /// <see cref="CanvasBitmap"/> として GPU へ転送・所有するため、このキャッシュ（<see cref="SoftwareBitmap"/>）
-    /// 側では保護不要（旧 current 保護引数は撤去）。
+    /// <see cref="CanvasBitmap"/> として GPU へ転送・所有するため、このキャッシュ（<see cref="PixelFrame"/>）
+    /// 側では保護不要（旧 current 保護引数は撤去）。<c>byte[]</c> は GC 管理のため Dispose 不要で
+    /// Remove するだけでよい。
     /// </summary>
     public void Trim(IEnumerable<string> keep)
     {
@@ -188,7 +213,6 @@ internal sealed class PreviewBitmapCache
         foreach (var key in _cache.Keys.ToList())
         {
             if (keepSet.Contains(key)) continue;
-            _cache[key].Dispose();
             _cache.Remove(key);
             removed = true;
         }
@@ -197,14 +221,13 @@ internal sealed class PreviewBitmapCache
 
     /// <summary>
     /// 全破棄し世代を進める。進行中の読み込みは完了時に世代不一致で自分を破棄する。
-    /// キャッシュはデバイス非依存（SoftwareBitmap）になったため、Win2D のデバイス再生成では
-    /// 呼ぶ必要がない（呼び出し元が無くなったが、全無効化用 API として維持）。
+    /// キャッシュはデバイス非依存（PixelFrame＝byte[]）になったため、Win2D のデバイス再生成では
+    /// 呼ぶ必要がない（呼び出し元が無くなったが、全無効化用 API として維持）。byte[] は GC 管理のため
+    /// Dispose 不要。
     /// </summary>
     public void Clear()
     {
         _generation++;
-        foreach (var bmp in _cache.Values)
-            bmp.Dispose();
         _cache.Clear();
         Changed?.Invoke();
     }

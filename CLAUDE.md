@@ -1238,6 +1238,16 @@
     従来の `CreateFromSoftwareBitmap` へフォールバック。Dispose は `ReferenceEquals` ガードで再利用時の自己破棄を防止。
     トレードオフ＝転送時に 1 回のメインメモリ memcpy（≈200MB・十数ms）が挟まるが、GPU リソースの生成/破棄がなくなる
     ぶん安定。変更: `Controls/PreviewControl.xaml.cs` のみ。`BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。
+  - **キャッシュ保持型を byte[]（PixelFrame）へ変更（追記・2026-07-04）**: `SetPixelBytes` 再利用時、`SoftwareBitmap`
+    保持だと `CopyToBuffer`→転送バッファの CPU memcpy（≈200MB・UI スレッド）が毎切替に挟まっていた。保持型を
+    `PixelFrame`（BGRA8 密詰め `byte[]`＋寸法）へ変更し、キャッシュのバイト列を直接 `SetPixelBytes`/`CreateFromBytes`
+    へ渡すことで**切替時 CPU コピー 0 回**に。デコードは `BitmapDecoder.GetPixelDataAsync`（`RespectExifOrientation`/
+    `ColorManageToSRgb`＝従来と同じ引数）＋`DetachPixelData`（密詰め保証＝stride 検査・`LockBuffer` フォールバック不要）。
+    寸法は `OrientedPixelWidth/Height`。`_transferBuffer`（200MB 常駐）と stride 検査を撤去しコードも簡素化。解放は
+    GC 任せ（LOH）になるが保持窓 4 枚で有界＝サムネイルの圧縮バイト常駐と同方針。作り直しは `CreateFromBytes`
+    （dpi=96 明示・`B8G8R8A8UIntNormalized`）。変更: `Controls/PreviewBitmapCache.cs`・`Controls/PreviewControl.xaml.cs`。
+    `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。実機目視（連写切替の応答性・メモリ/VRAM）は
+    ユーザー確認推奨。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.Graphics.Canvas;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -12,7 +11,7 @@ using Microsoft.UI.Xaml.Media;
 using PhotoQuickSelector.Core;
 using PhotoQuickSelector_App.ViewModels;
 using Windows.Foundation;
-using Windows.Graphics.Imaging;
+using Windows.Graphics.DirectX;
 using Windows.System;
 
 namespace PhotoQuickSelector_App.Controls;
@@ -45,10 +44,7 @@ public sealed partial class PreviewControl : UserControl
     private readonly PreviewViewport _viewport = new();
     private readonly PreviewViewport _zoomViewport = new();  // 右上ズームプレビュー（100% ルーペ）の独立ビューポート
     private readonly PreviewBitmapCache _cache;              // 前後 N 枚先読みキャッシュ（SPEC §4）
-    private CanvasBitmap? _bitmap;          // 現在表示中の GPU ビットマップ（本コントロールが所有。差し替え時に Dispose する。ピクセル実体はキャッシュの SoftwareBitmap 側）
-    // 同寸切替の SetPixelBytes 用転送バッファ（SoftwareBitmap → byte[] → GPU の中継）。
-    // 使い回すことで 200MB 級の LOH 確保を切替のたびに繰り返さない。プレビュー退場時に解放する。
-    private byte[]? _transferBuffer;
+    private CanvasBitmap? _bitmap;          // 現在表示中の GPU ビットマップ（本コントロールが所有。差し替え時に Dispose する。ピクセル実体はキャッシュの byte[]（PixelFrame）側）
     private ImageMetadata? _currentMeta;    // 表示中ビットマップに対応するメタデータ（AF枠描画用）
     private int _currentOrientation = 1;
     private int _loadToken;                 // 現在表示ロードの世代（高速ナビでの追い越し対策）
@@ -222,11 +218,6 @@ public sealed partial class PreviewControl : UserControl
                     FocusForKeys();
                     ScrollSelectedIntoView();
                 }
-                else
-                {
-                    // プレビュー退場中は転送バッファ（200MB 級）を抱え続けない。次回入場時に再確保される。
-                    _transferBuffer = null;
-                }
                 break;
             case nameof(MainViewModel.GridKind):
             case nameof(MainViewModel.GridReference):
@@ -343,30 +334,19 @@ public sealed partial class PreviewControl : UserControl
     /// 新画像が表示中の <see cref="_bitmap"/> と同一寸法なら、作り直さず既存ビットマップへ
     /// <see cref="CanvasBitmap.SetPixelBytes(byte[])"/> で上書き転送して再利用する。
     /// VRAM の確保/解放 churn を避けるための最適化（連写フォルダではほぼ常に同寸）。
-    /// 成功時 true。寸法違い・stride にパディングあり・転送失敗（デバイスロスト等）は false を返し、
-    /// 呼び出し側が CreateFromSoftwareBitmap での作り直しへフォールバックする。
+    /// キャッシュのバイト列（密詰め BGRA8）をそのまま渡すため、切替時の CPU コピーは発生しない。
+    /// 成功時 true。寸法違い・転送失敗（デバイスロスト等）は false を返し、
+    /// 呼び出し側が CreateFromBytes での作り直しへフォールバックする。
     /// </summary>
-    private bool TryUpdateBitmapInPlace(SoftwareBitmap sb)
+    private bool TryUpdateBitmapInPlace(PixelFrame frame)
     {
         if (_bitmap == null) return false;
-        if (_bitmap.SizeInPixels.Width != (uint)sb.PixelWidth ||
-            _bitmap.SizeInPixels.Height != (uint)sb.PixelHeight) return false;
+        if (_bitmap.SizeInPixels.Width != (uint)frame.Width ||
+            _bitmap.SizeInPixels.Height != (uint)frame.Height) return false;
 
         try
         {
-            // SetPixelBytes は「幅×高さ×4 の密詰め BGRA」を期待する。SoftwareBitmap の内部バッファに
-            // 行パディング（Stride > 幅×4）があると CopyToBuffer の内容がずれるため、その場合は
-            // 作り直しへフォールバックする（BGRA8 は 4 バイト境界に自然に揃うので通常はパディングなし）。
-            using (var locked = sb.LockBuffer(BitmapBufferAccessMode.Read))
-            {
-                if (locked.GetPlaneDescription(0).Stride != sb.PixelWidth * 4) return false;
-            }
-
-            int size = sb.PixelWidth * sb.PixelHeight * 4;
-            if (_transferBuffer == null || _transferBuffer.Length != size)
-                _transferBuffer = new byte[size];
-            sb.CopyToBuffer(_transferBuffer.AsBuffer());
-            _bitmap.SetPixelBytes(_transferBuffer);
+            _bitmap.SetPixelBytes(frame.Bytes);
             return true;
         }
         catch
@@ -401,7 +381,7 @@ public sealed partial class PreviewControl : UserControl
             return;
         }
 
-        var sb = await _cache.GetAsync(photo.Meta.Path);
+        var frame = await _cache.GetAsync(photo.Meta.Path);
         if (token != _loadToken)
         {
             // 新しい読み込みに追い越された。表示は最新側に任せるが、ここで Trim を
@@ -411,21 +391,27 @@ public sealed partial class PreviewControl : UserControl
             return;
         }
 
-        // メインメモリの SoftwareBitmap から GPU へ転送（デコード済みピクセルの生コピーなので速い）。
-        // 同一寸法なら既存 _bitmap へ SetPixelBytes で上書き転送して再利用（VRAM の確保/解放 churn を
-        // 回避。連写フォルダではほぼ常に同寸）。寸法違い・初回は CreateFromSoftwareBitmap で作り直す。
-        // 稀にデバイスロスト直後だと転送/生成に失敗しうるが、その場合は CreateResources →
-        // ResetCacheAndReload 経由で再ロードされるので null 表示で流してよい。
+        // メインメモリの BGRA8 バイト列から GPU へ転送。同一寸法なら既存 _bitmap へ SetPixelBytes で
+        // 上書き転送して再利用する（VRAM の確保/解放 churn 回避・CPU コピーなし。連写フォルダでは
+        // ほぼ常に同寸）。寸法違い・初回は CreateFromBytes で作り直す。稀にデバイスロスト直後だと
+        // 転送/生成に失敗しうるが、その場合は CreateResources → ResetCacheAndReload 経由で
+        // 再ロードされるので null 表示で流してよい。
         CanvasBitmap? bmp = null;
-        if (sb != null)
+        if (frame != null)
         {
-            if (TryUpdateBitmapInPlace(sb))
+            if (TryUpdateBitmapInPlace(frame))
             {
                 bmp = _bitmap; // 再利用（同一インスタンス）
             }
             else
             {
-                try { bmp = CanvasBitmap.CreateFromSoftwareBitmap(MainCanvas, sb); }
+                try
+                {
+                    // dpi=96 明示＝SizeInPixels と Bounds の基準を一致させる（既存の描画は SizeInPixels 基準）。
+                    bmp = CanvasBitmap.CreateFromBytes(
+                        MainCanvas, frame.Bytes, frame.Width, frame.Height,
+                        DirectXPixelFormat.B8G8R8A8UIntNormalized, 96);
+                }
                 catch { bmp = null; }
             }
         }
@@ -500,7 +486,7 @@ public sealed partial class PreviewControl : UserControl
     }
 
     /// <summary>
-    /// デバイス再生成・ロスト復帰時に呼ばれる。キャッシュは SoftwareBitmap（デバイス非依存）になった
+    /// デバイス再生成・ロスト復帰時に呼ばれる。キャッシュは byte[]（PixelFrame・デバイス非依存）の
     /// ため、デバイス再生成/DPI 変更でも破棄不要。旧デバイスに属する表示中の CanvasBitmap だけ破棄し、
     /// キャッシュヒットの再転送で即復帰する。
     /// </summary>
