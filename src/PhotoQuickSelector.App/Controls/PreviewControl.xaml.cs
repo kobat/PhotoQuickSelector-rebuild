@@ -49,9 +49,19 @@ public sealed partial class PreviewControl : UserControl
     private int _currentOrientation = 1;
     private int _loadToken;                 // 現在表示ロードの世代（高速ナビでの追い越し対策）
 
-    // 先読みキャッシュの保持窓（現在位置の前後 N 枚）。
+    // 先読みキャッシュの保持窓（先読み対象＝Trim で保護する対象。WindowPaths() 参照）。
+    // 選択集合が無いとき: 現在位置（焦点）の前後 N 枚（位置窓）。
     private const int PrefetchForward = 2;
     private const int PrefetchBackward = 1;
+    // 選択集合があるとき: 「位置窓（狭め）」＋「メンバー窓（巡回順で前後）」の和集合。
+    // 素の ←/→（MoveFocusWithinSelection）はメンバー間を巡回するため、次に表示される可能性が
+    // 高いのは位置的な隣接枚ではなくメンバーの前後。位置窓も残すのは、Ctrl+←/→
+    // （MoveFocusKeepingSelection＝集合を変えず焦点だけ位置移動）で集合外へ焦点が出る操作にも
+    // 備えるため。
+    private const int SelectionPositionForward = 1;
+    private const int SelectionPositionBackward = 1;
+    private const int SelectionMemberForward = 2;
+    private const int SelectionMemberBackward = 1;
 
     // 連打中のフル解像度デコード（≈200MB/枚）抑制。素の毎キー・デコードは VRAM 生成レートを
     // 飽和させ（回収が追いつかず増え続ける）ため、未キャッシュ（＝重いデコードが要る）画像の読み込みを
@@ -381,7 +391,7 @@ public sealed partial class PreviewControl : UserControl
             return;
         }
 
-        var frame = await _cache.GetAsync(photo.Meta.Path);
+        var frame = await _cache.GetAsync(photo.Meta.Path, forDisplay: true);
         if (token != _loadToken)
         {
             // 新しい読み込みに追い越された。表示は最新側に任せるが、ここで Trim を
@@ -525,18 +535,84 @@ public sealed partial class PreviewControl : UserControl
         });
     }
 
-    /// <summary>現在位置を中心とした保持窓 [index-backward, index+forward] のファイルパス。</summary>
+    /// <summary>
+    /// 現在の保持窓（先読み対象＝Trim 保護対象）のファイルパス。<see cref="Prefetch"/>・
+    /// <see cref="PreviewBitmapCache.Trim"/> の保護集合・<see cref="IsPathInWindow"/> の 3 箇所すべてが
+    /// このメソッド経由なので、ここを変えるだけで全部に反映される。
+    /// <para>
+    /// 選択集合（<see cref="MainViewModel.SelectedPhotos"/>）が空のときは従来どおり位置窓のみ。
+    /// 選択集合があるときは「位置窓（前後1）」と「メンバー窓（巡回順で前後）」の和集合を返す。
+    /// yield 順は「焦点 → メンバー窓 → 位置窓」＝<see cref="Prefetch"/> はこの列挙順でゲート
+    /// （同時2本）に並ぶため、巡回移動（素の ←/→）で次に表示される可能性が高いメンバーを
+    /// 位置的な隣接枚より優先して先読みする狙い。
+    /// </para>
+    /// </summary>
     private IEnumerable<string> WindowPaths()
     {
         var vm = _viewModel;
-        if (vm?.FocusedPhoto == null) yield break;
-        int index = vm.Photos.IndexOf(vm.FocusedPhoto);
-        if (index < 0) yield break;
+        if (vm?.FocusedPhoto == null) return Array.Empty<string>();
 
-        int start = Math.Max(0, index - PrefetchBackward);
-        int end = Math.Min(vm.Photos.Count - 1, index + PrefetchForward);
-        for (int i = start; i <= end; i++)
-            yield return vm.Photos[i].Meta.Path;
+        if (vm.SelectedPhotos.Count == 0)
+        {
+            // 選択集合なし: 従来どおり焦点の位置窓のみ。
+            int index = vm.Photos.IndexOf(vm.FocusedPhoto);
+            if (index < 0) return Array.Empty<string>();
+
+            int start = Math.Max(0, index - PrefetchBackward);
+            int end = Math.Min(vm.Photos.Count - 1, index + PrefetchForward);
+            var positionOnly = new List<string>(end - start + 1);
+            for (int i = start; i <= end; i++)
+                positionOnly.Add(vm.Photos[i].Meta.Path);
+            return positionOnly;
+        }
+
+        // 選択集合あり: 重複除去しつつ「焦点 → メンバー窓 → 位置窓」の順で返す。
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<string>();
+
+        void Add(string path)
+        {
+            if (seen.Add(path)) result.Add(path);
+        }
+
+        Add(vm.FocusedPhoto.Meta.Path);
+
+        // メンバー窓: MainViewModel.MoveFocusWithinSelection と同じ「Photos 表示順のメンバー一覧＋
+        // modulo 巻き戻し」でアンカーを決める（素の ←/→ が実際に辿る順序と一致させる）。
+        // 焦点がメンバーに含まれる場合は焦点の位置を、含まれない場合（Ctrl+←/→ で集合外へ出た等）は
+        // MoveFocusWithinSelection の「delta>0→先頭 / delta<0→末尾」規則に合わせて両端を基準にする。
+        var ordered = vm.Photos.Where(p => p.IsInSelection).ToList();
+        int n = ordered.Count;
+        if (n > 0)
+        {
+            int cur = ordered.IndexOf(vm.FocusedPhoto); // 集合外なら -1
+
+            for (int d = 1; d <= SelectionMemberForward; d++)
+            {
+                // 焦点がメンバー外のとき、delta>0（→ 相当）の着地点は先頭（index 0）なので
+                // 1 手目はその先頭そのもの、以降は先頭から巡回して先読みする。
+                int idx = cur >= 0 ? (((cur + d) % n) + n) % n : (d - 1) % n;
+                Add(ordered[idx].Meta.Path);
+            }
+            for (int d = 1; d <= SelectionMemberBackward; d++)
+            {
+                // delta<0（← 相当）の着地点は末尾（index n-1）。
+                int idx = cur >= 0 ? (((cur - d) % n) + n) % n : (n - 1 - (d - 1) % n);
+                Add(ordered[idx].Meta.Path);
+            }
+        }
+
+        // 位置窓（狭め）: Ctrl+←/→ で集合外へ焦点が出る操作にも備える。
+        int posIndex = vm.Photos.IndexOf(vm.FocusedPhoto);
+        if (posIndex >= 0)
+        {
+            int start = Math.Max(0, posIndex - SelectionPositionBackward);
+            int end = Math.Min(vm.Photos.Count - 1, posIndex + SelectionPositionForward);
+            for (int i = start; i <= end; i++)
+                Add(vm.Photos[i].Meta.Path);
+        }
+
+        return result;
     }
 
     /// <summary>【案2】指定パスが現在の保持窓内かどうか。キャッシュのデコード可否判定に使う。</summary>

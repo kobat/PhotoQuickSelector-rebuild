@@ -1249,6 +1249,32 @@
     `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。実機目視（連写切替の応答性・メモリ/VRAM）は
     ユーザー確認推奨。
 
+- **先読みキャッシュの保持ポリシー改良（2段階LRU＋容量予算＋選択集合対応の先読み窓）完了（2026-07-05・要実機確認）**:
+  2 枚の写真を左右キーで行き来すると、往復のたびに保持窓（前1/後2）から外れた 1 枚（≈200MB 分のデコード）が
+  `Trim` で捨てられ再デコードされる無駄を解消。方針＝**先読みする条件は従来のまま、解放する条件だけ緩める**
+  （メモリ増はユーザー許容済みのトレードオフ）。**Core・XAML は非変更**（`Controls/PreviewBitmapCache.cs`・
+  `Controls/PreviewControl.xaml.cs` のみ）。
+  - **① 表示実績優先の 2 段階 LRU＋バイト予算（`PreviewBitmapCache`）**: `Trim(keep)` の意味を「keep（現在窓）外は
+    即破棄」→「**keep は無条件保護＋合計バイトが `MaxCacheBytes`（2GB・調整ノブ）を超えている間だけ、
+    未表示（先読みのみ）の古い順 → 表示済みの古い順で破棄**」へ変更。予算内なら窓外でも残すため往復の再デコードが
+    消える。エントリは `CacheEntry`（`PixelFrame`＋`LastUse`＝単調増分カウンタ（時計不使用）＋`WasDisplayed`）で包む。
+    `GetAsync(path, forDisplay)` にシグネチャ変更＝表示ロード（`LoadCurrentAsync`）だけが `WasDisplayed` を立て、
+    `Prefetch` は立てない。inflight 中に表示要求が重なるケースは `_pendingDisplay`（HashSet）に控えて挿入時に反映
+    （世代不一致/`IsWanted` 破棄/例外の全経路で Remove しリークなし）。継続はすべて UI スレッド＝ロック不要は従来どおり。
+  - **② 選択集合対応の先読み窓（`PreviewControl.WindowPaths()`）**: 選択集合なし＝従来どおり位置窓 前1/後2
+    （`PrefetchForward/Backward`）。選択集合あり＝「**位置窓 前1/後1**（`SelectionPosition*`。Ctrl+←/→ の集合外
+    移動に備える）」＋「**メンバー窓 前1/後2**（`SelectionMember*`。`MoveFocusWithinSelection` と同じ
+    `Photos.Where(IsInSelection)` の表示順＋modulo 巻き戻し。焦点が集合外なら同メソッドの規則どおり →=先頭/←=末尾
+    基準）」の**和集合**（OrdinalIgnoreCase で重複除去）。返す順は 焦点→メンバー窓→位置窓＝`Prefetch` のゲート
+    （同時2本）で巡回先メンバーを位置近傍より優先。`Prefetch`／`Trim` 保護／`IsWanted`（窓外バイパス）の 3 箇所
+    すべてが `WindowPaths()` 経由なので、変更はこの 1 メソッドに集約（呼び出し側は不変）。
+  - **期待動作**: 2 枚往復は最初の 1 往復で両側の窓が揃い**以降デコードゼロ**（キャッシュヒット→`SetPixelBytes`
+    転送のみ）。選択集合巡回はメンバー先読みで**到達即表示**。メモリは予算 2GB で頭打ち（メインメモリのみ・
+    VRAM への影響なし）。レート制限・settle・同時実行ゲート・`C` オーバーレイは構造無変更。
+  - `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。`PreviewBitmapCache` は WinRT imaging 依存で
+    Core.Tests（非 Windows TFM）から参照不可＝LRU ロジックの単体テストなし。実機目視（2 枚往復で `C` オーバーレイの
+    エントリが減らない・選択巡回の即表示・大量移動時に予算で頭打ち）はユーザー確認推奨。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**
