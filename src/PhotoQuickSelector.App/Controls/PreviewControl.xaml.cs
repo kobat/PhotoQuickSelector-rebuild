@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.Graphics.Canvas;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -11,6 +12,7 @@ using Microsoft.UI.Xaml.Media;
 using PhotoQuickSelector.Core;
 using PhotoQuickSelector_App.ViewModels;
 using Windows.Foundation;
+using Windows.Graphics.Imaging;
 using Windows.System;
 
 namespace PhotoQuickSelector_App.Controls;
@@ -44,6 +46,9 @@ public sealed partial class PreviewControl : UserControl
     private readonly PreviewViewport _zoomViewport = new();  // 右上ズームプレビュー（100% ルーペ）の独立ビューポート
     private readonly PreviewBitmapCache _cache;              // 前後 N 枚先読みキャッシュ（SPEC §4）
     private CanvasBitmap? _bitmap;          // 現在表示中の GPU ビットマップ（本コントロールが所有。差し替え時に Dispose する。ピクセル実体はキャッシュの SoftwareBitmap 側）
+    // 同寸切替の SetPixelBytes 用転送バッファ（SoftwareBitmap → byte[] → GPU の中継）。
+    // 使い回すことで 200MB 級の LOH 確保を切替のたびに繰り返さない。プレビュー退場時に解放する。
+    private byte[]? _transferBuffer;
     private ImageMetadata? _currentMeta;    // 表示中ビットマップに対応するメタデータ（AF枠描画用）
     private int _currentOrientation = 1;
     private int _loadToken;                 // 現在表示ロードの世代（高速ナビでの追い越し対策）
@@ -217,6 +222,11 @@ public sealed partial class PreviewControl : UserControl
                     FocusForKeys();
                     ScrollSelectedIntoView();
                 }
+                else
+                {
+                    // プレビュー退場中は転送バッファ（200MB 級）を抱え続けない。次回入場時に再確保される。
+                    _transferBuffer = null;
+                }
                 break;
             case nameof(MainViewModel.GridKind):
             case nameof(MainViewModel.GridReference):
@@ -329,6 +339,43 @@ public sealed partial class PreviewControl : UserControl
         return timer;
     }
 
+    /// <summary>
+    /// 新画像が表示中の <see cref="_bitmap"/> と同一寸法なら、作り直さず既存ビットマップへ
+    /// <see cref="CanvasBitmap.SetPixelBytes(byte[])"/> で上書き転送して再利用する。
+    /// VRAM の確保/解放 churn を避けるための最適化（連写フォルダではほぼ常に同寸）。
+    /// 成功時 true。寸法違い・stride にパディングあり・転送失敗（デバイスロスト等）は false を返し、
+    /// 呼び出し側が CreateFromSoftwareBitmap での作り直しへフォールバックする。
+    /// </summary>
+    private bool TryUpdateBitmapInPlace(SoftwareBitmap sb)
+    {
+        if (_bitmap == null) return false;
+        if (_bitmap.SizeInPixels.Width != (uint)sb.PixelWidth ||
+            _bitmap.SizeInPixels.Height != (uint)sb.PixelHeight) return false;
+
+        try
+        {
+            // SetPixelBytes は「幅×高さ×4 の密詰め BGRA」を期待する。SoftwareBitmap の内部バッファに
+            // 行パディング（Stride > 幅×4）があると CopyToBuffer の内容がずれるため、その場合は
+            // 作り直しへフォールバックする（BGRA8 は 4 バイト境界に自然に揃うので通常はパディングなし）。
+            using (var locked = sb.LockBuffer(BitmapBufferAccessMode.Read))
+            {
+                if (locked.GetPlaneDescription(0).Stride != sb.PixelWidth * 4) return false;
+            }
+
+            int size = sb.PixelWidth * sb.PixelHeight * 4;
+            if (_transferBuffer == null || _transferBuffer.Length != size)
+                _transferBuffer = new byte[size];
+            sb.CopyToBuffer(_transferBuffer.AsBuffer());
+            _bitmap.SetPixelBytes(_transferBuffer);
+            return true;
+        }
+        catch
+        {
+            // デバイスロスト等。false で作り直しへ（それも失敗すれば null 表示→CreateResources 経由で復帰）。
+            return false;
+        }
+    }
+
     /// <param name="preserveView">
     /// true なら現在のズーム状態（モード/フィット比/相対中心）を維持して差し替える（写真切替）。
     /// false なら新画像をフィット表示で初期化する（プレビュー入場時）。
@@ -365,15 +412,24 @@ public sealed partial class PreviewControl : UserControl
         }
 
         // メインメモリの SoftwareBitmap から GPU へ転送（デコード済みピクセルの生コピーなので速い）。
-        // 稀にデバイスロスト直後だと生成に失敗しうるが、その場合は CreateResources →
+        // 同一寸法なら既存 _bitmap へ SetPixelBytes で上書き転送して再利用（VRAM の確保/解放 churn を
+        // 回避。連写フォルダではほぼ常に同寸）。寸法違い・初回は CreateFromSoftwareBitmap で作り直す。
+        // 稀にデバイスロスト直後だと転送/生成に失敗しうるが、その場合は CreateResources →
         // ResetCacheAndReload 経由で再ロードされるので null 表示で流してよい。
         CanvasBitmap? bmp = null;
         if (sb != null)
         {
-            try { bmp = CanvasBitmap.CreateFromSoftwareBitmap(MainCanvas, sb); }
-            catch { bmp = null; }
+            if (TryUpdateBitmapInPlace(sb))
+            {
+                bmp = _bitmap; // 再利用（同一インスタンス）
+            }
+            else
+            {
+                try { bmp = CanvasBitmap.CreateFromSoftwareBitmap(MainCanvas, sb); }
+                catch { bmp = null; }
+            }
         }
-        _bitmap?.Dispose();
+        if (!ReferenceEquals(_bitmap, bmp)) _bitmap?.Dispose();
         _bitmap = bmp;
         _currentMeta = bmp != null ? photo.Meta : null;
         if (bmp != null)

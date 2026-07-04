@@ -1231,6 +1231,13 @@
     （GPU 転送処理・`_bitmap` の所有/Dispose・`ResetCacheAndReload`）。`BUILD SUCCEEDED`（x64 Release・警告0）／
     `dotnet test` 96 件緑。実機目視（色味の一致・縦構図 DSC03334 の回転/AF枠位置・前後移動の体感・タスクマネージャで
     VRAM が頭打ちになること）はユーザー確認推奨。
+  - **同寸なら SetPixelBytes で再利用（追記・2026-07-04）**: 写真切替時、新画像が表示中の `_bitmap` と同一寸法なら
+    `CanvasBitmap` を作り直さず `TryUpdateBitmapInPlace`＝`SoftwareBitmap.CopyToBuffer`→再利用 `byte[]`
+    （`_transferBuffer`・寸法変化時のみ再確保・プレビュー退場で解放）→`SetPixelBytes` で既存ビットマップへ上書き転送。
+    VRAM の確保/解放 churn がゼロになる（連写フォルダではほぼ常に同寸）。stride パディングあり・寸法違い・転送失敗時は
+    従来の `CreateFromSoftwareBitmap` へフォールバック。Dispose は `ReferenceEquals` ガードで再利用時の自己破棄を防止。
+    トレードオフ＝転送時に 1 回のメインメモリ memcpy（≈200MB・十数ms）が挟まるが、GPU リソースの生成/破棄がなくなる
+    ぶん安定。変更: `Controls/PreviewControl.xaml.cs` のみ。`BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
