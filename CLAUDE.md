@@ -1209,6 +1209,29 @@
     `tools/gen-shortcuts.ps1`、`README.md`、XAML 9 ファイル＋対応コードビハインド、`ViewModels/MainViewModel.cs`・
     `PhotoItemViewModel.cs`、`MainPage.xaml.cs`。**Core は非変更**。
 
+- **先読みキャッシュの SoftwareBitmap 化（VRAM 削減）完了（2026-07-04・要実機確認）**: プレビューの先読みキャッシュが
+  `CanvasBitmap`（VRAM ≈200MB/枚×保持窓4枚）で GPU メモリを圧迫していたのを解消。旧アプリの「メインメモリに BGRA8 で
+  保持→表示時だけ GPU へ生転送」方式を踏襲。**Core・XAML は非変更**。
+  - **方式**: `PreviewBitmapCache` の保持型を `CanvasBitmap`→**`SoftwareBitmap`（BGRA8・Premultiplied・メインメモリ常駐）**へ
+    変更。デコードは `BitmapDecoder.CreateAsync`＋`GetSoftwareBitmapAsync`（`ExifOrientationMode.RespectExifOrientation`＝
+    正立済みピクセルを取得＝従来の `CanvasBitmap.LoadAsync` の自動回転と同じ結果、`ColorManagementMode.ColorManageToSRgb`）。
+    ファイルロック回避（バイトを読み切ってからメモリストリーム経由でデコード）はそのまま維持。
+    `PreviewControl.LoadCurrentAsync` が表示確定時のみ `CanvasBitmap.CreateFromSoftwareBitmap(MainCanvas, sb)` で GPU へ
+    転送（デコード不要の生コピーなので速い）。**表示中 1 枚の `CanvasBitmap`（`_bitmap`）は `PreviewControl` が所有**し、
+    差し替え/入れ替え/クリア時に明示 `Dispose()` する（従来はキャッシュ内参照を借用するだけで Dispose 不要だった）。
+  - **副作用**: キャッシュがデバイス非依存になったため `PreviewBitmapCache.Trim` の `current` 保護引数（表示中ビットマップの
+    Trim 除外）が不要になり削除（`Trim(IEnumerable<string> keep)` のみに）。`ResetCacheAndReload`（デバイス再生成/DPI変更）は
+    **`_cache.Clear()` を呼ばなくなった**（SoftwareBitmap はデバイスに紐付かないので破棄不要）。旧デバイスに属する表示中の
+    `CanvasBitmap` だけ破棄し、キャッシュヒットの再転送で即復帰する。ゲート（`SemaphoreSlim` 同時2）／`IsWanted`（窓外バイパス）／
+    レート制限（`RequestPreviewLoad`）／`C` オーバーレイの状態表示（cached/loading/waiting）は構造そのまま無変更。
+  - **VRAM/メモリ収支**: 表示中 1 枚のみ VRAM 常駐（≈200MB。差し替え中の一瞬だけ新旧2枚）。旧来の保持窓4枚ぶんの VRAM
+    （≈800MB）は解消。代わりにメインメモリ側で窓4枚ぶんの `SoftwareBitmap`（同程度のサイズ）を保持するトレードオフ
+    （メインメモリは一般に潤沢なため許容。窓幅は `PrefetchForward`/`PrefetchBackward` が調整ノブ）。
+  - 変更: `Controls/PreviewBitmapCache.cs`（保持型・デコード方式・`Trim` シグネチャ）、`Controls/PreviewControl.xaml.cs`
+    （GPU 転送処理・`_bitmap` の所有/Dispose・`ResetCacheAndReload`）。`BUILD SUCCEEDED`（x64 Release・警告0）／
+    `dotnet test` 96 件緑。実機目視（色味の一致・縦構図 DSC03334 の回転/AF枠位置・前後移動の体感・タスクマネージャで
+    VRAM が頭打ちになること）はユーザー確認推奨。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**

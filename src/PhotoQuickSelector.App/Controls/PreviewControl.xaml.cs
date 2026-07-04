@@ -43,7 +43,7 @@ public sealed partial class PreviewControl : UserControl
     private readonly PreviewViewport _viewport = new();
     private readonly PreviewViewport _zoomViewport = new();  // 右上ズームプレビュー（100% ルーペ）の独立ビューポート
     private readonly PreviewBitmapCache _cache;              // 前後 N 枚先読みキャッシュ（SPEC §4）
-    private CanvasBitmap? _bitmap;          // 現在表示中（_cache 内の参照。直接 Dispose しない）
+    private CanvasBitmap? _bitmap;          // 現在表示中の GPU ビットマップ（本コントロールが所有。差し替え時に Dispose する。ピクセル実体はキャッシュの SoftwareBitmap 側）
     private ImageMetadata? _currentMeta;    // 表示中ビットマップに対応するメタデータ（AF枠描画用）
     private int _currentOrientation = 1;
     private int _loadToken;                 // 現在表示ロードの世代（高速ナビでの追い越し対策）
@@ -103,7 +103,7 @@ public sealed partial class PreviewControl : UserControl
     {
         InitializeComponent();
         _filmMetrics = (FilmStripMetrics)Resources["FilmMetrics"];
-        _cache = new PreviewBitmapCache(MainCanvas);
+        _cache = new PreviewBitmapCache();
         _cache.Changed += RefreshCacheOverlay;
         // 【案2】デコード順が回ってきた時点で「まだ保持窓内か」を判定し、窓外なら読み込みを破棄する。
         // 押しっぱなしで通過した写真の不要ロードを安価に捨て、同時実行ゲートと併せて膨張を抑える。
@@ -347,30 +347,41 @@ public sealed partial class PreviewControl : UserControl
 
         if (photo == null)
         {
+            _bitmap?.Dispose();
             _bitmap = null;
             _currentMeta = null;
             InvalidateAll();
             return;
         }
 
-        var bmp = await _cache.GetAsync(photo.Meta.Path);
+        var sb = await _cache.GetAsync(photo.Meta.Path);
         if (token != _loadToken)
         {
             // 新しい読み込みに追い越された。表示は最新側に任せるが、ここで Trim を
             // 通さないと押しっぱなしナビ中に Trim が一度も走らずキャッシュが膨張する。
             // WindowPaths() は現在の FocusedPhoto 基準なので常に最新窓へ収束する。
-            _cache.Trim(WindowPaths(), _bitmap);
+            _cache.Trim(WindowPaths());
             return;
         }
 
+        // メインメモリの SoftwareBitmap から GPU へ転送（デコード済みピクセルの生コピーなので速い）。
+        // 稀にデバイスロスト直後だと生成に失敗しうるが、その場合は CreateResources →
+        // ResetCacheAndReload 経由で再ロードされるので null 表示で流してよい。
+        CanvasBitmap? bmp = null;
+        if (sb != null)
+        {
+            try { bmp = CanvasBitmap.CreateFromSoftwareBitmap(MainCanvas, sb); }
+            catch { bmp = null; }
+        }
+        _bitmap?.Dispose();
         _bitmap = bmp;
         _currentMeta = bmp != null ? photo.Meta : null;
         if (bmp != null)
         {
             _currentOrientation = photo.Meta.Orientation;
             double w = bmp.SizeInPixels.Width, h = bmp.SizeInPixels.Height;
-            // CanvasBitmap.LoadAsync は EXIF Orientation を適用済みのビットマップを返す（既に正立）。
-            // よって SizeInPixels がそのまま表示サイズになる（回転は描画側で加えない）。
+            // キャッシュのデコード（WIC・RespectExifOrientation）が Orientation 適用済みの正立ピクセルを
+            // 返すため、従来どおり回転は描画側で加えない。SizeInPixels がそのまま表示サイズになる。
             // Size は DPI 依存（高 DPI で縮む）ため、寸法基準は SizeInPixels に統一する。
             // 等倍（100%）を 1 画像px = 1 物理px にするため、現在の DPI を両ビューポートへ供給。
             UpdateDpiScale();
@@ -394,7 +405,7 @@ public sealed partial class PreviewControl : UserControl
         InvalidateAll();
 
         if (prefetch) _cache.Prefetch(WindowPaths());
-        _cache.Trim(WindowPaths(), _bitmap);
+        _cache.Trim(WindowPaths());
     }
 
     /// <summary>メイン・ズームプレビュー・ナビゲーターの 3 キャンバスを再描画する。</summary>
@@ -432,10 +443,14 @@ public sealed partial class PreviewControl : UserControl
         _zoomViewport.DpiScale = s;
     }
 
-    /// <summary>デバイス再生成・ロスト復帰時はキャッシュを破棄して再ロードする。</summary>
+    /// <summary>
+    /// デバイス再生成・ロスト復帰時に呼ばれる。キャッシュは SoftwareBitmap（デバイス非依存）になった
+    /// ため、デバイス再生成/DPI 変更でも破棄不要。旧デバイスに属する表示中の CanvasBitmap だけ破棄し、
+    /// キャッシュヒットの再転送で即復帰する。
+    /// </summary>
     private void ResetCacheAndReload()
     {
-        _cache.Clear();
+        _bitmap?.Dispose();
         _bitmap = null;
         _currentMeta = null;
         // デバイス再生成/DPI 変更時は現在のズーム状態を保ったまま即時再ロードする（レート制限はバイパス）。
