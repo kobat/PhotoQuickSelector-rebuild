@@ -10,7 +10,7 @@
     <!-- フィルタボタン（SPEC §3-4 / §3-5）。クリックで条件＋クリップボード出力のフライアウトを開く。
          フライアウト内の入力は DataContext=ViewModel.Filter に対するクラシック Binding（null セーフ）、
          件数・コピー操作は x:Bind / コードビハインドで処理する。 -->
-    <Button x:Name="FilterButton" Height="32" VerticalAlignment="Center"
+    <Button x:Name="FilterButton" x:Uid="Filter_Button" Height="32" VerticalAlignment="Center"
             ToolTipService.ToolTip="フィルタ (Ctrl+L)">
         <StackPanel Orientation="Horizontal" Spacing="6">
             <FontIcon Glyph="&#xE71C;" FontSize="14" />
@@ -24,9 +24,11 @@
                             DataContext="{x:Bind ViewModel.Filter, Mode=OneWay}">
 
                     <Grid>
-                        <TextBlock Text="フィルタ" Style="{ThemeResource BodyStrongTextBlockStyle}"
+                        <TextBlock x:Uid="Filter_Header" Text="フィルタ"
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}"
                                    VerticalAlignment="Center" />
-                        <ToggleSwitch HorizontalAlignment="Right" MinWidth="0"
+                        <ToggleSwitch x:Uid="Filter_EnabledSwitch"
+                                      HorizontalAlignment="Right" MinWidth="0"
                                       OnContent="有効" OffContent="無効"
                                       IsOn="{Binding Enabled, Mode=TwoWay}" />
                     </Grid>
@@ -34,31 +36,32 @@
                     <!-- レーティング -->
                     <StackPanel Spacing="6">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="レーティング" VerticalAlignment="Center" />
-                            <Button x:Name="CompareButton" Click="CompareButton_Click"
+                            <TextBlock x:Uid="Filter_RatingHeader" Text="レーティング" VerticalAlignment="Center" />
+                            <Button x:Name="CompareButton" x:Uid="Filter_CompareButton"
+                                    Click="CompareButton_Click"
                                     MinWidth="36" Padding="6,2"
                                     Content="{Binding RatingCompareGlyph}"
                                     ToolTipService.ToolTip="≧ / ＝ を切り替え" />
                         </StackPanel>
                         <RatingControl x:Name="RatingPicker" MaxRating="5" IsClearEnabled="True"
                                        ValueChanged="RatingPicker_ValueChanged" />
-                        <CheckBox Content="未評価 (NoRating)"
+                        <CheckBox x:Uid="Filter_NoRatingCheck" Content="未評価 (NoRating)"
                                   IsChecked="{Binding NoRating, Mode=TwoWay}" />
                     </StackPanel>
 
                     <!-- フラグ -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="フラグ" />
+                        <TextBlock x:Uid="Filter_FlagHeader" Text="フラグ" />
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <CheckBox Content="採用" MinWidth="0" IsChecked="{Binding FlagAccept, Mode=TwoWay}" />
-                            <CheckBox Content="中立" MinWidth="0" IsChecked="{Binding FlagNeutral, Mode=TwoWay}" />
-                            <CheckBox Content="拒否" MinWidth="0" IsChecked="{Binding FlagReject, Mode=TwoWay}" />
+                            <CheckBox x:Uid="Filter_FlagAccept" Content="採用" MinWidth="0" IsChecked="{Binding FlagAccept, Mode=TwoWay}" />
+                            <CheckBox x:Uid="Filter_FlagNeutral" Content="中立" MinWidth="0" IsChecked="{Binding FlagNeutral, Mode=TwoWay}" />
+                            <CheckBox x:Uid="Filter_FlagReject" Content="拒否" MinWidth="0" IsChecked="{Binding FlagReject, Mode=TwoWay}" />
                         </StackPanel>
                     </StackPanel>
 
                     <!-- カラーラベル -->
                     <StackPanel Spacing="6">
-                        <TextBlock Text="カラーラベル" />
+                        <TextBlock x:Uid="Filter_ColorHeader" Text="カラーラベル" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <CheckBox MinWidth="0" VerticalContentAlignment="Center" IsChecked="{Binding Red, Mode=TwoWay}">
                                 <Border Width="16" Height="16" CornerRadius="8"
@@ -87,24 +90,29 @@
                     <StackPanel Spacing="8">
                         <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    Text="{x:Bind ViewModel.FilteredCountText, Mode=OneWay}" />
-                        <DropDownButton Content="クリップボードへコピー" HorizontalAlignment="Stretch">
+                        <DropDownButton x:Uid="Filter_CopyDropDown" Content="クリップボードへコピー"
+                                        HorizontalAlignment="Stretch">
                             <DropDownButton.Flyout>
                                 <MenuFlyout>
-                                    <MenuFlyoutItem Text="ファイル名一覧をコピー"
+                                    <MenuFlyoutItem x:Uid="Filter_CopyFileNamesMenu"
+                                                    Text="ファイル名一覧をコピー"
                                                     Click="CopyFileNames_Click" />
-                                    <MenuFlyoutItem Text="移動batを生成してコピー"
+                                    <MenuFlyoutItem x:Uid="Filter_CopyMoveBatchMenu"
+                                                    Text="移動batを生成してコピー"
                                                     Click="CopyMoveBatch_Click" />
                                 </MenuFlyout>
                             </DropDownButton.Flyout>
                         </DropDownButton>
 
                         <!-- 採用フラグなし・未評価の画像を Reject サブフォルダへ移動（フィルタ非依存・全件対象）。 -->
-                        <Button Content="未評価をRejectフォルダへ移動…" HorizontalAlignment="Stretch"
+                        <Button x:Uid="Filter_RejectMoveButton"
+                                Content="未評価をRejectフォルダへ移動…" HorizontalAlignment="Stretch"
                                 Click="RejectUnrated_Click"
                                 ToolTipService.ToolTip="採用フラグなし・未評価の画像をフォルダ配下の Reject サブフォルダへ移動します" />
 
                         <!-- 絞込結果をリネームしながら任意の宛先へコピー。 -->
-                        <Button Content="リネームしてコピー…" HorizontalAlignment="Stretch"
+                        <Button x:Uid="Filter_CopyRenameButton"
+                                Content="リネームしてコピー…" HorizontalAlignment="Stretch"
                                 Click="CopyRename_Click"
                                 ToolTipService.ToolTip="絞込結果の画像をリネームしながら別フォルダへコピーします（RAW+JPEG はまとめてコピー）" />
                     </StackPanel>

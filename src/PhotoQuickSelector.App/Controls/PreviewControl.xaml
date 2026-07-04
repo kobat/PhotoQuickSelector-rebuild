@@ -114,7 +114,7 @@
                     Background="#A6000000" IsHitTestVisible="False"
                     Visibility="Collapsed">
                 <StackPanel Spacing="3" MaxWidth="280">
-                    <TextBlock Text="先読みキャッシュ" Foreground="#BFFFFFFF"
+                    <TextBlock x:Uid="Preview_CacheOverlayHeader" Text="先読みキャッシュ" Foreground="#BFFFFFFF"
                                FontSize="11" FontWeight="SemiBold" />
                     <ItemsControl ItemsSource="{x:Bind CachedFileNames, Mode=OneWay}">
                         <ItemsControl.ItemTemplate>

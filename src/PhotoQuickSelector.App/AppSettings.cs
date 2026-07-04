@@ -56,6 +56,13 @@ public sealed class AppSettings
     /// </summary>
     public string SharePath { get; set; } = "";
 
+    /// <summary>
+    /// 表示言語。空文字＝自動（OS の表示言語に追従）／"ja"＝日本語／"en"＝英語。
+    /// 反映は次回起動時（<see cref="App"/> が起動直後に PrimaryLanguageOverride を設定する。
+    /// override は一度設定するとプロセス内で解除できないため、自動のときは一切設定しない）。
+    /// </summary>
+    public string Language { get; set; } = "";
+
     /// <summary>前回終了時のセッション（開いていたフォルダ・選択・表示モード・フィルタ）。</summary>
     public SessionState LastSession { get; set; } = new();
 

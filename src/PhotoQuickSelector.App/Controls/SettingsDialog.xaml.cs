@@ -20,9 +20,19 @@ public sealed partial class SettingsDialog : ContentDialog
     /// <summary>編集中の共有先 exe パス（前後空白は除去）。</summary>
     public string SharePath => SharePathBox.Text.Trim();
 
+    /// <summary>
+    /// 編集中の表示言語（""=自動 / "ja" / "en"。<see cref="AppSettings.Language"/> と同じ表現）。
+    /// 名前が Language だと <see cref="FrameworkElement.Language"/>（xml:lang）を隠すため別名。
+    /// </summary>
+    public string SelectedLanguage => (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+
     /// <summary>表示前に現在の設定値を流し込む。</summary>
     public void Configure(AppSettings settings)
-        => SharePathBox.Text = settings.SharePath ?? "";
+    {
+        SharePathBox.Text = settings.SharePath ?? "";
+        var lang = settings.Language ?? "";
+        LanguageCombo.SelectedIndex = lang switch { "ja" => 1, "en" => 2, _ => 0 };
+    }
 
     private async void Browse_Click(object sender, RoutedEventArgs e)
     {

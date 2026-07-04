@@ -23,9 +23,9 @@
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <!-- 左ペイン開閉。グリフ/ツールチップは実際の開閉状態に追従（MainPage が幅変化で UpdateLeftPaneGlyph を呼ぶ） -->
+        <!-- ツールチップは開閉状態に応じてコードビハインド（UpdateLeftPaneGlyph）が Loc キーで設定する -->
         <Button Grid.Column="0" x:Name="LeftPaneButton" Click="ToggleButton_Click" Margin="0,0,8,0"
-                Height="32" Width="32" Padding="0" VerticalAlignment="Center"
-                ToolTipService.ToolTip="左ペインを隠す">
+                Height="32" Width="32" Padding="0" VerticalAlignment="Center">
             <FontIcon x:Name="LeftPaneIcon" Glyph="&#xE8A0;" FontSize="14" />
         </Button>
         <!-- フィルタボタン（開閉ボタンとステータステキストの間）。件数表示はこのボタン内（FilteredCountText）に集約。 -->
@@ -117,7 +117,7 @@
                       IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
 
         <!-- 倍率（プレビュー時のみ。ピクセル等倍＝100%。全画面ボタンの隣） -->
-        <TextBlock Grid.Column="5" VerticalAlignment="Center" Margin="8,0,0,0"
+        <TextBlock Grid.Column="5" x:Uid="StatusBar_ZoomText" VerticalAlignment="Center" Margin="8,0,0,0"
                    MinWidth="44" TextAlignment="Right"
                    Text="{x:Bind ViewModel.ZoomText, Mode=OneWay}"
                    Visibility="{x:Bind ViewModel.ZoomVisibility, Mode=OneWay}"
@@ -125,7 +125,8 @@
                    ToolTipService.ToolTip="表示倍率（ピクセル等倍＝100%）" />
 
         <!-- 全画面表示の切替ボタン（F11 と同じ。AppWindow を操作するため MainWindow へ委譲） -->
-        <Button Grid.Column="6" Click="FullScreenButton_Click" Margin="8,0,0,0"
+        <Button Grid.Column="6" x:Uid="StatusBar_FullScreenButton"
+                Click="FullScreenButton_Click" Margin="8,0,0,0"
                 Height="32" Width="32" Padding="0" VerticalAlignment="Center"
                 ToolTipService.ToolTip="全画面表示の切替 (F11)">
             <FontIcon Glyph="&#xE740;" FontSize="14" />
@@ -134,36 +135,40 @@
         <!-- メニュー（ハンバーガー）。設定・各種トグル・ファイル連携をショートカット付きで集約。
              歯車ボタンは廃止し「設定…」をこのメニューへ集約した。各項目はクリックでも実行可能。
              KeyboardAcceleratorTextOverride は表示専用（実キー処理は MainWindow の RootGrid 集約のまま）。 -->
-        <Button Grid.Column="7" Margin="8,0,0,0"
+        <Button Grid.Column="7" x:Uid="StatusBar_MenuButton" Margin="8,0,0,0"
                 Height="32" Width="32" Padding="0" VerticalAlignment="Center"
                 ToolTipService.ToolTip="メニュー">
             <FontIcon Glyph="&#xE700;" FontSize="14" />
             <Button.Flyout>
                 <MenuFlyout Opening="Menu_Opening">
-                    <ToggleMenuFlyoutItem x:Name="FilterToggleItem" Text="フィルタ ON/OFF"
+                    <ToggleMenuFlyoutItem x:Name="FilterToggleItem" x:Uid="Menu_FilterToggle"
+                                          Text="フィルタ ON/OFF"
                                           KeyboardAcceleratorTextOverride="Ctrl+L"
                                           Click="MenuFilter_Click" />
-                    <ToggleMenuFlyoutItem x:Name="FullScreenToggleItem" Text="全画面表示"
+                    <ToggleMenuFlyoutItem x:Name="FullScreenToggleItem" x:Uid="Menu_FullScreenToggle"
+                                          Text="全画面表示"
                                           KeyboardAcceleratorTextOverride="F11"
                                           Click="MenuFullScreen_Click" />
-                    <MenuFlyoutItem Text="完全全画面"
+                    <MenuFlyoutItem x:Uid="Menu_FullImage" Text="完全全画面"
                                     KeyboardAcceleratorTextOverride="Shift+F"
                                     Click="MenuFullImage_Click" />
 
                     <MenuFlyoutSeparator />
 
                     <!-- プレビュー専用群（Opening でプレビュー時のみ有効化） -->
-                    <MenuFlyoutSubItem x:Name="PreviewSubItem" Text="プレビュー">
-                        <ToggleMenuFlyoutItem x:Name="ImmersiveToggleItem" Text="イマーシブ表示"
+                    <MenuFlyoutSubItem x:Name="PreviewSubItem" x:Uid="Menu_PreviewSub" Text="プレビュー">
+                        <ToggleMenuFlyoutItem x:Name="ImmersiveToggleItem" x:Uid="Menu_ImmersiveToggle"
+                                              Text="イマーシブ表示"
                                               KeyboardAcceleratorTextOverride="F"
                                               Click="MenuImmersive_Click" />
-                        <ToggleMenuFlyoutItem x:Name="InfoToggleItem" Text="メタ情報オーバーレイ"
+                        <ToggleMenuFlyoutItem x:Name="InfoToggleItem" x:Uid="Menu_InfoToggle"
+                                              Text="メタ情報オーバーレイ"
                                               KeyboardAcceleratorTextOverride="I"
                                               Click="MenuInfo_Click" />
-                        <MenuFlyoutItem Text="構図グリッド: 種類を変更"
+                        <MenuFlyoutItem x:Uid="Menu_GridKind" Text="構図グリッド: 種類を変更"
                                         KeyboardAcceleratorTextOverride="G"
                                         Click="MenuGridKind_Click" />
-                        <MenuFlyoutItem Text="構図グリッド: 基準を切替"
+                        <MenuFlyoutItem x:Uid="Menu_GridRef" Text="構図グリッド: 基準を切替"
                                         KeyboardAcceleratorTextOverride="Shift+G"
                                         Click="MenuGridRef_Click" />
                     </MenuFlyoutSubItem>
@@ -171,28 +176,28 @@
                     <MenuFlyoutSeparator />
 
                     <!-- ファイル連携（Opening で写真選択時のみ有効化。対象＝FocusedPhoto） -->
-                    <MenuFlyoutSubItem x:Name="FileSubItem" Text="ファイル">
-                        <MenuFlyoutItem Text="エクスプローラーで表示"
+                    <MenuFlyoutSubItem x:Name="FileSubItem" x:Uid="Menu_FileSub" Text="ファイル">
+                        <MenuFlyoutItem x:Uid="Menu_Explorer" Text="エクスプローラーで表示"
                                         KeyboardAcceleratorTextOverride="Ctrl+E"
                                         Click="MenuExplorer_Click" />
-                        <MenuFlyoutItem Text="既定のアプリで開く"
+                        <MenuFlyoutItem x:Uid="Menu_OpenDefault" Text="既定のアプリで開く"
                                         KeyboardAcceleratorTextOverride="Alt+E"
                                         Click="MenuOpenDefault_Click" />
-                        <MenuFlyoutItem Text="パスをコピー"
+                        <MenuFlyoutItem x:Uid="Menu_CopyPath" Text="パスをコピー"
                                         KeyboardAcceleratorTextOverride="Ctrl+Alt+E"
                                         Click="MenuCopyPath_Click" />
-                        <MenuFlyoutItem Text="共有"
+                        <MenuFlyoutItem x:Uid="Menu_Share" Text="共有"
                                         KeyboardAcceleratorTextOverride="Alt+S"
                                         Click="MenuShare_Click" />
                     </MenuFlyoutSubItem>
 
                     <MenuFlyoutSeparator />
 
-                    <MenuFlyoutItem Text="設定…" Click="MenuSettings_Click" />
-                    <MenuFlyoutItem Text="ショートカット一覧…"
+                    <MenuFlyoutItem x:Uid="Menu_Settings" Text="設定…" Click="MenuSettings_Click" />
+                    <MenuFlyoutItem x:Uid="Menu_Shortcuts" Text="ショートカット一覧…"
                                     KeyboardAcceleratorTextOverride="F1"
                                     Click="MenuShortcuts_Click" />
-                    <MenuFlyoutItem Text="バージョン情報…" Click="MenuAbout_Click" />
+                    <MenuFlyoutItem x:Uid="Menu_About" Text="バージョン情報…" Click="MenuAbout_Click" />
                 </MenuFlyout>
             </Button.Flyout>
         </Button>

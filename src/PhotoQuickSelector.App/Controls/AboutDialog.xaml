@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
+    x:Uid="AboutDialog"
     Title="バージョン情報"
     PrimaryButtonText="ライセンス情報"
     CloseButtonText="閉じる"
@@ -25,7 +26,7 @@
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             <TextBlock Text="MIT License"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <HyperlinkButton Content="GitHub リポジトリ" Margin="0,4,0,0" Padding="0"
+            <HyperlinkButton x:Uid="About_GitHubLink" Content="GitHub リポジトリ" Margin="0,4,0,0" Padding="0"
                              NavigateUri="https://github.com/kobat/PhotoQuickSelector-rebuild" />
         </StackPanel>
     </StackPanel>

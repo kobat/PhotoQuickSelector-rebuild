@@ -41,7 +41,34 @@ public partial class App : Application
     /// </summary>
     public App()
     {
+        // どのリソース参照よりも先（InitializeComponent より前）に表示言語を確定させる。
+        ApplyLanguageOverride();
         InitializeComponent();
+    }
+
+    /// <summary>
+    /// <see cref="AppSettings.Language"/>（"ja"/"en"）に応じて表示言語を上書きする。
+    /// 空（自動）のときは何も設定しない＝OS の表示言語に追従。
+    /// PrimaryLanguageOverride は一度設定するとプロセス内で解除不可（""/null は 0x80070057）だが、
+    /// プロセスをまたいで永続化はされないため「毎起動ここで設定 or 触らない」で完結する（検証済み）。
+    /// </summary>
+    private static void ApplyLanguageOverride()
+    {
+        try
+        {
+            var tag = AppSettings.Load().Language switch
+            {
+                "ja" => "ja-JP",
+                "en" => "en-US",
+                _ => null,
+            };
+            if (tag != null)
+                Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = tag;
+        }
+        catch
+        {
+            // 言語設定の失敗でアプリを起動不能にしない（既定＝OS 言語で続行）
+        }
     }
 
     /// <summary>

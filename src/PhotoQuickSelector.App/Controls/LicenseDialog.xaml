@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
+    x:Uid="LicenseDialog"
     Title="ライセンス情報"
     CloseButtonText="閉じる"
     DefaultButton="Close">
@@ -13,14 +14,14 @@
     <!-- 本アプリ(MIT) と 第三者通知 を Pivot で分けて表示。テキストはコードビハインドで埋め込みリソースから流し込む。
          長文（第三者通知）はスクロール。幅は ContentDialogMaxWidth をコードビハインドで広げる。 -->
     <Pivot Width="720" Height="520">
-        <PivotItem Header="本アプリ (MIT)">
+        <PivotItem x:Uid="License_AppPivot" Header="本アプリ (MIT)">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <TextBlock x:Name="AppLicenseText" IsTextSelectionEnabled="True"
                            TextWrapping="Wrap" FontFamily="Consolas" FontSize="13"
                            Margin="0,4,12,4" />
             </ScrollViewer>
         </PivotItem>
-        <PivotItem Header="ライブラリ">
+        <PivotItem x:Uid="License_LibrariesPivot" Header="ライブラリ">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <TextBlock x:Name="ThirdPartyText" IsTextSelectionEnabled="True"
                            TextWrapping="Wrap" FontFamily="Consolas" FontSize="13"

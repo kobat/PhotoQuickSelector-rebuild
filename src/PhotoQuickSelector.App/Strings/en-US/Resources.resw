@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- ============ Common ============ -->
+  <data name="Common_BrowseButton.Content" xml:space="preserve">
+    <value>Browse…</value>
+  </data>
+
+  <!-- ============ FolderNavigationView (left pane) ============ -->
+  <data name="FolderNav_LoadButtonText.Text" xml:space="preserve">
+    <value>Load</value>
+  </data>
+  <data name="FolderNav_FavoritesHeader.Text" xml:space="preserve">
+    <value>Favorites</value>
+  </data>
+  <data name="FolderNav_RecentHeader.Text" xml:space="preserve">
+    <value>Recent folders</value>
+  </data>
+  <data name="FolderNav_AddFavoriteMenu.Text" xml:space="preserve">
+    <value>Add to favorites</value>
+  </data>
+  <data name="FolderNav_RemoveFavoriteMenu.Text" xml:space="preserve">
+    <value>Remove from favorites</value>
+  </data>
+  <data name="FolderNav_RemoveFavoriteButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Remove from favorites</value>
+  </data>
+  <data name="FolderNav_RemoveRecentMenu.Text" xml:space="preserve">
+    <value>Remove from list</value>
+  </data>
+  <data name="FolderNav_RefreshDrivesMenu.Text" xml:space="preserve">
+    <value>Refresh drive list</value>
+  </data>
+  <data name="FolderNav_RefreshMenu.Text" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+
+  <!-- ============ FilterBar ============ -->
+  <data name="Filter_Button.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Filter (Ctrl+L)</value>
+  </data>
+  <data name="Filter_Header.Text" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="Filter_EnabledSwitch.OnContent" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="Filter_EnabledSwitch.OffContent" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="Filter_RatingHeader.Text" xml:space="preserve">
+    <value>Rating</value>
+  </data>
+  <data name="Filter_CompareButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Toggle ≧ / ＝</value>
+  </data>
+  <data name="Filter_NoRatingCheck.Content" xml:space="preserve">
+    <value>No rating</value>
+  </data>
+  <data name="Filter_FlagHeader.Text" xml:space="preserve">
+    <value>Flags</value>
+  </data>
+  <data name="Filter_FlagAccept.Content" xml:space="preserve">
+    <value>Accept</value>
+  </data>
+  <data name="Filter_FlagNeutral.Content" xml:space="preserve">
+    <value>Neutral</value>
+  </data>
+  <data name="Filter_FlagReject.Content" xml:space="preserve">
+    <value>Reject</value>
+  </data>
+  <data name="Filter_ColorHeader.Text" xml:space="preserve">
+    <value>Color labels</value>
+  </data>
+  <data name="Filter_CopyDropDown.Content" xml:space="preserve">
+    <value>Copy to clipboard</value>
+  </data>
+  <data name="Filter_CopyFileNamesMenu.Text" xml:space="preserve">
+    <value>Copy file name list</value>
+  </data>
+  <data name="Filter_CopyMoveBatchMenu.Text" xml:space="preserve">
+    <value>Create and copy move .bat</value>
+  </data>
+  <data name="Filter_RejectMoveButton.Content" xml:space="preserve">
+    <value>Move unrated to Reject folder…</value>
+  </data>
+  <data name="Filter_RejectMoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Moves images without an accept flag or rating to the Reject subfolder of this folder</value>
+  </data>
+  <data name="Filter_CopyRenameButton.Content" xml:space="preserve">
+    <value>Copy with rename…</value>
+  </data>
+  <data name="Filter_CopyRenameButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Copies the filtered images to another folder while renaming them (RAW+JPEG are copied together)</value>
+  </data>
+
+  <!-- ============ PhotoStatusBar (status bar / menu) ============ -->
+  <data name="StatusBar_ZoomText.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Display magnification (100% = 1:1 pixels)</value>
+  </data>
+  <data name="StatusBar_FullScreenButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Toggle full screen (F11)</value>
+  </data>
+  <data name="StatusBar_MenuButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Menu</value>
+  </data>
+  <data name="Menu_FilterToggle.Text" xml:space="preserve">
+    <value>Filter on/off</value>
+  </data>
+  <data name="Menu_FullScreenToggle.Text" xml:space="preserve">
+    <value>Full screen</value>
+  </data>
+  <data name="Menu_FullImage.Text" xml:space="preserve">
+    <value>Full screen (image only)</value>
+  </data>
+  <data name="Menu_PreviewSub.Text" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Menu_ImmersiveToggle.Text" xml:space="preserve">
+    <value>Immersive view</value>
+  </data>
+  <data name="Menu_InfoToggle.Text" xml:space="preserve">
+    <value>Metadata overlay</value>
+  </data>
+  <data name="Menu_GridKind.Text" xml:space="preserve">
+    <value>Composition grid: change type</value>
+  </data>
+  <data name="Menu_GridRef.Text" xml:space="preserve">
+    <value>Composition grid: toggle reference</value>
+  </data>
+  <data name="Menu_FileSub.Text" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="Menu_Explorer.Text" xml:space="preserve">
+    <value>Show in Explorer</value>
+  </data>
+  <data name="Menu_OpenDefault.Text" xml:space="preserve">
+    <value>Open with default app</value>
+  </data>
+  <data name="Menu_CopyPath.Text" xml:space="preserve">
+    <value>Copy path</value>
+  </data>
+  <data name="Menu_Share.Text" xml:space="preserve">
+    <value>Share</value>
+  </data>
+  <data name="Menu_Settings.Text" xml:space="preserve">
+    <value>Settings…</value>
+  </data>
+  <data name="Menu_Shortcuts.Text" xml:space="preserve">
+    <value>Keyboard shortcuts…</value>
+  </data>
+  <data name="Menu_About.Text" xml:space="preserve">
+    <value>About…</value>
+  </data>
+
+  <!-- ============ CopyRenameDialog ============ -->
+  <data name="CopyRenameDialog.Title" xml:space="preserve">
+    <value>Copy with Rename</value>
+  </data>
+  <data name="CopyRenameDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Create batch</value>
+  </data>
+  <data name="CopyRenameDialog.CloseButtonText" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="CopyRename_DestHeader.Text" xml:space="preserve">
+    <value>Destination folder</value>
+  </data>
+  <data name="CopyRename_DestinationBox.PlaceholderText" xml:space="preserve">
+    <value>e.g., E:\Selected\20260228</value>
+  </data>
+  <data name="CopyRename_TemplateHeader.Text" xml:space="preserve">
+    <value>File name template</value>
+  </data>
+  <data name="CopyRename_TemplateNote.Text" xml:space="preserve">
+    <value>Insert placeholders (the original extension is appended automatically). Date tokens are uppercase; time tokens are lowercase.</value>
+  </data>
+  <data name="CopyRename_TokenFolder.Content" xml:space="preserve">
+    <value>Folder name</value>
+  </data>
+  <data name="CopyRename_TokenName.Content" xml:space="preserve">
+    <value>Original name</value>
+  </data>
+  <data name="CopyRename_TokenYear.Content" xml:space="preserve">
+    <value>Year</value>
+  </data>
+  <data name="CopyRename_TokenMonth.Content" xml:space="preserve">
+    <value>Month</value>
+  </data>
+  <data name="CopyRename_TokenDay.Content" xml:space="preserve">
+    <value>Day</value>
+  </data>
+  <data name="CopyRename_TokenHour.Content" xml:space="preserve">
+    <value>Hour</value>
+  </data>
+  <data name="CopyRename_TokenMinute.Content" xml:space="preserve">
+    <value>Minute</value>
+  </data>
+  <data name="CopyRename_TokenSecond.Content" xml:space="preserve">
+    <value>Second</value>
+  </data>
+  <data name="CopyRename_TokenSeq.Content" xml:space="preserve">
+    <value>Sequence</value>
+  </data>
+  <data name="CopyRename_PolicyHeader.Text" xml:space="preserve">
+    <value>If the same name exists in the destination</value>
+  </data>
+  <data name="CopyRename_PolicyOverwrite.Content" xml:space="preserve">
+    <value>Overwrite</value>
+  </data>
+  <data name="CopyRename_PolicySkip.Content" xml:space="preserve">
+    <value>Skip (do not copy)</value>
+  </data>
+  <data name="CopyRename_DuplicateWarning.Title" xml:space="preserve">
+    <value>Renamed file names have duplicates</value>
+  </data>
+  <data name="CopyRename_PreviewHeader.Text" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+
+  <!-- ============ AboutDialog ============ -->
+  <data name="AboutDialog.Title" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="AboutDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Licenses</value>
+  </data>
+  <data name="AboutDialog.CloseButtonText" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="About_GitHubLink.Content" xml:space="preserve">
+    <value>GitHub repository</value>
+  </data>
+
+  <!-- ============ LicenseDialog ============ -->
+  <data name="LicenseDialog.Title" xml:space="preserve">
+    <value>Licenses</value>
+  </data>
+  <data name="LicenseDialog.CloseButtonText" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="License_AppPivot.Header" xml:space="preserve">
+    <value>This app (MIT)</value>
+  </data>
+  <data name="License_LibrariesPivot.Header" xml:space="preserve">
+    <value>Libraries</value>
+  </data>
+
+  <!-- ============ ShortcutsDialog ============ -->
+  <data name="ShortcutsDialog.Title" xml:space="preserve">
+    <value>Keyboard Shortcuts</value>
+  </data>
+  <data name="ShortcutsDialog.CloseButtonText" xml:space="preserve">
+    <value>Close</value>
+  </data>
+
+  <!-- ============ SettingsDialog ============ -->
+  <data name="SettingsDialog.Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SettingsDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="SettingsDialog.CloseButtonText" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Settings_LanguageHeader.Text" xml:space="preserve">
+    <value>Display language</value>
+  </data>
+  <data name="Settings_LanguageAuto.Content" xml:space="preserve">
+    <value>Auto (OS language)</value>
+  </data>
+  <data name="Settings_LanguageNote.Text" xml:space="preserve">
+    <value>Changes take effect after the app restarts.</value>
+  </data>
+  <data name="Settings_ShareHeader.Text" xml:space="preserve">
+    <value>App launched by Share (Alt+S)</value>
+  </data>
+  <data name="Settings_ShareNote.Text" xml:space="preserve">
+    <value>Specifies the executable (.exe) launched when sharing. The selected photo's path is passed as an argument. When empty, the standard Windows share sheet is shown.</value>
+  </data>
+  <data name="Settings_SharePathBox.PlaceholderText" xml:space="preserve">
+    <value>(Not set: use the Windows share sheet)</value>
+  </data>
+  <data name="Settings_ClearButton.Content" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+
+  <!-- ============ PreviewControl ============ -->
+  <data name="Preview_CacheOverlayHeader.Text" xml:space="preserve">
+    <value>Prefetch cache</value>
+  </data>
+
+  <!-- ============ Code-side (Loc.Get, plain keys without dot) ============ -->
+  <!-- Common buttons / fragments -->
+  <data name="Msg_Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Msg_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Msg_Run" xml:space="preserve">
+    <value>Run</value>
+  </data>
+  <data name="Msg_NoFolderLoaded" xml:space="preserve">
+    <value>No folder is loaded.</value>
+  </data>
+  <data name="Msg_MoreItemsSuffix" xml:space="preserve">
+    <value>… and {0} more</value>
+  </data>
+
+  <!-- Rating data creation confirmation (MainPage) -->
+  <data name="Msg_ConfirmCreateStoreTitle" xml:space="preserve">
+    <value>Create rating data</value>
+  </data>
+  <data name="Msg_ConfirmCreateStoreContent" xml:space="preserve">
+    <value>A rating data file (PhotoQuickSelector.sqlite3) will be created in this folder. Continue?</value>
+  </data>
+
+  <!-- Status bar messages (MainViewModel / MainPage) -->
+  <data name="Status_Initial" xml:space="preserve">
+    <value>Select a folder in the tree on the left and open it with the Load button.</value>
+  </data>
+  <data name="Status_Loading" xml:space="preserve">
+    <value>Loading: {0}</value>
+  </data>
+  <data name="Status_NoJpeg" xml:space="preserve">
+    <value>No JPEG files found: {0}</value>
+  </data>
+  <data name="Status_LoadError" xml:space="preserve">
+    <value>Load error: {0}</value>
+  </data>
+  <data name="Status_PreviousFolderNotFound" xml:space="preserve">
+    <value>Previous folder not found: {0}</value>
+  </data>
+
+  <!-- Left pane toggle tooltips (PhotoStatusBar.UpdateLeftPaneGlyph) -->
+  <data name="StatusBar_HideLeftPane" xml:space="preserve">
+    <value>Hide left pane</value>
+  </data>
+  <data name="StatusBar_ShowLeftPane" xml:space="preserve">
+    <value>Show left pane</value>
+  </data>
+
+  <!-- GPS tooltip (PhotoItemViewModel) -->
+  <data name="Gps_Tooltip" xml:space="preserve">
+    <value>Show on map ({0})</value>
+  </data>
+
+  <!-- About / License -->
+  <data name="About_VersionFormat" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="License_LoadFailed" xml:space="preserve">
+    <value>(Could not load {0})</value>
+  </data>
+
+  <!-- Move to Reject (FilterBar) -->
+  <data name="RejectMove_Title" xml:space="preserve">
+    <value>Move to Reject</value>
+  </data>
+  <data name="RejectMove_NoTargets" xml:space="preserve">
+    <value>There are no images without an accept flag or rating.</value>
+  </data>
+  <data name="RejectMove_AbortedTitle" xml:space="preserve">
+    <value>Move to Reject aborted</value>
+  </data>
+  <data name="RejectMove_Collisions" xml:space="preserve">
+    <value>Files with the same names already exist in the Reject folder ({0}).
+
+{1}</value>
+  </data>
+  <data name="RejectMove_ConfirmTitle" xml:space="preserve">
+    <value>Confirm move to Reject</value>
+  </data>
+  <data name="RejectMove_ConfirmIntro" xml:space="preserve">
+    <value>{0} item(s) will be moved to the Reject folder. The following batch file will be saved to the Reject folder and executed.</value>
+  </data>
+  <data name="RejectMove_DoneTitle" xml:space="preserve">
+    <value>Move to Reject completed</value>
+  </data>
+  <data name="RejectMove_Done" xml:space="preserve">
+    <value>Moved {0} item(s).
+
+Log: {1}</value>
+  </data>
+  <data name="RejectMove_DoneWithError" xml:space="preserve">
+    <value>The move ran, but there may have been errors (exit code {0}).
+
+Log: {1}</value>
+  </data>
+
+  <!-- Copy with rename (FilterBar / CopyRenameDialog) -->
+  <data name="CopyRename_MsgTitle" xml:space="preserve">
+    <value>Copy with Rename</value>
+  </data>
+  <data name="CopyRename_NoTargets" xml:space="preserve">
+    <value>There are no images to copy (filtered results).</value>
+  </data>
+  <data name="CopyRename_ConfirmTitle" xml:space="preserve">
+    <value>Confirm copy with rename</value>
+  </data>
+  <data name="CopyRename_ConfirmIntro" xml:space="preserve">
+    <value>{0} item(s) will be copied to "{1}". The following batch file will be saved to the destination and executed.</value>
+  </data>
+  <data name="CopyRename_DoneTitle" xml:space="preserve">
+    <value>Copy with rename completed</value>
+  </data>
+  <data name="CopyRename_Done" xml:space="preserve">
+    <value>Copied {0} item(s).
+
+Log: {1}</value>
+  </data>
+  <data name="CopyRename_DoneWithError" xml:space="preserve">
+    <value>The copy ran, but there may have been errors (exit code {0}).
+
+Log: {1}</value>
+  </data>
+  <data name="CopyRename_PreviewCount" xml:space="preserve">
+    <value>Preview ({0} item(s))</value>
+  </data>
+  <data name="CopyRename_WarnDestEmpty" xml:space="preserve">
+    <value>Enter a destination folder</value>
+  </data>
+  <data name="CopyRename_WarnSameFolderTitle" xml:space="preserve">
+    <value>The destination is the same as the source (current folder)</value>
+  </data>
+  <data name="CopyRename_WarnSameFolderMessage" xml:space="preserve">
+    <value>Specify a different folder so the batch is not run with the default value.</value>
+  </data>
+  <data name="CopyRename_WarnDuplicatesMessage" xml:space="preserve">
+    <value>The following names would be assigned to multiple photos ({0}). Add a sequence token ({{seq:000}}) or similar to the template: {1}</value>
+  </data>
+
+  <!-- Keyboard shortcuts (F1 / ShortcutCheatSheet) -->
+  <!-- LangCode: used to pick the language in shortcuts.json etc.; always matches the resolved resw language. -->
+  <data name="LangCode" xml:space="preserve">
+    <value>en</value>
+  </data>
+  <data name="Shortcuts_ResourceNotFound" xml:space="preserve">
+    <value>{0} not found</value>
+  </data>
+  <data name="Shortcuts_LoadErrorGroup" xml:space="preserve">
+    <value>(Load error)</value>
+  </data>
+</root>

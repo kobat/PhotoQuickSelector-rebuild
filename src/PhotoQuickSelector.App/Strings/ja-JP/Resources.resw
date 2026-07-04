@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- ============ 共通 ============ -->
+  <data name="Common_BrowseButton.Content" xml:space="preserve">
+    <value>参照…</value>
+  </data>
+
+  <!-- ============ FolderNavigationView（左ペイン） ============ -->
+  <data name="FolderNav_LoadButtonText.Text" xml:space="preserve">
+    <value>読み込み</value>
+  </data>
+  <data name="FolderNav_FavoritesHeader.Text" xml:space="preserve">
+    <value>お気に入り</value>
+  </data>
+  <data name="FolderNav_RecentHeader.Text" xml:space="preserve">
+    <value>最近開いたフォルダ</value>
+  </data>
+  <data name="FolderNav_AddFavoriteMenu.Text" xml:space="preserve">
+    <value>お気に入りに追加</value>
+  </data>
+  <data name="FolderNav_RemoveFavoriteMenu.Text" xml:space="preserve">
+    <value>お気に入りから削除</value>
+  </data>
+  <data name="FolderNav_RemoveFavoriteButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>お気に入りから削除</value>
+  </data>
+  <data name="FolderNav_RemoveRecentMenu.Text" xml:space="preserve">
+    <value>一覧から削除</value>
+  </data>
+  <data name="FolderNav_RefreshDrivesMenu.Text" xml:space="preserve">
+    <value>ドライブ一覧を更新</value>
+  </data>
+  <data name="FolderNav_RefreshMenu.Text" xml:space="preserve">
+    <value>更新</value>
+  </data>
+
+  <!-- ============ FilterBar（フィルタ） ============ -->
+  <data name="Filter_Button.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>フィルタ (Ctrl+L)</value>
+  </data>
+  <data name="Filter_Header.Text" xml:space="preserve">
+    <value>フィルタ</value>
+  </data>
+  <data name="Filter_EnabledSwitch.OnContent" xml:space="preserve">
+    <value>有効</value>
+  </data>
+  <data name="Filter_EnabledSwitch.OffContent" xml:space="preserve">
+    <value>無効</value>
+  </data>
+  <data name="Filter_RatingHeader.Text" xml:space="preserve">
+    <value>レーティング</value>
+  </data>
+  <data name="Filter_CompareButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>≧ / ＝ を切り替え</value>
+  </data>
+  <data name="Filter_NoRatingCheck.Content" xml:space="preserve">
+    <value>未評価 (NoRating)</value>
+  </data>
+  <data name="Filter_FlagHeader.Text" xml:space="preserve">
+    <value>フラグ</value>
+  </data>
+  <data name="Filter_FlagAccept.Content" xml:space="preserve">
+    <value>採用</value>
+  </data>
+  <data name="Filter_FlagNeutral.Content" xml:space="preserve">
+    <value>中立</value>
+  </data>
+  <data name="Filter_FlagReject.Content" xml:space="preserve">
+    <value>拒否</value>
+  </data>
+  <data name="Filter_ColorHeader.Text" xml:space="preserve">
+    <value>カラーラベル</value>
+  </data>
+  <data name="Filter_CopyDropDown.Content" xml:space="preserve">
+    <value>クリップボードへコピー</value>
+  </data>
+  <data name="Filter_CopyFileNamesMenu.Text" xml:space="preserve">
+    <value>ファイル名一覧をコピー</value>
+  </data>
+  <data name="Filter_CopyMoveBatchMenu.Text" xml:space="preserve">
+    <value>移動batを生成してコピー</value>
+  </data>
+  <data name="Filter_RejectMoveButton.Content" xml:space="preserve">
+    <value>未評価をRejectフォルダへ移動…</value>
+  </data>
+  <data name="Filter_RejectMoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>採用フラグなし・未評価の画像をフォルダ配下の Reject サブフォルダへ移動します</value>
+  </data>
+  <data name="Filter_CopyRenameButton.Content" xml:space="preserve">
+    <value>リネームしてコピー…</value>
+  </data>
+  <data name="Filter_CopyRenameButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>絞込結果の画像をリネームしながら別フォルダへコピーします（RAW+JPEG はまとめてコピー）</value>
+  </data>
+
+  <!-- ============ PhotoStatusBar（ステータスバー・メニュー） ============ -->
+  <data name="StatusBar_ZoomText.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>表示倍率（ピクセル等倍＝100%）</value>
+  </data>
+  <data name="StatusBar_FullScreenButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>全画面表示の切替 (F11)</value>
+  </data>
+  <data name="StatusBar_MenuButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>メニュー</value>
+  </data>
+  <data name="Menu_FilterToggle.Text" xml:space="preserve">
+    <value>フィルタ ON/OFF</value>
+  </data>
+  <data name="Menu_FullScreenToggle.Text" xml:space="preserve">
+    <value>全画面表示</value>
+  </data>
+  <data name="Menu_FullImage.Text" xml:space="preserve">
+    <value>完全全画面</value>
+  </data>
+  <data name="Menu_PreviewSub.Text" xml:space="preserve">
+    <value>プレビュー</value>
+  </data>
+  <data name="Menu_ImmersiveToggle.Text" xml:space="preserve">
+    <value>イマーシブ表示</value>
+  </data>
+  <data name="Menu_InfoToggle.Text" xml:space="preserve">
+    <value>メタ情報オーバーレイ</value>
+  </data>
+  <data name="Menu_GridKind.Text" xml:space="preserve">
+    <value>構図グリッド: 種類を変更</value>
+  </data>
+  <data name="Menu_GridRef.Text" xml:space="preserve">
+    <value>構図グリッド: 基準を切替</value>
+  </data>
+  <data name="Menu_FileSub.Text" xml:space="preserve">
+    <value>ファイル</value>
+  </data>
+  <data name="Menu_Explorer.Text" xml:space="preserve">
+    <value>エクスプローラーで表示</value>
+  </data>
+  <data name="Menu_OpenDefault.Text" xml:space="preserve">
+    <value>既定のアプリで開く</value>
+  </data>
+  <data name="Menu_CopyPath.Text" xml:space="preserve">
+    <value>パスをコピー</value>
+  </data>
+  <data name="Menu_Share.Text" xml:space="preserve">
+    <value>共有</value>
+  </data>
+  <data name="Menu_Settings.Text" xml:space="preserve">
+    <value>設定…</value>
+  </data>
+  <data name="Menu_Shortcuts.Text" xml:space="preserve">
+    <value>ショートカット一覧…</value>
+  </data>
+  <data name="Menu_About.Text" xml:space="preserve">
+    <value>バージョン情報…</value>
+  </data>
+
+  <!-- ============ CopyRenameDialog（リネームしてコピー） ============ -->
+  <data name="CopyRenameDialog.Title" xml:space="preserve">
+    <value>リネームしてコピー</value>
+  </data>
+  <data name="CopyRenameDialog.PrimaryButtonText" xml:space="preserve">
+    <value>バッチを生成</value>
+  </data>
+  <data name="CopyRenameDialog.CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="CopyRename_DestHeader.Text" xml:space="preserve">
+    <value>コピー先フォルダ</value>
+  </data>
+  <data name="CopyRename_DestinationBox.PlaceholderText" xml:space="preserve">
+    <value>例: E:\Selected\20260228</value>
+  </data>
+  <data name="CopyRename_TemplateHeader.Text" xml:space="preserve">
+    <value>ファイル名テンプレート</value>
+  </data>
+  <data name="CopyRename_TemplateNote.Text" xml:space="preserve">
+    <value>プレースホルダを挿入（拡張子は元のまま自動付与）。年月日＝大文字 / 時分秒＝小文字。</value>
+  </data>
+  <data name="CopyRename_TokenFolder.Content" xml:space="preserve">
+    <value>フォルダ名</value>
+  </data>
+  <data name="CopyRename_TokenName.Content" xml:space="preserve">
+    <value>元ファイル名</value>
+  </data>
+  <data name="CopyRename_TokenYear.Content" xml:space="preserve">
+    <value>年</value>
+  </data>
+  <data name="CopyRename_TokenMonth.Content" xml:space="preserve">
+    <value>月</value>
+  </data>
+  <data name="CopyRename_TokenDay.Content" xml:space="preserve">
+    <value>日</value>
+  </data>
+  <data name="CopyRename_TokenHour.Content" xml:space="preserve">
+    <value>時</value>
+  </data>
+  <data name="CopyRename_TokenMinute.Content" xml:space="preserve">
+    <value>分</value>
+  </data>
+  <data name="CopyRename_TokenSecond.Content" xml:space="preserve">
+    <value>秒</value>
+  </data>
+  <data name="CopyRename_TokenSeq.Content" xml:space="preserve">
+    <value>連番</value>
+  </data>
+  <data name="CopyRename_PolicyHeader.Text" xml:space="preserve">
+    <value>コピー先に同名がある場合</value>
+  </data>
+  <data name="CopyRename_PolicyOverwrite.Content" xml:space="preserve">
+    <value>上書きする</value>
+  </data>
+  <data name="CopyRename_PolicySkip.Content" xml:space="preserve">
+    <value>コピーしない（無視）</value>
+  </data>
+  <data name="CopyRename_DuplicateWarning.Title" xml:space="preserve">
+    <value>リネーム後の名前が重複しています</value>
+  </data>
+  <data name="CopyRename_PreviewHeader.Text" xml:space="preserve">
+    <value>プレビュー</value>
+  </data>
+
+  <!-- ============ AboutDialog（バージョン情報） ============ -->
+  <data name="AboutDialog.Title" xml:space="preserve">
+    <value>バージョン情報</value>
+  </data>
+  <data name="AboutDialog.PrimaryButtonText" xml:space="preserve">
+    <value>ライセンス情報</value>
+  </data>
+  <data name="AboutDialog.CloseButtonText" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="About_GitHubLink.Content" xml:space="preserve">
+    <value>GitHub リポジトリ</value>
+  </data>
+
+  <!-- ============ LicenseDialog（ライセンス情報） ============ -->
+  <data name="LicenseDialog.Title" xml:space="preserve">
+    <value>ライセンス情報</value>
+  </data>
+  <data name="LicenseDialog.CloseButtonText" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="License_AppPivot.Header" xml:space="preserve">
+    <value>本アプリ (MIT)</value>
+  </data>
+  <data name="License_LibrariesPivot.Header" xml:space="preserve">
+    <value>ライブラリ</value>
+  </data>
+
+  <!-- ============ ShortcutsDialog（ショートカット一覧） ============ -->
+  <data name="ShortcutsDialog.Title" xml:space="preserve">
+    <value>ショートカット一覧</value>
+  </data>
+  <data name="ShortcutsDialog.CloseButtonText" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+
+  <!-- ============ SettingsDialog（設定） ============ -->
+  <data name="SettingsDialog.Title" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="SettingsDialog.PrimaryButtonText" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="SettingsDialog.CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="Settings_LanguageHeader.Text" xml:space="preserve">
+    <value>表示言語</value>
+  </data>
+  <data name="Settings_LanguageAuto.Content" xml:space="preserve">
+    <value>自動（OS の言語）</value>
+  </data>
+  <data name="Settings_LanguageNote.Text" xml:space="preserve">
+    <value>変更はアプリの再起動後に反映されます。</value>
+  </data>
+  <data name="Settings_ShareHeader.Text" xml:space="preserve">
+    <value>共有 (Alt+S) で起動するアプリ</value>
+  </data>
+  <data name="Settings_ShareNote.Text" xml:space="preserve">
+    <value>共有時に起動する外部アプリの実行ファイル (.exe) を指定します。選択中の写真パスを引数として渡します。空欄のときは Windows 標準の共有シートを表示します。</value>
+  </data>
+  <data name="Settings_SharePathBox.PlaceholderText" xml:space="preserve">
+    <value>（未設定：Windows 標準の共有シートを使用）</value>
+  </data>
+  <data name="Settings_ClearButton.Content" xml:space="preserve">
+    <value>クリア</value>
+  </data>
+
+  <!-- ============ PreviewControl（プレビュー） ============ -->
+  <data name="Preview_CacheOverlayHeader.Text" xml:space="preserve">
+    <value>先読みキャッシュ</value>
+  </data>
+
+  <!-- ============ コード側（Loc.Get。ドット無しの素のキー） ============ -->
+  <!-- 共通ボタン・断片 -->
+  <data name="Msg_Create" xml:space="preserve">
+    <value>作成</value>
+  </data>
+  <data name="Msg_Cancel" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="Msg_Run" xml:space="preserve">
+    <value>実行</value>
+  </data>
+  <data name="Msg_NoFolderLoaded" xml:space="preserve">
+    <value>フォルダが読み込まれていません。</value>
+  </data>
+  <data name="Msg_MoreItemsSuffix" xml:space="preserve">
+    <value>…他 {0} 件</value>
+  </data>
+
+  <!-- 評価データ作成の確認（MainPage） -->
+  <data name="Msg_ConfirmCreateStoreTitle" xml:space="preserve">
+    <value>評価データの作成</value>
+  </data>
+  <data name="Msg_ConfirmCreateStoreContent" xml:space="preserve">
+    <value>このフォルダに評価データファイル（PhotoQuickSelector.sqlite3）を作成します。よろしいですか？</value>
+  </data>
+
+  <!-- ステータスバー文言（MainViewModel / MainPage） -->
+  <data name="Status_Initial" xml:space="preserve">
+    <value>左のツリーでフォルダを選び、「読み込み」ボタンで開きます。</value>
+  </data>
+  <data name="Status_Loading" xml:space="preserve">
+    <value>読み込み中: {0}</value>
+  </data>
+  <data name="Status_NoJpeg" xml:space="preserve">
+    <value>JPEG が見つかりません: {0}</value>
+  </data>
+  <data name="Status_LoadError" xml:space="preserve">
+    <value>読み込みエラー: {0}</value>
+  </data>
+  <data name="Status_PreviousFolderNotFound" xml:space="preserve">
+    <value>前回のフォルダが見つかりません: {0}</value>
+  </data>
+
+  <!-- 左ペイン開閉ツールチップ（PhotoStatusBar.UpdateLeftPaneGlyph） -->
+  <data name="StatusBar_HideLeftPane" xml:space="preserve">
+    <value>左ペインを隠す</value>
+  </data>
+  <data name="StatusBar_ShowLeftPane" xml:space="preserve">
+    <value>左ペインを表示</value>
+  </data>
+
+  <!-- GPS ツールチップ（PhotoItemViewModel） -->
+  <data name="Gps_Tooltip" xml:space="preserve">
+    <value>地図で表示（{0}）</value>
+  </data>
+
+  <!-- バージョン情報／ライセンス -->
+  <data name="About_VersionFormat" xml:space="preserve">
+    <value>バージョン {0}</value>
+  </data>
+  <data name="License_LoadFailed" xml:space="preserve">
+    <value>（{0} を読み込めませんでした）</value>
+  </data>
+
+  <!-- Reject 移動（FilterBar） -->
+  <data name="RejectMove_Title" xml:space="preserve">
+    <value>Reject 移動</value>
+  </data>
+  <data name="RejectMove_NoTargets" xml:space="preserve">
+    <value>採用フラグなし・未評価の画像はありません。</value>
+  </data>
+  <data name="RejectMove_AbortedTitle" xml:space="preserve">
+    <value>Reject 移動を中断しました</value>
+  </data>
+  <data name="RejectMove_Collisions" xml:space="preserve">
+    <value>Reject フォルダに同名のファイルが既に存在します（{0} 件）。
+
+{1}</value>
+  </data>
+  <data name="RejectMove_ConfirmTitle" xml:space="preserve">
+    <value>Reject 移動の確認</value>
+  </data>
+  <data name="RejectMove_ConfirmIntro" xml:space="preserve">
+    <value>{0} 件を Reject フォルダへ移動します。Reject フォルダに次のバッチを保存して実行します。</value>
+  </data>
+  <data name="RejectMove_DoneTitle" xml:space="preserve">
+    <value>Reject 移動が完了しました</value>
+  </data>
+  <data name="RejectMove_Done" xml:space="preserve">
+    <value>{0} 件の移動を実行しました。
+
+ログ: {1}</value>
+  </data>
+  <data name="RejectMove_DoneWithError" xml:space="preserve">
+    <value>移動を実行しましたが、エラーの可能性があります（終了コード {0}）。
+
+ログ: {1}</value>
+  </data>
+
+  <!-- リネームしてコピー（FilterBar / CopyRenameDialog） -->
+  <data name="CopyRename_MsgTitle" xml:space="preserve">
+    <value>リネームしてコピー</value>
+  </data>
+  <data name="CopyRename_NoTargets" xml:space="preserve">
+    <value>コピー対象の画像（絞込結果）がありません。</value>
+  </data>
+  <data name="CopyRename_ConfirmTitle" xml:space="preserve">
+    <value>リネームしてコピーの確認</value>
+  </data>
+  <data name="CopyRename_ConfirmIntro" xml:space="preserve">
+    <value>{0} 件を「{1}」へコピーします。コピー先に次のバッチを保存して実行します。</value>
+  </data>
+  <data name="CopyRename_DoneTitle" xml:space="preserve">
+    <value>リネームしてコピーが完了しました</value>
+  </data>
+  <data name="CopyRename_Done" xml:space="preserve">
+    <value>{0} 件のコピーを実行しました。
+
+ログ: {1}</value>
+  </data>
+  <data name="CopyRename_DoneWithError" xml:space="preserve">
+    <value>コピーを実行しましたが、エラーの可能性があります（終了コード {0}）。
+
+ログ: {1}</value>
+  </data>
+  <data name="CopyRename_PreviewCount" xml:space="preserve">
+    <value>プレビュー（対象 {0} 件）</value>
+  </data>
+  <data name="CopyRename_WarnDestEmpty" xml:space="preserve">
+    <value>コピー先フォルダを入力してください</value>
+  </data>
+  <data name="CopyRename_WarnSameFolderTitle" xml:space="preserve">
+    <value>コピー先がコピー元（表示中のフォルダ）と同じです</value>
+  </data>
+  <data name="CopyRename_WarnSameFolderMessage" xml:space="preserve">
+    <value>初期値のまま実行しないよう、別のフォルダを指定してください。</value>
+  </data>
+  <data name="CopyRename_WarnDuplicatesMessage" xml:space="preserve">
+    <value>次の名前が複数の写真に割り当たります（{0} 件）。テンプレートに連番（{{seq:000}}）等を加えてください: {1}</value>
+  </data>
+
+  <!-- ショートカット一覧（F1 / ShortcutCheatSheet） -->
+  <!-- LangCode: shortcuts.json 等の言語選択に使う。resw の解決結果＝実際の表示言語と常に一致する。 -->
+  <data name="LangCode" xml:space="preserve">
+    <value>ja</value>
+  </data>
+  <data name="Shortcuts_ResourceNotFound" xml:space="preserve">
+    <value>{0} が見つかりません</value>
+  </data>
+  <data name="Shortcuts_LoadErrorGroup" xml:space="preserve">
+    <value>（読み込みエラー）</value>
+  </data>
+</root>

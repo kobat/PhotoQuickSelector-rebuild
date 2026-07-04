@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
+    x:Uid="CopyRenameDialog"
     Title="リネームしてコピー"
     PrimaryButtonText="バッチを生成"
     CloseButtonText="キャンセル"
@@ -16,60 +17,64 @@
 
             <!-- コピー先フォルダ -->
             <StackPanel Spacing="6">
-                <TextBlock Text="コピー先フォルダ" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                <TextBlock x:Uid="CopyRename_DestHeader" Text="コピー先フォルダ" Style="{ThemeResource BodyStrongTextBlockStyle}" />
                 <Grid ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="DestinationBox" PlaceholderText="例: E:\Selected\20260228"
+                    <TextBox x:Name="DestinationBox" x:Uid="CopyRename_DestinationBox"
+                             PlaceholderText="例: E:\Selected\20260228"
                              TextChanged="Input_Changed" />
-                    <Button Grid.Column="1" Content="参照…" Click="Browse_Click" />
+                    <Button Grid.Column="1" x:Uid="Common_BrowseButton" Content="参照…" Click="Browse_Click" />
                 </Grid>
             </StackPanel>
 
             <!-- リネームテンプレート -->
             <StackPanel Spacing="6">
-                <TextBlock Text="ファイル名テンプレート" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                <TextBlock x:Uid="CopyRename_TemplateHeader" Text="ファイル名テンプレート" Style="{ThemeResource BodyStrongTextBlockStyle}" />
                 <TextBox x:Name="TemplateBox" Text="{}{name}"
                          TextChanged="Input_Changed" />
-                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                <TextBlock x:Uid="CopyRename_TemplateNote"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            TextWrapping="Wrap"
                            Text="プレースホルダを挿入（拡張子は元のまま自動付与）。年月日＝大文字 / 時分秒＝小文字。" />
                 <!-- プレースホルダ挿入ボタン群（クリックでキャレット位置へ挿入）。2 段に配置。 -->
                 <StackPanel Spacing="6">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button Content="フォルダ名" Tag="{}{folder}" Click="Token_Click" />
-                        <Button Content="元ファイル名" Tag="{}{name}" Click="Token_Click" />
-                        <Button Content="年" Tag="{}{YYYY}" Click="Token_Click" />
-                        <Button Content="月" Tag="{}{MM}" Click="Token_Click" />
-                        <Button Content="日" Tag="{}{DD}" Click="Token_Click" />
+                        <Button x:Uid="CopyRename_TokenFolder" Content="フォルダ名" Tag="{}{folder}" Click="Token_Click" />
+                        <Button x:Uid="CopyRename_TokenName" Content="元ファイル名" Tag="{}{name}" Click="Token_Click" />
+                        <Button x:Uid="CopyRename_TokenYear" Content="年" Tag="{}{YYYY}" Click="Token_Click" />
+                        <Button x:Uid="CopyRename_TokenMonth" Content="月" Tag="{}{MM}" Click="Token_Click" />
+                        <Button x:Uid="CopyRename_TokenDay" Content="日" Tag="{}{DD}" Click="Token_Click" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <Button Content="時" Tag="{}{hh}" Click="Token_Click" />
-                        <Button Content="分" Tag="{}{mm}" Click="Token_Click" />
-                        <Button Content="秒" Tag="{}{ss}" Click="Token_Click" />
-                        <Button Content="連番" Tag="{}{seq:000}" Click="Token_Click" />
+                        <Button x:Uid="CopyRename_TokenHour" Content="時" Tag="{}{hh}" Click="Token_Click" />
+                        <Button x:Uid="CopyRename_TokenMinute" Content="分" Tag="{}{mm}" Click="Token_Click" />
+                        <Button x:Uid="CopyRename_TokenSecond" Content="秒" Tag="{}{ss}" Click="Token_Click" />
+                        <Button x:Uid="CopyRename_TokenSeq" Content="連番" Tag="{}{seq:000}" Click="Token_Click" />
                     </StackPanel>
                 </StackPanel>
             </StackPanel>
 
             <!-- 同名存在時 -->
             <StackPanel Spacing="6">
-                <TextBlock Text="コピー先に同名がある場合" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                <TextBlock x:Uid="CopyRename_PolicyHeader" Text="コピー先に同名がある場合" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+                <!-- x:String 項目は x:Uid を付けられないため RadioButton 要素にする（SelectedIndex ベースの判定は不変） -->
                 <RadioButtons x:Name="PolicyButtons" SelectedIndex="1">
-                    <x:String>上書きする</x:String>
-                    <x:String>コピーしない（無視）</x:String>
+                    <RadioButton x:Uid="CopyRename_PolicyOverwrite" Content="上書きする" />
+                    <RadioButton x:Uid="CopyRename_PolicySkip" Content="コピーしない（無視）" />
                 </RadioButtons>
             </StackPanel>
 
             <!-- 重複警告 -->
-            <InfoBar x:Name="DuplicateWarning" Severity="Warning" IsOpen="False"
+            <InfoBar x:Name="DuplicateWarning" x:Uid="CopyRename_DuplicateWarning"
+                     Severity="Warning" IsOpen="False"
                      IsClosable="False" Title="リネーム後の名前が重複しています" />
 
             <!-- プレビュー -->
             <StackPanel Spacing="6">
-                <TextBlock x:Name="PreviewHeader" Text="プレビュー"
+                <TextBlock x:Name="PreviewHeader" x:Uid="CopyRename_PreviewHeader" Text="プレビュー"
                            Style="{ThemeResource BodyStrongTextBlockStyle}" />
                 <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
                         CornerRadius="4" Padding="8" MaxHeight="180">

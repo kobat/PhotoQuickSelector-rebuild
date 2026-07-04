@@ -331,7 +331,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [ObservableProperty]
-    public partial string StatusText { get; set; } = "左のツリーでフォルダを選び、「読み込み」ボタンで開きます。";
+    public partial string StatusText { get; set; } = Loc.Get("Status_Initial");
 
     [ObservableProperty]
     public partial string? CurrentFolder { get; set; }
@@ -682,7 +682,7 @@ public partial class MainViewModel : ObservableObject
         _focusAnchor = null;       // 別フォルダの古い写真を基準に残さない
         OnPropertyChanged(nameof(FilteredCountText));
         CurrentFolder = folderPath;
-        StatusText = $"読み込み中: {folderPath}";
+        StatusText = Loc.Get("Status_Loading", folderPath);
 
         try
         {
@@ -698,7 +698,7 @@ public partial class MainViewModel : ObservableObject
 
             if (paths.Length == 0)
             {
-                StatusText = $"JPEG が見つかりません: {folderPath}";
+                StatusText = Loc.Get("Status_NoJpeg", folderPath);
                 return;
             }
 
@@ -755,7 +755,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusText = $"読み込みエラー: {ex.Message}";
+            StatusText = Loc.Get("Status_LoadError", ex.Message);
         }
         finally
         {

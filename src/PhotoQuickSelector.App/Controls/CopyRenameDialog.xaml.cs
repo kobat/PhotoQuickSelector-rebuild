@@ -68,7 +68,7 @@ public sealed partial class CopyRenameDialog : ContentDialog
                 return $"{r.SourceName}  →  {r.NewBase}{ext}";
             })
             .ToList();
-        PreviewHeader.Text = $"プレビュー（対象 {resolved.Count} 件）";
+        PreviewHeader.Text = Loc.Get("CopyRename_PreviewCount", resolved.Count);
 
         // 検証（優先度: 未入力 ＞ コピー元と同じ ＞ 名前重複）。問題があれば「バッチを生成」を無効化。
         var empty = string.IsNullOrWhiteSpace(DestinationPath);
@@ -77,24 +77,24 @@ public sealed partial class CopyRenameDialog : ContentDialog
         if (empty)
         {
             DuplicateWarning.Severity = InfoBarSeverity.Informational;
-            DuplicateWarning.Title = "コピー先フォルダを入力してください";
+            DuplicateWarning.Title = Loc.Get("CopyRename_WarnDestEmpty");
             DuplicateWarning.Message = "";
             DuplicateWarning.IsOpen = true;
         }
         else if (sameAsSource)
         {
             DuplicateWarning.Severity = InfoBarSeverity.Warning;
-            DuplicateWarning.Title = "コピー先がコピー元（表示中のフォルダ）と同じです";
-            DuplicateWarning.Message = "初期値のまま実行しないよう、別のフォルダを指定してください。";
+            DuplicateWarning.Title = Loc.Get("CopyRename_WarnSameFolderTitle");
+            DuplicateWarning.Message = Loc.Get("CopyRename_WarnSameFolderMessage");
             DuplicateWarning.IsOpen = true;
         }
         else if (dups.Count > 0)
         {
             var shown = string.Join(", ", dups.Take(10));
-            if (dups.Count > 10) shown += $" …他 {dups.Count - 10} 件";
+            if (dups.Count > 10) shown += " " + Loc.Get("Msg_MoreItemsSuffix", dups.Count - 10);
             DuplicateWarning.Severity = InfoBarSeverity.Warning;
-            DuplicateWarning.Title = "リネーム後の名前が重複しています";
-            DuplicateWarning.Message = $"次の名前が複数の写真に割り当たります（{dups.Count} 件）。テンプレートに連番（{{seq:000}}）等を加えてください: {shown}";
+            DuplicateWarning.Title = Loc.Get("CopyRename_DuplicateWarning/Title");
+            DuplicateWarning.Message = Loc.Get("CopyRename_WarnDuplicatesMessage", dups.Count, shown);
             DuplicateWarning.IsOpen = true;
         }
         else

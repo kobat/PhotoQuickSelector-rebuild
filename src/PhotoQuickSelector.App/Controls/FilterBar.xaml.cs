@@ -73,14 +73,14 @@ public sealed partial class FilterBar : UserControl
 
         if (string.IsNullOrEmpty(vm.CurrentFolder))
         {
-            await ShowMessageAsync("Reject 移動", "フォルダが読み込まれていません。");
+            await ShowMessageAsync(Loc.Get("RejectMove_Title"), Loc.Get("Msg_NoFolderLoaded"));
             return;
         }
 
         var targets = vm.GetRejectTargets();
         if (targets.Count == 0)
         {
-            await ShowMessageAsync("Reject 移動", "採用フラグなし・未評価の画像はありません。");
+            await ShowMessageAsync(Loc.Get("RejectMove_Title"), Loc.Get("RejectMove_NoTargets"));
             return;
         }
 
@@ -89,10 +89,10 @@ public sealed partial class FilterBar : UserControl
         if (collisions.Count > 0)
         {
             var shown = string.Join("\n", collisions.Take(20));
-            if (collisions.Count > 20) shown += $"\n…他 {collisions.Count - 20} 件";
+            if (collisions.Count > 20) shown += "\n" + Loc.Get("Msg_MoreItemsSuffix", collisions.Count - 20);
             await ShowMessageAsync(
-                "Reject 移動を中断しました",
-                $"Reject フォルダに同名のファイルが既に存在します（{collisions.Count} 件）。\n\n{shown}");
+                Loc.Get("RejectMove_AbortedTitle"),
+                Loc.Get("RejectMove_Collisions", collisions.Count, shown));
             return;
         }
 
@@ -101,17 +101,17 @@ public sealed partial class FilterBar : UserControl
         var timestamp = now.ToString("yyyyMMddHHmmss");
         var batText = vm.BuildRejectBatchText(targets, now.ToString("yyyy-MM-dd HH:mm:ss"));
 
-        var intro = $"{targets.Count} 件を Reject フォルダへ移動します。Reject フォルダに次のバッチを保存して実行します。";
-        if (!await ConfirmBatchAsync("Reject 移動の確認", intro, batText))
+        var intro = Loc.Get("RejectMove_ConfirmIntro", targets.Count);
+        if (!await ConfirmBatchAsync(Loc.Get("RejectMove_ConfirmTitle"), intro, batText))
             return;
 
         // 3) Reject 作成（既存は再利用）＋bat 保存＋実行（ログ出力）。
         var result = await vm.RunRejectBatchAsync(batText, timestamp, targets.Count);
 
         var message = result.Success
-            ? $"{result.TargetCount} 件の移動を実行しました。\n\nログ: {result.LogPath}"
-            : $"移動を実行しましたが、エラーの可能性があります（終了コード {result.ExitCode}）。\n\nログ: {result.LogPath}";
-        await ShowMessageAsync("Reject 移動が完了しました", message);
+            ? Loc.Get("RejectMove_Done", result.TargetCount, result.LogPath)
+            : Loc.Get("RejectMove_DoneWithError", result.ExitCode, result.LogPath);
+        await ShowMessageAsync(Loc.Get("RejectMove_DoneTitle"), message);
     }
 
     // === リネームコピー（絞込結果を任意の宛先へリネームしながらコピー） ===
@@ -127,14 +127,14 @@ public sealed partial class FilterBar : UserControl
 
         if (string.IsNullOrEmpty(vm.CurrentFolder))
         {
-            await ShowMessageAsync("リネームしてコピー", "フォルダが読み込まれていません。");
+            await ShowMessageAsync(Loc.Get("CopyRename_MsgTitle"), Loc.Get("Msg_NoFolderLoaded"));
             return;
         }
 
         var targets = vm.GetCopyTargets();
         if (targets.Count == 0)
         {
-            await ShowMessageAsync("リネームしてコピー", "コピー対象の画像（絞込結果）がありません。");
+            await ShowMessageAsync(Loc.Get("CopyRename_MsgTitle"), Loc.Get("CopyRename_NoTargets"));
             return;
         }
 
@@ -158,9 +158,8 @@ public sealed partial class FilterBar : UserControl
             dialog.DestinationPath, dialog.RenameTemplate, dialog.Policy,
             targets, now.ToString("yyyy-MM-dd HH:mm:ss"));
 
-        var intro = $"{targets.Count} 件を「{dialog.DestinationPath}」へコピーします。" +
-                    "コピー先に次のバッチを保存して実行します。";
-        if (!await ConfirmBatchAsync("リネームしてコピーの確認", intro, batText))
+        var intro = Loc.Get("CopyRename_ConfirmIntro", targets.Count, dialog.DestinationPath);
+        if (!await ConfirmBatchAsync(Loc.Get("CopyRename_ConfirmTitle"), intro, batText))
             return;
 
         // 3) 宛先作成（既存は再利用）＋bat 保存＋実行（ログ出力）。
@@ -168,9 +167,9 @@ public sealed partial class FilterBar : UserControl
             batText, dialog.DestinationPath, timestamp, targets.Count);
 
         var message = result.Success
-            ? $"{result.TargetCount} 件のコピーを実行しました。\n\nログ: {result.LogPath}"
-            : $"コピーを実行しましたが、エラーの可能性があります（終了コード {result.ExitCode}）。\n\nログ: {result.LogPath}";
-        await ShowMessageAsync("リネームしてコピーが完了しました", message);
+            ? Loc.Get("CopyRename_Done", result.TargetCount, result.LogPath)
+            : Loc.Get("CopyRename_DoneWithError", result.ExitCode, result.LogPath);
+        await ShowMessageAsync(Loc.Get("CopyRename_DoneTitle"), message);
     }
 
     private async Task ShowMessageAsync(string title, string message)
@@ -213,8 +212,8 @@ public sealed partial class FilterBar : UserControl
         {
             Title = title,
             Content = panel,
-            PrimaryButtonText = "実行",
-            CloseButtonText = "キャンセル",
+            PrimaryButtonText = Loc.Get("Msg_Run"),
+            CloseButtonText = Loc.Get("Msg_Cancel"),
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = XamlRoot,
         };

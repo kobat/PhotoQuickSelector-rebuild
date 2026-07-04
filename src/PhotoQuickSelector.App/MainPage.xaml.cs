@@ -74,10 +74,10 @@ public sealed partial class MainPage : Page
         {
             var dialog = new ContentDialog
             {
-                Title = "評価データの作成",
-                Content = "このフォルダに評価データファイル（PhotoQuickSelector.sqlite3）を作成します。よろしいですか？",
-                PrimaryButtonText = "作成",
-                CloseButtonText = "キャンセル",
+                Title = Loc.Get("Msg_ConfirmCreateStoreTitle"),
+                Content = Loc.Get("Msg_ConfirmCreateStoreContent"),
+                PrimaryButtonText = Loc.Get("Msg_Create"),
+                CloseButtonText = Loc.Get("Msg_Cancel"),
                 DefaultButton = ContentDialogButton.Primary,
                 XamlRoot = XamlRoot,
             };
@@ -111,7 +111,7 @@ public sealed partial class MainPage : Page
         // フォルダが存在しない（削除/未接続の外付け・ネットワーク等）→ 復元中止。最近一覧は残す。
         if (!Directory.Exists(folder))
         {
-            ViewModel.StatusText = $"前回のフォルダが見つかりません: {folder}";
+            ViewModel.StatusText = Loc.Get("Status_PreviousFolderNotFound", folder);
             return;
         }
 

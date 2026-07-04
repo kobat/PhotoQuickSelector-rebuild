@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
-using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace PhotoQuickSelector_App;
 
@@ -17,7 +16,10 @@ public sealed record ShortcutGroup(string Title, IReadOnlyList<ShortcutItem> Ite
 /// リポジトリ直下の <c>shortcuts.json</c>（csproj の <c>EmbeddedResource</c>＝<c>LogicalName="shortcuts.json"</c>
 /// でアセンブリへ埋め込み）で、実行時に <see cref="Assembly.GetManifestResourceStream(string)"/> で読み出す。
 /// single-file 発行でも exe 隣のファイル有無に依存しない（<see cref="Controls.LicenseDialog"/> と同方式）。
-/// ドキュメント <c>docs/SHORTCUTS.md</c> も同じ <c>shortcuts.json</c> から <c>tools/gen-shortcuts.ps1</c> で生成する。
+/// ドキュメント <c>docs/SHORTCUTS.md</c>（日）/<c>SHORTCUTS.en.md</c>（英）も同じ <c>shortcuts.json</c> から
+/// <c>tools/gen-shortcuts.ps1</c> で生成する。
+/// 各テキストは「文字列（全言語共通）」または「<c>{"ja": …, "en": …}</c> オブジェクト」で、
+/// 表示言語（resw の <c>LangCode</c>＝アプリの言語解決に追従）で選択する。
 /// 項目の追加/修正は <c>shortcuts.json</c> を編集するだけ（実キー処理とは独立した表示専用の二重持ち。SSOT 化は別課題）。
 /// </summary>
 public static class ShortcutCheatSheet
@@ -33,13 +35,27 @@ public static class ShortcutCheatSheet
         {
             var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName);
             if (stream is null)
-                return Fallback($"{ResourceName} が見つかりません");
+                return Fallback(Loc.Get("Shortcuts_ResourceNotFound", ResourceName));
 
             using (stream)
             {
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var data = JsonSerializer.Deserialize<CheatSheetData>(stream, options);
-                return data?.Groups ?? new List<ShortcutGroup>();
+                var root = JsonNode.Parse(stream);
+                // 言語は resw の解決結果に追従（PrimaryLanguageOverride／OS 言語と一貫する）。
+                var lang = Loc.Get("LangCode");
+
+                var groups = new List<ShortcutGroup>();
+                foreach (var g in root?["groups"] as JsonArray ?? new JsonArray())
+                {
+                    if (g is null) continue;
+                    var items = new List<ShortcutItem>();
+                    foreach (var i in g["items"] as JsonArray ?? new JsonArray())
+                    {
+                        if (i is null) continue;
+                        items.Add(new ShortcutItem(Pick(i["keys"], lang), Pick(i["description"], lang)));
+                    }
+                    groups.Add(new ShortcutGroup(Pick(g["title"], lang), items));
+                }
+                return groups;
             }
         }
         catch (Exception ex)
@@ -48,17 +64,30 @@ public static class ShortcutCheatSheet
         }
     }
 
+    /// <summary>
+    /// 文字列ならそのまま（全言語共通）、オブジェクトなら <paramref name="lang"/> → <c>ja</c> → 先頭
+    /// の順で値を選ぶ（訳が未整備でも空欄にしない）。
+    /// </summary>
+    private static string Pick(JsonNode? node, string lang)
+    {
+        switch (node)
+        {
+            case JsonValue v when v.TryGetValue<string>(out var s):
+                return s;
+            case JsonObject o:
+                if (o.TryGetPropertyValue(lang, out var ln) &&
+                    ln is JsonValue lv && lv.TryGetValue<string>(out var ls)) return ls;
+                if (o.TryGetPropertyValue("ja", out var jn) &&
+                    jn is JsonValue jv && jv.TryGetValue<string>(out var js)) return js;
+                foreach (var kv in o)
+                    if (kv.Value is JsonValue fv && fv.TryGetValue<string>(out var fs)) return fs;
+                return "";
+            default:
+                return "";
+        }
+    }
+
     /// <summary>読み込み失敗時に空欄にしない代替表示（原因を 1 項目で見せる）。</summary>
     private static IReadOnlyList<ShortcutGroup> Fallback(string message) =>
-        new[] { new ShortcutGroup("（読み込みエラー）", new[] { new ShortcutItem("-", message) }) };
-
-    /// <summary>
-    /// <c>shortcuts.json</c> のルート。<c>Title</c>/<c>*Label</c> は生成する <c>SHORTCUTS.md</c> 用のメタ情報で、
-    /// アプリ側は <see cref="Groups"/> のみ使用する。
-    /// </summary>
-    private sealed record CheatSheetData(
-        string? Title,
-        string? KeysLabel,
-        string? DescriptionLabel,
-        IReadOnlyList<ShortcutGroup> Groups);
+        new[] { new ShortcutGroup(Loc.Get("Shortcuts_LoadErrorGroup"), new[] { new ShortcutItem("-", message) }) };
 }

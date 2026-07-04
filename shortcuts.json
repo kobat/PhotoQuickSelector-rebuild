@@ -1,79 +1,122 @@
 {
-  "title": "ショートカット一覧",
-  "keysLabel": "キー",
-  "descriptionLabel": "説明",
+  "title": { "ja": "ショートカット一覧", "en": "Keyboard Shortcuts" },
+  "keysLabel": { "ja": "キー", "en": "Keys" },
+  "descriptionLabel": { "ja": "説明", "en": "Description" },
   "groups": [
     {
-      "title": "全般",
+      "title": { "ja": "全般", "en": "General" },
       "items": [
-        { "keys": "F1", "description": "ショートカット一覧を表示" },
-        { "keys": "Ctrl+L", "description": "フィルタ ON/OFF を切替（フライアウトは開かない）" },
-        { "keys": "F11", "description": "全画面表示の切替" },
-        { "keys": "Shift+F", "description": "完全全画面モード（全画面＋左ペイン/ステータスバー非表示＋イマーシブ）の切替" },
-        { "keys": "Esc", "description": "全画面/完全全画面を解除（選択集合があれば解除）" }
+        { "keys": "F1",
+          "description": { "ja": "ショートカット一覧を表示", "en": "Show keyboard shortcuts" } },
+        { "keys": "Ctrl+L",
+          "description": { "ja": "フィルタ ON/OFF を切替（フライアウトは開かない）", "en": "Toggle filter on/off (does not open the flyout)" } },
+        { "keys": "F11",
+          "description": { "ja": "全画面表示の切替", "en": "Toggle full screen" } },
+        { "keys": "Shift+F",
+          "description": { "ja": "完全全画面モード（全画面＋左ペイン/ステータスバー非表示＋イマーシブ）の切替", "en": "Toggle full screen (image only) mode (full screen + hide left pane/status bar + immersive)" } },
+        { "keys": "Esc",
+          "description": { "ja": "全画面/完全全画面を解除（選択集合があれば解除）", "en": "Exit full screen modes (clears the selection set if any)" } }
       ]
     },
     {
-      "title": "表示",
+      "title": { "ja": "表示", "en": "View" },
       "items": [
-        { "keys": "クリック", "description": "メイン画像をフィット⇄ズーム切替（クリック位置が中心）" },
-        { "keys": "ダブルクリック", "description": "メイン画像を 100% 表示（クリック位置が中心）" },
-        { "keys": "ドラッグ", "description": "パン（表示位置を移動）" },
-        { "keys": "ホイール", "description": "段ズーム（カーソル位置が中心）" },
-        { "keys": "+ / -", "description": "段ズーム イン/アウト" },
-        { "keys": "Z", "description": "フィット⇄ズーム切替（ズーム側は直近の倍率/位置を復元）" },
-        { "keys": "Shift+Z", "description": "等倍 100% 表示" },
-        { "keys": "Shift+Alt+← / →", "description": "フィット / 等倍" },
-        { "keys": "F", "description": "イマーシブ表示（右パネル/フィルムストリップを畳む）の切替" },
-        { "keys": "I", "description": "メタ情報オーバーレイの切替" },
-        { "keys": "G", "description": "構図グリッドの種類を巡回（なし→中央十字→三分割→正方形）" },
-        { "keys": "Shift+G", "description": "構図グリッドの基準を切替（画像⇄Canvas）" },
-        { "keys": "C", "description": "先読みキャッシュ一覧の切替（デバッグ）" }
+        { "keys": { "ja": "クリック", "en": "Click" },
+          "description": { "ja": "メイン画像をフィット⇄ズーム切替（クリック位置が中心）", "en": "Toggle fit ⇄ zoom on the main image (centered on the click position)" } },
+        { "keys": { "ja": "ダブルクリック", "en": "Double-click" },
+          "description": { "ja": "メイン画像を 100% 表示（クリック位置が中心）", "en": "Show the main image at 100% (centered on the click position)" } },
+        { "keys": { "ja": "ドラッグ", "en": "Drag" },
+          "description": { "ja": "パン（表示位置を移動）", "en": "Pan (move the view)" } },
+        { "keys": { "ja": "ホイール", "en": "Wheel" },
+          "description": { "ja": "段ズーム（カーソル位置が中心）", "en": "Stepped zoom (centered on the cursor)" } },
+        { "keys": "+ / -",
+          "description": { "ja": "段ズーム イン/アウト", "en": "Stepped zoom in/out" } },
+        { "keys": "Z",
+          "description": { "ja": "フィット⇄ズーム切替（ズーム側は直近の倍率/位置を復元）", "en": "Toggle fit ⇄ zoom (zoom restores the last magnification/position)" } },
+        { "keys": "Shift+Z",
+          "description": { "ja": "等倍 100% 表示", "en": "Show at 100% (1:1 pixels)" } },
+        { "keys": "Shift+Alt+← / →",
+          "description": { "ja": "フィット / 等倍", "en": "Fit / 100%" } },
+        { "keys": "F",
+          "description": { "ja": "イマーシブ表示（右パネル/フィルムストリップを畳む）の切替", "en": "Toggle immersive view (collapses the right panel/filmstrip)" } },
+        { "keys": "I",
+          "description": { "ja": "メタ情報オーバーレイの切替", "en": "Toggle the metadata overlay" } },
+        { "keys": "G",
+          "description": { "ja": "構図グリッドの種類を巡回（なし→中央十字→三分割→正方形）", "en": "Cycle the composition grid type (none → center cross → rule of thirds → squares)" } },
+        { "keys": "Shift+G",
+          "description": { "ja": "構図グリッドの基準を切替（画像⇄Canvas）", "en": "Toggle the composition grid reference (image ⇄ canvas)" } },
+        { "keys": "C",
+          "description": { "ja": "先読みキャッシュ一覧の切替（デバッグ）", "en": "Toggle the prefetch cache overlay (debug)" } }
       ]
     },
     {
-      "title": "移動",
+      "title": { "ja": "移動", "en": "Navigation" },
       "items": [
-        { "keys": "← / →", "description": "前後の写真へ移動（移動後フォーカスはフィルムストリップへ）" },
-        { "keys": "ダブルクリック", "description": "フィルムストリップ：グリッド表示へ戻る" },
-        { "keys": "PageUp / PageDown / Home / End", "description": "フィルムストリップ内を移動" },
-        { "keys": "Alt+← / → / ↑ / ↓", "description": "パン（画像を上下左右へ移動）" },
-        { "keys": "Alt+F", "description": "フォーカス点へスクロール" },
-        { "keys": "Ctrl+Alt+← / →", "description": "ルーペを横スクロール" },
-        { "keys": "Ctrl+Alt+↑ / ↓", "description": "ルーペを縦スクロール（選択集合があるときは一括フラグ）" },
-        { "keys": "Ctrl+Alt+F", "description": "ルーペをフォーカス点へ" }
+        { "keys": "← / →",
+          "description": { "ja": "前後の写真へ移動（移動後フォーカスはフィルムストリップへ）", "en": "Go to the previous/next photo (focus moves to the filmstrip)" } },
+        { "keys": { "ja": "ダブルクリック", "en": "Double-click" },
+          "description": { "ja": "フィルムストリップ：グリッド表示へ戻る", "en": "Filmstrip: return to the grid view" } },
+        { "keys": "PageUp / PageDown / Home / End",
+          "description": { "ja": "フィルムストリップ内を移動", "en": "Move within the filmstrip" } },
+        { "keys": "Alt+← / → / ↑ / ↓",
+          "description": { "ja": "パン（画像を上下左右へ移動）", "en": "Pan the image" } },
+        { "keys": "Alt+F",
+          "description": { "ja": "フォーカス点へスクロール", "en": "Scroll to the AF focus point" } },
+        { "keys": "Ctrl+Alt+← / →",
+          "description": { "ja": "ルーペを横スクロール", "en": "Scroll the loupe horizontally" } },
+        { "keys": "Ctrl+Alt+↑ / ↓",
+          "description": { "ja": "ルーペを縦スクロール（選択集合があるときは一括フラグ）", "en": "Scroll the loupe vertically (bulk flag when a selection set exists)" } },
+        { "keys": "Ctrl+Alt+F",
+          "description": { "ja": "ルーペをフォーカス点へ", "en": "Move the loupe to the AF focus point" } }
       ]
     },
     {
-      "title": "評価",
+      "title": { "ja": "評価", "en": "Rating" },
       "items": [
-        { "keys": "0 – 5", "description": "レーティング（通常評価は焦点の 1 枚のみに反映）" },
-        { "keys": "6 / 7 / 8 / 9", "description": "カラーラベル（赤 / 黄 / 緑 / 青）" },
-        { "keys": "P", "description": "カラーラベル（紫）" },
-        { "keys": "[ / ]", "description": "レーティングを増減" },
-        { "keys": "Ctrl+↑ / ↓", "description": "フラグ（採用 / 拒否）" }
+        { "keys": "0 – 5",
+          "description": { "ja": "レーティング（通常評価は焦点の 1 枚のみに反映）", "en": "Rating (applies to the focused photo only)" } },
+        { "keys": "6 / 7 / 8 / 9",
+          "description": { "ja": "カラーラベル（赤 / 黄 / 緑 / 青）", "en": "Color label (red / yellow / green / blue)" } },
+        { "keys": "P",
+          "description": { "ja": "カラーラベル（紫）", "en": "Color label (purple)" } },
+        { "keys": "[ / ]",
+          "description": { "ja": "レーティングを増減", "en": "Increase/decrease the rating" } },
+        { "keys": "Ctrl+↑ / ↓",
+          "description": { "ja": "フラグ（採用 / 拒否）", "en": "Flag (accept / reject)" } }
       ]
     },
     {
-      "title": "複数選択",
+      "title": { "ja": "複数選択", "en": "Multi-select" },
       "items": [
-        { "keys": "Shift+← / →", "description": "レンジ選択（起点から焦点までを連続選択）" },
-        { "keys": "Ctrl+← / →", "description": "焦点のみ移動（選択集合は不変）" },
-        { "keys": "Ctrl+Space", "description": "焦点を選択集合へ参加 / 解除" },
-        { "keys": "← / →（選択集合中）", "description": "メンバー内で焦点を巡回" },
-        { "keys": "Esc", "description": "選択集合を解除" },
-        { "keys": "Alt+0 – 5", "description": "一括レーティング（選択集合の全メンバーへ）" },
-        { "keys": "Alt+6 – 9 / Alt+P", "description": "一括カラーラベル（選択集合の全メンバーへ）" },
-        { "keys": "Ctrl+Alt+↑ / ↓", "description": "一括フラグ（選択集合の全メンバーへ）" }
+        { "keys": "Shift+← / →",
+          "description": { "ja": "レンジ選択（起点から焦点までを連続選択）", "en": "Range selection (from the pivot to the focus)" } },
+        { "keys": "Ctrl+← / →",
+          "description": { "ja": "焦点のみ移動（選択集合は不変）", "en": "Move the focus only (selection set unchanged)" } },
+        { "keys": "Ctrl+Space",
+          "description": { "ja": "焦点を選択集合へ参加 / 解除", "en": "Add/remove the focused photo to/from the selection set" } },
+        { "keys": { "ja": "← / →（選択集合中）", "en": "← / → (with selection)" },
+          "description": { "ja": "メンバー内で焦点を巡回", "en": "Cycle the focus among the selected members" } },
+        { "keys": "Esc",
+          "description": { "ja": "選択集合を解除", "en": "Clear the selection set" } },
+        { "keys": "Alt+0 – 5",
+          "description": { "ja": "一括レーティング（選択集合の全メンバーへ）", "en": "Bulk rating (all members of the selection set)" } },
+        { "keys": "Alt+6 – 9 / Alt+P",
+          "description": { "ja": "一括カラーラベル（選択集合の全メンバーへ）", "en": "Bulk color label (all members of the selection set)" } },
+        { "keys": "Ctrl+Alt+↑ / ↓",
+          "description": { "ja": "一括フラグ（選択集合の全メンバーへ）", "en": "Bulk flag (all members of the selection set)" } }
       ]
     },
     {
-      "title": "ファイル連携",
+      "title": { "ja": "ファイル連携", "en": "File actions" },
       "items": [
-        { "keys": "Ctrl+E", "description": "エクスプローラーで表示" },
-        { "keys": "Alt+E", "description": "既定のアプリで開く" },
-        { "keys": "Ctrl+Alt+E", "description": "パスをコピー" },
-        { "keys": "Alt+S", "description": "共有（設定の共有先 exe、未設定なら標準の共有シート）" }
+        { "keys": "Ctrl+E",
+          "description": { "ja": "エクスプローラーで表示", "en": "Show in Explorer" } },
+        { "keys": "Alt+E",
+          "description": { "ja": "既定のアプリで開く", "en": "Open with the default app" } },
+        { "keys": "Ctrl+Alt+E",
+          "description": { "ja": "パスをコピー", "en": "Copy the path" } },
+        { "keys": "Alt+S",
+          "description": { "ja": "共有（設定の共有先 exe、未設定なら標準の共有シート）", "en": "Share (the exe set in Settings, or the standard share sheet if unset)" } }
       ]
     }
   ]

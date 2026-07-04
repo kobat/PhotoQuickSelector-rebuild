@@ -24,7 +24,7 @@
             <Expander.Header>
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xE735;" FontSize="14" />
-                    <TextBlock Text="お気に入り" />
+                    <TextBlock x:Uid="FolderNav_FavoritesHeader" Text="お気に入り" />
                 </StackPanel>
             </Expander.Header>
             <ListView ItemsSource="{x:Bind ViewModel.Favorites, Mode=OneWay}"
@@ -40,7 +40,8 @@
                         <Grid ToolTipService.ToolTip="{x:Bind Path}">
                             <Grid.ContextFlyout>
                                 <MenuFlyout>
-                                    <MenuFlyoutItem Text="お気に入りから削除"
+                                    <MenuFlyoutItem x:Uid="FolderNav_RemoveFavoriteMenu"
+                                                    Text="お気に入りから削除"
                                                     Click="RemoveFavoriteMenuItem_Click">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="&#xE738;" />
@@ -58,7 +59,8 @@
                             <TextBlock Grid.Column="1" Text="{x:Bind Name}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis" />
-                            <Button Grid.Column="2" Click="RemoveFavoriteButton_Click"
+                            <Button Grid.Column="2" x:Uid="FolderNav_RemoveFavoriteButton"
+                                    Click="RemoveFavoriteButton_Click"
                                     Background="Transparent" BorderThickness="0"
                                     Padding="4" MinWidth="0"
                                     VerticalAlignment="Center"
@@ -78,7 +80,7 @@
             <Expander.Header>
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xE81C;" FontSize="14" />
-                    <TextBlock Text="最近開いたフォルダ" />
+                    <TextBlock x:Uid="FolderNav_RecentHeader" Text="最近開いたフォルダ" />
                 </StackPanel>
             </Expander.Header>
             <ListView ItemsSource="{x:Bind ViewModel.RecentFolders, Mode=OneWay}"
@@ -90,13 +92,15 @@
                                     ToolTipService.ToolTip="{x:Bind Path}">
                             <StackPanel.ContextFlyout>
                                 <MenuFlyout>
-                                    <MenuFlyoutItem Text="お気に入りに追加"
+                                    <MenuFlyoutItem x:Uid="FolderNav_AddFavoriteMenu"
+                                                    Text="お気に入りに追加"
                                                     Click="AddFavoriteFromRecentMenuItem_Click">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="&#xE735;" />
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
-                                    <MenuFlyoutItem Text="一覧から削除"
+                                    <MenuFlyoutItem x:Uid="FolderNav_RemoveRecentMenu"
+                                                    Text="一覧から削除"
                                                     Click="RemoveRecentMenuItem_Click">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="&#xE738;" />
@@ -122,7 +126,8 @@
             <!-- 空白部分の右クリック用（ノード上はノード側の ContextFlyout が優先される） -->
             <TreeView.ContextFlyout>
                 <MenuFlyout>
-                    <MenuFlyoutItem Text="ドライブ一覧を更新"
+                    <MenuFlyoutItem x:Uid="FolderNav_RefreshDrivesMenu"
+                                    Text="ドライブ一覧を更新"
                                     Click="RefreshDrivesMenuItem_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon Glyph="&#xE72C;" />
@@ -136,20 +141,23 @@
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <StackPanel.ContextFlyout>
                                 <MenuFlyout Opening="FolderTreeFlyout_Opening">
-                                    <MenuFlyoutItem Text="お気に入りに追加"
+                                    <MenuFlyoutItem x:Uid="FolderNav_AddFavoriteMenu"
+                                                    Text="お気に入りに追加"
                                                     Click="AddFavoriteMenuItem_Click">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="&#xE735;" />
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
-                                    <MenuFlyoutItem Text="お気に入りから削除"
+                                    <MenuFlyoutItem x:Uid="FolderNav_RemoveFavoriteMenu"
+                                                    Text="お気に入りから削除"
                                                     Click="RemoveFavoriteFromTreeMenuItem_Click">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="&#xE738;" />
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
                                     <MenuFlyoutSeparator />
-                                    <MenuFlyoutItem Text="更新" Click="RefreshMenuItem_Click">
+                                    <MenuFlyoutItem x:Uid="FolderNav_RefreshMenu"
+                                                    Text="更新" Click="RefreshMenuItem_Click">
                                         <MenuFlyoutItem.Icon>
                                             <FontIcon Glyph="&#xE72C;" />
                                         </MenuFlyoutItem.Icon>
@@ -168,7 +176,7 @@
             <Button x:Name="LoadButton" Click="LoadButton_Click">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xE8B7;" FontSize="14" />
-                    <TextBlock Text="読み込み" />
+                    <TextBlock x:Uid="FolderNav_LoadButtonText" Text="読み込み" />
                 </StackPanel>
             </Button>
         </StackPanel>

@@ -61,7 +61,8 @@ public sealed partial class PhotoStatusBar : UserControl
     public void UpdateLeftPaneGlyph(bool open)
     {
         LeftPaneIcon.Glyph = open ? "" : ""; // open=OpenPane(E8A0, left arrow) / closed=ClosePane(E89F, right arrow)
-        ToolTipService.SetToolTip(LeftPaneButton, open ? "左ペインを隠す" : "左ペインを表示");
+        ToolTipService.SetToolTip(LeftPaneButton,
+            Loc.Get(open ? "StatusBar_HideLeftPane" : "StatusBar_ShowLeftPane"));
     }
 
     private void FullScreenButton_Click(object sender, RoutedEventArgs e)
@@ -147,6 +148,7 @@ public sealed partial class PhotoStatusBar : UserControl
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
             _viewModel.Settings.SharePath = dialog.SharePath;
+            _viewModel.Settings.Language = dialog.SelectedLanguage;
             _viewModel.Settings.Save();
         }
     }

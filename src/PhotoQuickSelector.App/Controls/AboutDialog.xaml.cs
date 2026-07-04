@@ -14,7 +14,7 @@ public sealed partial class AboutDialog : ContentDialog
     public AboutDialog()
     {
         InitializeComponent();
-        VersionText.Text = $"バージョン {GetVersionText()}";
+        VersionText.Text = Loc.Get("About_VersionFormat", GetVersionText());
     }
 
     /// <summary>アセンブリのバージョンを "x.y.z" 形式で返す（取得できなければ既定値）。</summary>

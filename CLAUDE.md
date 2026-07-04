@@ -1174,6 +1174,41 @@
   - **README は人が編集する前提**（ショートカット一覧同様）。文言・画像はユーザーが随時修正。Core/アプリコードは非変更（ドキュメントのみ）。
   - 変更/新規: `README.md`（新規）、`docs/images/*.png`（新規）。
 
+- **英語表示対応（日英ローカライズ）完了（2026-07-04・要実機確認）**: UI 全文字列を日英 2 言語化。
+  方式＝**WinUI 標準の MRT Core resw**（`Strings/ja-JP|en-US/Resources.resw`）＋ XAML `x:Uid`＋コード側 `Loc` ヘルパ。
+  - **スパイクで確定した重要知見**: resw／x:Uid／`Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride`
+    は **packaged・単一ファイル発行の両形態で動作**（resources.pri 埋め込みでも解決）。override は
+    **プロセス単位（再起動で消える・永続化なし）**、プロセス内切替は可能だが**一度設定すると解除不可**
+    （`""`/`null` 代入は 0x80070057 例外）。→ 設計:「自動」＝override を一切触らない（OS 言語追従）／
+    「ja」「en」＝`App` ctor（`InitializeComponent` より前）で設定＝**反映は再起動後**。詳細はメモリ `winui-mrtcore-localization`。
+  - **設定**: `AppSettings.Language`（`""`=自動/`"ja"`/`"en"`）。設定ダイアログ先頭に言語コンボ
+    （自動/日本語/English＋「再起動後に反映」注記）。保存はメニュー＞設定…の Primary（`PhotoStatusBar`）。
+  - **XAML（9 ファイル・約 88 箇所）**: 命名規約 `<Control>_<Element>.<Property>`（例 `Filter_Header.Text`）。
+    **日本語リテラルは残置**（デザイナ用フォールバック。実行時は resw が上書き）。ToolTip は resw 側で
+    `Uid.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip` 構文。ContentDialog はルート x:Uid で
+    `.Title`/`.PrimaryButtonText`/`.CloseButtonText`。同一文言は x:Uid 共有可（例 `Common_BrowseButton`／
+    お気に入り追加/削除メニュー）。**`RadioButtons` の `x:String` 項目は x:Uid 不可**→ `RadioButton` 要素へ置換
+    （`CopyRenameDialog`。`SelectedIndex` ベースの Policy 判定は不変）。
+  - **コード側**: 新規 `Loc.cs`＝`Loc.Get(key[, args])`（`ResourceLoader` ラップ。未解決はキー自身を返す＝空欄防止）。
+    対象: `MainViewModel`（StatusText 系）、`MainPage`（sqlite 作成確認・前回フォルダ不明）、`FilterBar`
+    （Reject 移動/リネームコピーの全ダイアログ）、`CopyRenameDialog`（InfoBar/プレビュー件数）、`AboutDialog`
+    （バージョン表記）、`LicenseDialog`（読込失敗）、`PhotoStatusBar`（左ペイン開閉ツールチップ）、
+    `PhotoItemViewModel`（GPS ツールチップ）。フォーマットは resw に `{0}` で保持（literal `{}` は `{{}}` エスケープ）。
+    x:Uid キーをコードから読む場合はパス区切り `/`（例 `Loc.Get("CopyRename_DuplicateWarning/Title")`）。
+  - **shortcuts.json（SSOT 維持のまま多言語化）**: 各テキストを「文字列（全言語共通）or `{"ja":…,"en":…}`」に拡張。
+    `ShortcutCheatSheet` は `JsonNode` パースへ変更し、**言語判定は resw の `LangCode` キー**（ja-JP=`ja`/en-US=`en`）＝
+    resw の解決結果と常に一致。`tools/gen-shortcuts.ps1` は **`docs/SHORTCUTS.md`（日・既存名維持）＋
+    `docs/SHORTCUTS.en.md`（英）の 2 枚生成**に更新（実行済み・ASCII-only 維持）。
+  - **README**: `README.en.md` 新規（英語版・`SHORTCUTS.en.md` へ誘導）＋日英相互リンク＋日本語版の特長に言語対応 1 行。
+  - **検証**: `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` **96 件緑**／packaged（`dotnet run`）と
+    単一ファイル発行の両方で `Language="en"` 起動 15 秒生存（クラッシュなし＝x:Uid/attached-property 構文 OK）。
+    設定 json は検証後に復元済み。**実機目視（英語 UI の見た目・各ダイアログ・F1 の英語表示・設定コンボでの切替→
+    再起動反映）はユーザー確認推奨**。
+  - 変更/新規: `Strings/ja-JP|en-US/Resources.resw`（新規）、`Loc.cs`（新規）、`README.en.md`（新規）、
+    `docs/SHORTCUTS.en.md`（生成物・新規）、`App.xaml.cs`、`AppSettings.cs`、`ShortcutCheatSheet.cs`、`shortcuts.json`、
+    `tools/gen-shortcuts.ps1`、`README.md`、XAML 9 ファイル＋対応コードビハインド、`ViewModels/MainViewModel.cs`・
+    `PhotoItemViewModel.cs`、`MainPage.xaml.cs`。**Core は非変更**。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**

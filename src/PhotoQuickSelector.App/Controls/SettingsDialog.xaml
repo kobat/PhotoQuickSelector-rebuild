@@ -6,16 +6,31 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
+    x:Uid="SettingsDialog"
     Title="設定"
     PrimaryButtonText="保存"
     CloseButtonText="キャンセル"
     DefaultButton="Primary">
 
     <StackPanel Width="560" Spacing="16">
+        <!-- 表示言語（反映は再起動後。App が起動時に PrimaryLanguageOverride を設定する） -->
+        <StackPanel Spacing="6">
+            <TextBlock x:Uid="Settings_LanguageHeader" Text="表示言語" FontWeight="SemiBold" />
+            <ComboBox x:Name="LanguageCombo" MinWidth="240">
+                <ComboBoxItem x:Uid="Settings_LanguageAuto" Content="自動（OS の言語）" Tag="" />
+                <!-- 言語名はそれぞれの言語で表記する慣例のためローカライズしない -->
+                <ComboBoxItem Content="日本語" Tag="ja" />
+                <ComboBoxItem Content="English" Tag="en" />
+            </ComboBox>
+            <TextBlock x:Uid="Settings_LanguageNote" Text="変更はアプリの再起動後に反映されます。"
+                       TextWrapping="Wrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+
         <!-- 共有（Alt+S）の起動先 -->
         <StackPanel Spacing="6">
-            <TextBlock Text="共有 (Alt+S) で起動するアプリ" FontWeight="SemiBold" />
-            <TextBlock TextWrapping="Wrap"
+            <TextBlock x:Uid="Settings_ShareHeader" Text="共有 (Alt+S) で起動するアプリ" FontWeight="SemiBold" />
+            <TextBlock x:Uid="Settings_ShareNote" TextWrapping="Wrap"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                        Text="共有時に起動する外部アプリの実行ファイル (.exe) を指定します。選択中の写真パスを引数として渡します。空欄のときは Windows 標準の共有シートを表示します。" />
             <Grid ColumnSpacing="8">
@@ -24,10 +39,10 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBox Grid.Column="0" x:Name="SharePathBox"
+                <TextBox Grid.Column="0" x:Name="SharePathBox" x:Uid="Settings_SharePathBox"
                          PlaceholderText="（未設定：Windows 標準の共有シートを使用）" />
-                <Button Grid.Column="1" Content="参照…" Click="Browse_Click" />
-                <Button Grid.Column="2" Content="クリア" Click="Clear_Click" />
+                <Button Grid.Column="1" x:Uid="Common_BrowseButton" Content="参照…" Click="Browse_Click" />
+                <Button Grid.Column="2" x:Uid="Settings_ClearButton" Content="クリア" Click="Clear_Click" />
             </Grid>
         </StackPanel>
     </StackPanel>

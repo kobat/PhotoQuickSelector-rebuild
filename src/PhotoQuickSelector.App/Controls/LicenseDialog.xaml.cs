@@ -25,7 +25,7 @@ public sealed partial class LicenseDialog : ContentDialog
     private static string ReadEmbedded(string resourceName)
     {
         var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName);
-        if (stream is null) return $"（{resourceName} を読み込めませんでした）";
+        if (stream is null) return Loc.Get("License_LoadFailed", resourceName);
 
         using (stream)
         using (var reader = new StreamReader(stream))

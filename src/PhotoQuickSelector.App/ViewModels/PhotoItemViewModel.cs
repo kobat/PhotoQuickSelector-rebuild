@@ -79,7 +79,7 @@ public partial class PhotoItemViewModel : ObservableObject
 
     /// <summary>地図ボタンのツールチップ（DMS 座標）。</summary>
     public string GpsTooltip =>
-        HasGps ? $"地図で表示（{Meta.GpsLocationDescription}）" : "";
+        HasGps ? Loc.Get("Gps_Tooltip", Meta.GpsLocationDescription) : "";
 
     /// <summary>撮影位置を開く地図 URL。十進緯度経度が無ければ null。</summary>
     public Uri? MapUri =>
