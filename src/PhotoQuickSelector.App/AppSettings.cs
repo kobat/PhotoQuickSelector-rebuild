@@ -50,6 +50,41 @@ public sealed class AppSettings
     /// <summary>「リネームしてコピー」で最後に使ったファイル名テンプレート（次回の初期値）。</summary>
     public string CopyRenameTemplate { get; set; } = "{name}";
 
+    // --- プレビューのズーム段（一般設定） ---
+
+    /// <summary>ズーム段の既定値（表示倍率 DeviceScale ＝ 物理px/画像px、100%=1.0）。</summary>
+    public static IReadOnlyList<double> DefaultZoomStops { get; } = new[]
+    {
+        0.05, 0.0833, 0.125, 0.1667, 0.25, 0.3333, 0.5, 0.6667,
+        1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0,
+    };
+
+    /// <summary>
+    /// プレビューのホイール/キーボード（+/-）ズーム段（表示倍率＝倍率で保持。100%=1.0）。
+    /// 空/無効なら <see cref="DefaultZoomStops"/> にフォールバックする（<see cref="Controls.PreviewControl"/> 側で検証）。
+    /// </summary>
+    public List<double> ZoomStops { get; set; } = new(DefaultZoomStops);
+
+    // --- 先読みキャッシュ（高度な設定） ---
+
+    /// <summary>先読みキャッシュの合計バイト予算（GB）。超過分は表示実績優先 LRU で破棄する。</summary>
+    public double CacheBudgetGB { get; set; } = 2.0;
+
+    /// <summary>先読み枚数（表示中より前方＝次に進む向き）。</summary>
+    public int PrefetchForward { get; set; } = 2;
+
+    /// <summary>先読み枚数（表示中より後方＝前に戻る向き）。</summary>
+    public int PrefetchBackward { get; set; } = 2;
+
+    /// <summary>同時に走らせるデコード本数。変更は次回起動後に反映される（Semaphore を構築時にサイズ決定するため）。</summary>
+    public int MaxConcurrentDecodes { get; set; } = 2;
+
+    /// <summary>連打抑制: 直近 <see cref="RateWindowMs"/> 内で即デコードを許す枚数。</summary>
+    public int RateBudget { get; set; } = 3;
+
+    /// <summary>連打抑制: デコード回数を数える時間窓（ミリ秒）。</summary>
+    public int RateWindowMs { get; set; } = 1500;
+
     /// <summary>
     /// 共有（Alt+S）で起動する外部アプリの exe パス。空なら Windows 標準の共有シートにフォールバックする。
     /// 旧アプリは Google Nearby Share の固定パスだったが、本アプリでは設定化する（SPEC §6-3）。

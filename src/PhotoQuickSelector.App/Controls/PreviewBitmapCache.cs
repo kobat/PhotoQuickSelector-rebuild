@@ -78,8 +78,11 @@ internal sealed class PixelFrame
 /// </summary>
 internal sealed class PreviewBitmapCache
 {
-    private const int MaxConcurrentDecodes = 2; // 同時に走らせるデコードの上限
-    private const long MaxCacheBytes = 2L << 30; // キャッシュの合計バイト予算（2GB。調整ノブ）
+    /// <summary>同時に走らせるデコードの上限（構築時に <see cref="_gate"/> のサイズを決める。変更は再構築が必要）。</summary>
+    public int MaxConcurrentDecodes { get; }
+
+    /// <summary>キャッシュの合計バイト予算（既定 2GB。<see cref="Trim"/> が参照。実行中に変更可）。</summary>
+    public long MaxCacheBytes { get; set; } = 2L << 30;
 
     /// <summary>キャッシュ 1 件分の付随情報（表示実績優先 LRU の判定材料）。</summary>
     private sealed class CacheEntry
@@ -105,9 +108,16 @@ internal sealed class PreviewBitmapCache
     // inflight（読込中/待機中）に対する forDisplay 要求を記録する。完了時にキャッシュ挿入する
     // CacheEntry.WasDisplayed へ反映するため（先読み開始後に表示目的の取得が重なるケースに対応）。
     private readonly HashSet<string> _pendingDisplay = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SemaphoreSlim _gate = new(MaxConcurrentDecodes, MaxConcurrentDecodes);
+    private readonly SemaphoreSlim _gate;
     private int _generation; // Clear（全破棄）でキャッシュを無効化する世代
     private long _useCounter; // LastUse 採番用の単調増分カウンタ（DateTime は使わない）
+
+    /// <param name="maxConcurrentDecodes">同時に走らせるデコード本数（1 以上にクランプ）。</param>
+    public PreviewBitmapCache(int maxConcurrentDecodes = 2)
+    {
+        MaxConcurrentDecodes = Math.Max(1, maxConcurrentDecodes);
+        _gate = new SemaphoreSlim(MaxConcurrentDecodes, MaxConcurrentDecodes);
+    }
 
     /// <summary>キャッシュ内容（デコード済み / 読込中）が変化したときに発火する（デバッグオーバーレイ用）。</summary>
     public event Action? Changed;

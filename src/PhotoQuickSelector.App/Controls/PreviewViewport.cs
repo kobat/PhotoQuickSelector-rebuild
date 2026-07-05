@@ -57,18 +57,27 @@ public sealed class PreviewViewport
     public double DeviceScale => Scale * DpiScale;
 
     private const double MinScale = 0.02;
-    private const double MaxScale = 16.0;
 
     /// <summary>
-    /// ホイールズームのスナップ段（表示倍率 DeviceScale ＝ 物理px/画像px、100%=1.0）。
+    /// ズーム倍率（Scale）の上限クランプ。既定 16.0。設定でズーム段を大きくしたときに
+    /// <see cref="ZoomToStop"/> の候補段が弾かれないよう、コントロール側が段の最大に追従させる。
+    /// </summary>
+    public double MaxScale { get; set; } = 16.0;
+
+    /// <summary>ホイール/キーボードのズーム段の既定値（表示倍率 DeviceScale 基準・倍率）。</summary>
+    private static readonly double[] DefaultZoomStops =
+    {
+        0.05, 0.0833, 0.125, 0.1667, 0.25, 0.3333, 0.5, 0.6667,
+        1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0,
+    };
+
+    /// <summary>
+    /// ホイール/キーボード（+/-）ズームのスナップ段（表示倍率 DeviceScale ＝ 物理px/画像px、100%=1.0）。
     /// ブラウザ/Photoshop 風の round な段。これにフィット倍率を暫定段として動的に挟む
     /// （<see cref="ZoomToStop"/>）。中途半端な倍率にならないよう、ホイール1ティックで隣の段へ移動する。
+    /// 既定は <see cref="DefaultZoomStops"/>。設定で差し替え可能（<see cref="Controls.PreviewControl"/> が注入）。
     /// </summary>
-    private static readonly double[] ZoomStops =
-    {
-        0.05, 0.0833, 0.125, 0.1667, 0.25, 0.3333, 0.5, 0.6667, 0.75,
-        1.0, 1.25, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0,
-    };
+    public IReadOnlyList<double> ZoomStops { get; set; } = DefaultZoomStops;
 
     // 直近のズーム状態（フィットに戻る直前の倍率・モード・相対中心）を覚えておき、
     // 再度ズーム（Z トグル）したときに同じ表示位置へ復元する。null＝記憶なし。

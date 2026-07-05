@@ -1275,6 +1275,45 @@
     Core.Tests（非 Windows TFM）から参照不可＝LRU ロジックの単体テストなし。実機目視（2 枚往復で `C` オーバーレイの
     エントリが減らない・選択巡回の即表示・大量移動時に予算で頭打ち）はユーザー確認推奨。
 
+- **設定画面の拡張（タブ分割＋ズーム倍率＋先読みキャッシュ設定＋グループ別リセット）完了（2026-07-05・要実機確認）**:
+  設定ダイアログ（`ContentDialog`）を `Pivot` で **一般／高度な設定** の2タブに分割し、設定項目を追加。各設定グループの
+  見出し横に **「既定に戻す」HyperlinkButton**（`new AppSettings()` の初期化子＝既定値を控えとして参照）を付けた。**Core 非変更**。
+  - **一般タブ**: 表示言語（既存）／**ズーム倍率**（新規）／共有先（既存）。**ズーム倍率＝パーセントのカンマ区切りテキスト**
+    （例 `25, 50, 100, 200`）。内部は倍率（DeviceScale）で保持し、UI 表示は `×100`。解析は寛容（`, 空白 、 ％ %` で分割・
+    正値のみ・重複除去・昇順、空なら既定へフォールバック）。
+  - **高度な設定タブ**: **キャッシュ容量予算(GB)**／**先読み枚数(後方=次へ・前方=前へ)**／**同時デコード数**／
+    **連打抑制（枚数＝RateBudget・時間窓ms＝RateWindow）**。数値入力は `NumberBox`（Min/Max/SpinButton 付き）。
+  - **設定の追加（`AppSettings`）**: `List<double> ZoomStops`（＋`static IReadOnlyList<double> DefaultZoomStops`）／
+    `double CacheBudgetGB=2.0`／`int PrefetchForward=2`/`PrefetchBackward=1`／`int MaxConcurrentDecodes=2`／
+    `int RateBudget=3`/`RateWindowMs=1500`。**source-gen コンテキストは `AppSettings` 登録済みで `List<double>` も追加登録不要**
+    （`List<string>` と同様に自動対応。build 警告0 で確認）。
+  - **決め打ち値の設定化（挙動は既定値で不変）**: `PreviewViewport.ZoomStops`（静的→インスタンス設定可能プロパティ）＋
+    `MaxScale`（const→設定可能プロパティ。**ズーム段の最大に追従**＝`Max(16.0, stops[^1])` で 1600% 超の段も弾かれない）。
+    `PreviewBitmapCache.MaxCacheBytes`（const→設定可能プロパティ）＋`MaxConcurrentDecodes`（**ctor 引数**。Semaphore は構築時に
+    サイズ決定するため変更は再構築が必要）。`PreviewControl` の `PrefetchForward/Backward`・`RateWindow`・`RateBudget`
+    （const/static→インスタンスフィールド `_prefetchForward` 等）。
+  - **反映経路**: `PreviewControl.ApplyPreviewSettings(AppSettings)`（新規 public）がズーム段・`MaxScale`・先読み枚数・レート・
+    キャッシュ予算を注入（すべて即時反映可・妥当性クランプ付き）。**同時デコード数のみ** `RebuildCacheForConcurrency(int)`
+    （新規 private・`_cache` を作り直し＋Changed/IsWanted 再配線）で反映するため**次回起動後**（実行中の作り直しは保持中の
+    デコード済み画像を失うので避ける）。呼び出しは 2 経路: ①**ViewModel 注入時**（起動時・`ViewModel` setter で
+    `RebuildCacheForConcurrency`→`ApplyPreviewSettings`）②**設定保存時**（`PhotoStatusBar` の `MenuSettings_Click` が
+    新規 `SettingsChanged` イベント発火→`MainPage` が `Preview.ApplyPreviewSettings` を呼ぶ＝`ToggleFullScreenRequested` 等と
+    同じ委譲パターン）。②では同時デコード数は再構築しない＝再起動待ち。ルーペ（`_zoomViewport`）は注入せず既定のまま。
+  - **ローカライズ**: `Strings/{ja-JP,en-US}/Resources.resw` に設定系の x:Uid キーを追加（タブ見出し・各グループ見出し/注記・
+    「既定に戻す」共有 x:Uid `Settings_ResetGroup`）。XAML には日本語リテラルをフォールバックとして残置（既存方針）。
+  - 変更/新規: `AppSettings.cs`、`Controls/PreviewViewport.cs`、`Controls/PreviewBitmapCache.cs`、`Controls/PreviewControl.xaml.cs`、
+    `Controls/SettingsDialog.xaml(.cs)`（Pivot 化・全面改訂）、`Controls/PhotoStatusBar.xaml.cs`（`SettingsChanged`＋値の反映）、
+    `MainPage.xaml.cs`（配線）、`Strings/*/Resources.resw`。`BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。
+    実機目視（タブ切替・ズーム段の反映＝ホイール/`+`/`-`・各リセット・先読み枚数/予算/レートの反映・同時デコード数の再起動反映・
+    英語 UI）はユーザー確認推奨。
+  - **微修正（2026-07-05・上記の続き）**: ①先読み枚数のラベル訳を訂正（Forward=**前方（次へ）**／Backward=**後方（前へ）**。
+    ja resw と `AppSettings` のコメントを入替。en は元から正しく据え置き）。②`PrefetchBackward` の既定を **1→2**
+    （`AppSettings` 既定と `PreviewControl._prefetchBackward` の両方）。③ズーム段の既定リストから **75%・125% を除外**
+    （新 `5,8.33,12.5,16.67,25,33.33,50,66.67,100,150,200,300,400,600,800,1200,1600`＝17段。`AppSettings.DefaultZoomStops` と
+    `PreviewViewport.DefaultZoomStops` の両方を同一に更新）。④キャッシュ予算の MB 化は**見送り**（GB のまま）。
+    `PreviewViewportTests` の段スナップ 2 件（0.75 依存）を新リストに合わせ更新（67%→100% へ）。`BUILD SUCCEEDED`
+    （x64 Release・警告0）／`dotnet test` 96 件緑。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**

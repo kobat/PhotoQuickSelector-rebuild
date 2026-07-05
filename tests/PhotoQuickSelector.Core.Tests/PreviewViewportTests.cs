@@ -120,13 +120,13 @@ public class PreviewViewportTests
         Assert.Equal(ZoomMode.Custom, vp.Mode);
         Assert.Equal(0.6667, vp.DeviceScale, Precision);
 
-        // さらに1ティック → 75%。
-        vp.ZoomToStop(zoomIn: true, 250, 200);
-        Assert.Equal(0.75, vp.DeviceScale, Precision);
-
-        // さらに1ティック → 100%。
+        // さらに1ティック → 100%（既定リストから 75% は除外済み）。
         vp.ZoomToStop(zoomIn: true, 250, 200);
         Assert.Equal(1.0, vp.DeviceScale, Precision);
+
+        // さらに1ティック → 150%。
+        vp.ZoomToStop(zoomIn: true, 250, 200);
+        Assert.Equal(1.5, vp.DeviceScale, Precision);
     }
 
     [Fact]
@@ -134,11 +134,11 @@ public class PreviewViewportTests
     {
         var vp = NewViewport(1000, 800);   // FitScale = 0.5
         vp.ZoomToStop(zoomIn: true, 250, 200);  // 50% → 67%（Custom）
-        vp.ZoomToStop(zoomIn: true, 250, 200);  // 67% → 75%
-        Assert.Equal(0.75, vp.DeviceScale, Precision);
+        vp.ZoomToStop(zoomIn: true, 250, 200);  // 67% → 100%（既定リストから 75% は除外済み）
+        Assert.Equal(1.0, vp.DeviceScale, Precision);
 
         // 縮小していくとフィット段(50%)を通過し、そこは Fit モードになる。
-        vp.ZoomToStop(zoomIn: false, 250, 200); // 75% → 67%
+        vp.ZoomToStop(zoomIn: false, 250, 200); // 100% → 67%
         Assert.Equal(0.6667, vp.DeviceScale, Precision);
         Assert.Equal(ZoomMode.Custom, vp.Mode);
 

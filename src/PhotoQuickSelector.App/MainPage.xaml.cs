@@ -50,6 +50,8 @@ public sealed partial class MainPage : Page
         {
             if (ViewModel.IsPreviewMode) Preview.SetImmersive(!Preview.IsImmersive);
         };
+        // 設定ダイアログ保存時、ズーム段・先読み・レート・キャッシュ予算をプレビューへ反映（同時デコード数のみ再起動後）。
+        StatusBar.SettingsChanged += (_, _) => Preview.ApplyPreviewSettings(ViewModel.Settings);
         // メニューのチェック表示用の状態プロバイダ（Preview / MainWindow から供給）。
         StatusBar.IsImmersiveProvider = () => Preview.IsImmersive;
         StatusBar.IsFullScreenProvider = () => (App.Window as MainWindow)?.IsFullScreen ?? false;

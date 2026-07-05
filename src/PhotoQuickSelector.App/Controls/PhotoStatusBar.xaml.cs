@@ -44,6 +44,9 @@ public sealed partial class PhotoStatusBar : UserControl
     /// <summary>イマーシブ表示の切替要求（<see cref="MainPage"/> が <see cref="PreviewControl.SetImmersive"/> を呼ぶ）。</summary>
     public event EventHandler? ToggleImmersiveRequested;
 
+    /// <summary>設定ダイアログが保存されたとき発火する（<see cref="MainPage"/> が <see cref="PreviewControl.ApplyPreviewSettings"/> を呼ぶ）。</summary>
+    public event EventHandler? SettingsChanged;
+
     /// <summary>イマーシブ表示中かを返す（メニューのチェック表示用。<see cref="MainPage"/> が Preview から供給）。</summary>
     public Func<bool>? IsImmersiveProvider { get; set; }
 
@@ -147,9 +150,19 @@ public sealed partial class PhotoStatusBar : UserControl
 
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
         {
-            _viewModel.Settings.SharePath = dialog.SharePath;
-            _viewModel.Settings.Language = dialog.SelectedLanguage;
-            _viewModel.Settings.Save();
+            var s = _viewModel.Settings;
+            s.SharePath = dialog.SharePath;
+            s.Language = dialog.SelectedLanguage;
+            s.ZoomStops = dialog.ZoomStops;
+            s.CacheBudgetGB = dialog.CacheBudgetGB;
+            s.PrefetchForward = dialog.PrefetchForward;
+            s.PrefetchBackward = dialog.PrefetchBackward;
+            s.MaxConcurrentDecodes = dialog.MaxConcurrentDecodes;
+            s.RateBudget = dialog.RateBudget;
+            s.RateWindowMs = dialog.RateWindowMs;
+            s.Save();
+            // ズーム段・先読み・レート・キャッシュ予算はプレビューへ即時反映（同時デコード数のみ再起動後）。
+            SettingsChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 

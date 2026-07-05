@@ -297,6 +297,63 @@
   <data name="Settings_ClearButton.Content" xml:space="preserve">
     <value>Clear</value>
   </data>
+  <data name="Settings_GeneralTab.Header" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="Settings_AdvancedTab.Header" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="Settings_ResetGroup.Content" xml:space="preserve">
+    <value>Reset to default</value>
+  </data>
+  <data name="Settings_ZoomHeader.Text" xml:space="preserve">
+    <value>Zoom levels</value>
+  </data>
+  <data name="Settings_ZoomNote.Text" xml:space="preserve">
+    <value>Enter percentages separated by commas (e.g. 25, 50, 100, 200). These become the wheel and +/- zoom steps.</value>
+  </data>
+  <data name="Settings_ZoomStopsBox.PlaceholderText" xml:space="preserve">
+    <value>e.g. 25, 50, 100, 200, 400</value>
+  </data>
+  <data name="Settings_AdvancedIntro.Text" xml:space="preserve">
+    <value>Tunes the behavior of the preview prefetch cache. The defaults are fine for most cases.</value>
+  </data>
+  <data name="Settings_CacheBudgetHeader.Text" xml:space="preserve">
+    <value>Cache budget (GB)</value>
+  </data>
+  <data name="Settings_CacheBudgetNote.Text" xml:space="preserve">
+    <value>Maximum total size the prefetch cache keeps in main memory. Excess is dropped starting from the least-used older images.</value>
+  </data>
+  <data name="Settings_PrefetchHeader.Text" xml:space="preserve">
+    <value>Prefetch count</value>
+  </data>
+  <data name="Settings_PrefetchNote.Text" xml:space="preserve">
+    <value>How many photos before/after the current one to prefetch. More is smoother when moving but uses more memory.</value>
+  </data>
+  <data name="Settings_PrefetchForwardLabel.Text" xml:space="preserve">
+    <value>Forward (next)</value>
+  </data>
+  <data name="Settings_PrefetchBackwardLabel.Text" xml:space="preserve">
+    <value>Backward (previous)</value>
+  </data>
+  <data name="Settings_ConcurrencyHeader.Text" xml:space="preserve">
+    <value>Concurrent decodes</value>
+  </data>
+  <data name="Settings_ConcurrencyNote.Text" xml:space="preserve">
+    <value>Number of decodes to run in parallel. Changes take effect after the app restarts.</value>
+  </data>
+  <data name="Settings_RateHeader.Text" xml:space="preserve">
+    <value>Burst throttle (rate limit)</value>
+  </data>
+  <data name="Settings_RateNote.Text" xml:space="preserve">
+    <value>Curbs VRAM growth while holding the arrow keys. Frames allowed to decode immediately within the window, and the window length (ms).</value>
+  </data>
+  <data name="Settings_RateBudgetLabel.Text" xml:space="preserve">
+    <value>Frames</value>
+  </data>
+  <data name="Settings_RateWindowLabel.Text" xml:space="preserve">
+    <value>Window (ms)</value>
+  </data>
 
   <!-- ============ PreviewControl ============ -->
   <data name="Preview_CacheOverlayHeader.Text" xml:space="preserve">

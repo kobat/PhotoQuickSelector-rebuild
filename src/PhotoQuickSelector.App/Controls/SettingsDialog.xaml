@@ -12,38 +12,196 @@
     CloseButtonText="キャンセル"
     DefaultButton="Primary">
 
-    <StackPanel Width="560" Spacing="16">
-        <!-- 表示言語（反映は再起動後。App が起動時に PrimaryLanguageOverride を設定する） -->
-        <StackPanel Spacing="6">
-            <TextBlock x:Uid="Settings_LanguageHeader" Text="表示言語" FontWeight="SemiBold" />
-            <ComboBox x:Name="LanguageCombo" MinWidth="240">
-                <ComboBoxItem x:Uid="Settings_LanguageAuto" Content="自動（OS の言語）" Tag="" />
-                <!-- 言語名はそれぞれの言語で表記する慣例のためローカライズしない -->
-                <ComboBoxItem Content="日本語" Tag="ja" />
-                <ComboBoxItem Content="English" Tag="en" />
-            </ComboBox>
-            <TextBlock x:Uid="Settings_LanguageNote" Text="変更はアプリの再起動後に反映されます。"
-                       TextWrapping="Wrap"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-        </StackPanel>
+    <Pivot Width="580">
+        <!-- ============ 一般 ============ -->
+        <PivotItem x:Uid="Settings_GeneralTab" Header="一般">
+            <ScrollViewer MaxHeight="460" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="18" Padding="2,4,12,4">
 
-        <!-- 共有（Alt+S）の起動先 -->
-        <StackPanel Spacing="6">
-            <TextBlock x:Uid="Settings_ShareHeader" Text="共有 (Alt+S) で起動するアプリ" FontWeight="SemiBold" />
-            <TextBlock x:Uid="Settings_ShareNote" TextWrapping="Wrap"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Text="共有時に起動する外部アプリの実行ファイル (.exe) を指定します。選択中の写真パスを引数として渡します。空欄のときは Windows 標準の共有シートを表示します。" />
-            <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBox Grid.Column="0" x:Name="SharePathBox" x:Uid="Settings_SharePathBox"
-                         PlaceholderText="（未設定：Windows 標準の共有シートを使用）" />
-                <Button Grid.Column="1" x:Uid="Common_BrowseButton" Content="参照…" Click="Browse_Click" />
-                <Button Grid.Column="2" x:Uid="Settings_ClearButton" Content="クリア" Click="Clear_Click" />
-            </Grid>
-        </StackPanel>
-    </StackPanel>
+                    <!-- 表示言語（反映は再起動後。App が起動時に PrimaryLanguageOverride を設定する） -->
+                    <StackPanel Spacing="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Uid="Settings_LanguageHeader" Text="表示言語" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <HyperlinkButton Grid.Column="1" x:Uid="Settings_ResetGroup" Content="既定に戻す" Click="ResetLanguage_Click" />
+                        </Grid>
+                        <ComboBox x:Name="LanguageCombo" MinWidth="240">
+                            <ComboBoxItem x:Uid="Settings_LanguageAuto" Content="自動（OS の言語）" Tag="" />
+                            <!-- 言語名はそれぞれの言語で表記する慣例のためローカライズしない -->
+                            <ComboBoxItem Content="日本語" Tag="ja" />
+                            <ComboBoxItem Content="English" Tag="en" />
+                        </ComboBox>
+                        <TextBlock x:Uid="Settings_LanguageNote" Text="変更はアプリの再起動後に反映されます。"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+
+                    <!-- ズーム倍率 -->
+                    <StackPanel Spacing="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Uid="Settings_ZoomHeader" Text="ズーム倍率" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <HyperlinkButton Grid.Column="1" x:Uid="Settings_ResetGroup" Content="既定に戻す" Click="ResetZoom_Click" />
+                        </Grid>
+                        <TextBlock x:Uid="Settings_ZoomNote"
+                                   Text="パーセントをカンマ区切りで入力します（例: 25, 50, 100, 200）。ホイールと +/- キーのズーム段になります。"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBox x:Name="ZoomStopsBox" x:Uid="Settings_ZoomStopsBox"
+                                 AcceptsReturn="False"
+                                 PlaceholderText="例: 25, 50, 100, 200, 400" />
+                    </StackPanel>
+
+                    <!-- 共有（Alt+S）の起動先 -->
+                    <StackPanel Spacing="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Uid="Settings_ShareHeader" Text="共有 (Alt+S) で起動するアプリ" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <HyperlinkButton Grid.Column="1" x:Uid="Settings_ResetGroup" Content="既定に戻す" Click="ResetShare_Click" />
+                        </Grid>
+                        <TextBlock x:Uid="Settings_ShareNote" TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="共有時に起動する外部アプリの実行ファイル (.exe) を指定します。選択中の写真パスを引数として渡します。空欄のときは Windows 標準の共有シートを表示します。" />
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" x:Name="SharePathBox" x:Uid="Settings_SharePathBox"
+                                     PlaceholderText="（未設定：Windows 標準の共有シートを使用）" />
+                            <Button Grid.Column="1" x:Uid="Common_BrowseButton" Content="参照…" Click="Browse_Click" />
+                            <Button Grid.Column="2" x:Uid="Settings_ClearButton" Content="クリア" Click="Clear_Click" />
+                        </Grid>
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+        </PivotItem>
+
+        <!-- ============ 高度な設定 ============ -->
+        <PivotItem x:Uid="Settings_AdvancedTab" Header="高度な設定">
+            <ScrollViewer MaxHeight="460" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="18" Padding="2,4,12,4">
+
+                    <TextBlock x:Uid="Settings_AdvancedIntro"
+                               Text="プレビューの先読みキャッシュの動作を調整します。通常は既定のままで問題ありません。"
+                               TextWrapping="Wrap"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                    <!-- キャッシュ容量予算 -->
+                    <StackPanel Spacing="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Uid="Settings_CacheBudgetHeader" Text="キャッシュ容量予算 (GB)" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <HyperlinkButton Grid.Column="1" x:Uid="Settings_ResetGroup" Content="既定に戻す" Click="ResetCache_Click" />
+                        </Grid>
+                        <TextBlock x:Uid="Settings_CacheBudgetNote"
+                                   Text="先読みキャッシュがメインメモリに保持する合計サイズの上限です。超過分は表示実績の少ない古い画像から破棄します。"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <NumberBox x:Name="CacheBudgetBox" HorizontalAlignment="Left" MinWidth="160"
+                                   Minimum="0.1" Maximum="64" SmallChange="0.5" LargeChange="1"
+                                   SpinButtonPlacementMode="Compact" />
+                    </StackPanel>
+
+                    <!-- 先読み枚数 -->
+                    <StackPanel Spacing="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Uid="Settings_PrefetchHeader" Text="先読み枚数" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <HyperlinkButton Grid.Column="1" x:Uid="Settings_ResetGroup" Content="既定に戻す" Click="ResetPrefetch_Click" />
+                        </Grid>
+                        <TextBlock x:Uid="Settings_PrefetchNote"
+                                   Text="表示中の写真の前後に何枚まで先読みするか。多いほど前後移動が滑らかですがメモリを使います。"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="20">
+                            <StackPanel Spacing="4">
+                                <TextBlock x:Uid="Settings_PrefetchForwardLabel" Text="後方（次へ）"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <NumberBox x:Name="PrefetchForwardBox" MinWidth="120"
+                                           Minimum="0" Maximum="50" SmallChange="1" LargeChange="5"
+                                           SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <TextBlock x:Uid="Settings_PrefetchBackwardLabel" Text="前方（前へ）"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <NumberBox x:Name="PrefetchBackwardBox" MinWidth="120"
+                                           Minimum="0" Maximum="50" SmallChange="1" LargeChange="5"
+                                           SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 同時デコード数 -->
+                    <StackPanel Spacing="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Uid="Settings_ConcurrencyHeader" Text="同時デコード数" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <HyperlinkButton Grid.Column="1" x:Uid="Settings_ResetGroup" Content="既定に戻す" Click="ResetConcurrency_Click" />
+                        </Grid>
+                        <TextBlock x:Uid="Settings_ConcurrencyNote"
+                                   Text="同時に走らせるデコード本数。変更はアプリの再起動後に反映されます。"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <NumberBox x:Name="ConcurrencyBox" HorizontalAlignment="Left" MinWidth="120"
+                                   Minimum="1" Maximum="16" SmallChange="1" LargeChange="2"
+                                   SpinButtonPlacementMode="Compact" />
+                    </StackPanel>
+
+                    <!-- 連打抑制（レート制限） -->
+                    <StackPanel Spacing="6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Uid="Settings_RateHeader" Text="連打抑制（レート制限）" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <HyperlinkButton Grid.Column="1" x:Uid="Settings_ResetGroup" Content="既定に戻す" Click="ResetRate_Click" />
+                        </Grid>
+                        <TextBlock x:Uid="Settings_RateNote"
+                                   Text="左右キー連打時の VRAM 膨張を抑えます。時間窓内で即デコードを許す枚数と、窓の長さ (ms)。"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="20">
+                            <StackPanel Spacing="4">
+                                <TextBlock x:Uid="Settings_RateBudgetLabel" Text="枚数"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <NumberBox x:Name="RateBudgetBox" MinWidth="120"
+                                           Minimum="1" Maximum="60" SmallChange="1" LargeChange="5"
+                                           SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <TextBlock x:Uid="Settings_RateWindowLabel" Text="時間窓 (ms)"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <NumberBox x:Name="RateWindowBox" MinWidth="140"
+                                           Minimum="100" Maximum="60000" SmallChange="100" LargeChange="500"
+                                           SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+        </PivotItem>
+    </Pivot>
 </ContentDialog>

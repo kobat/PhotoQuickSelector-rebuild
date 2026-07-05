@@ -43,16 +43,16 @@ public sealed partial class PreviewControl : UserControl
 
     private readonly PreviewViewport _viewport = new();
     private readonly PreviewViewport _zoomViewport = new();  // 右上ズームプレビュー（100% ルーペ）の独立ビューポート
-    private readonly PreviewBitmapCache _cache;              // 前後 N 枚先読みキャッシュ（SPEC §4）
+    private PreviewBitmapCache _cache;                       // 前後 N 枚先読みキャッシュ（SPEC §4）。同時デコード数変更で再構築するため readonly ではない
     private CanvasBitmap? _bitmap;          // 現在表示中の GPU ビットマップ（本コントロールが所有。差し替え時に Dispose する。ピクセル実体はキャッシュの byte[]（PixelFrame）側）
     private ImageMetadata? _currentMeta;    // 表示中ビットマップに対応するメタデータ（AF枠描画用）
     private int _currentOrientation = 1;
     private int _loadToken;                 // 現在表示ロードの世代（高速ナビでの追い越し対策）
 
     // 先読みキャッシュの保持窓（先読み対象＝Trim で保護する対象。WindowPaths() 参照）。
-    // 選択集合が無いとき: 現在位置（焦点）の前後 N 枚（位置窓）。
-    private const int PrefetchForward = 2;
-    private const int PrefetchBackward = 1;
+    // 選択集合が無いとき: 現在位置（焦点）の前後 N 枚（位置窓）。設定で変更可（ApplyPreviewSettings）。
+    private int _prefetchForward = 2;
+    private int _prefetchBackward = 2;
     // 選択集合があるとき: 「位置窓（狭め）」＋「メンバー窓（巡回順で前後）」の和集合。
     // 素の ←/→（MoveFocusWithinSelection）はメンバー間を巡回するため、次に表示される可能性が
     // 高いのは位置的な隣接枚ではなくメンバーの前後。位置窓も残すのは、Ctrl+←/→
@@ -76,8 +76,8 @@ public sealed partial class PreviewControl : UserControl
     // RateBudget を下げる／RateWindow を延ばす。バーストが足りず遅延を感じるなら逆に緩める。
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _settleTimer;
     private readonly Queue<DateTime> _recentDecodes = new();                                  // 直近のフル解像度デコード時刻（レート判定用）
-    private static readonly TimeSpan RateWindow = TimeSpan.FromMilliseconds(1500);            // レートを見る窓
-    private const int RateBudget = 3;                                                         // 窓内で即デコードを許す枚数
+    private TimeSpan _rateWindow = TimeSpan.FromMilliseconds(1500);                           // レートを見る窓（設定で変更可）
+    private int _rateBudget = 3;                                                              // 窓内で即デコードを許す枚数（設定で変更可）
     private static readonly TimeSpan LoadSettleDelay = TimeSpan.FromMilliseconds(150);        // 停止後の確定＋先読み
 
     private bool _isPanning;
@@ -168,6 +168,54 @@ public sealed partial class PreviewControl : UserControl
         if (h >= NavRow.MinHeight) NavRow.Height = new GridLength(h);
     }
 
+    /// <summary>
+    /// 設定（ズーム段・先読み枚数・連打抑制レート・キャッシュ予算）をプレビューへ反映する。
+    /// ViewModel 注入時（起動時）と、設定ダイアログ保存時（<see cref="PhotoStatusBar"/> 経由）に呼ばれる。
+    /// 同時デコード数（Semaphore サイズ）だけは即時反映せず、次回起動時の <see cref="RebuildCacheForConcurrency"/> に委ねる。
+    /// </summary>
+    public void ApplyPreviewSettings(AppSettings s)
+    {
+        // ズーム段: 正の有効値のみ、重複除去・昇順。空になったら既定へフォールバック。
+        var stops = (s.ZoomStops ?? new())
+            .Where(v => v > 0 && !double.IsNaN(v) && !double.IsInfinity(v))
+            .Distinct()
+            .OrderBy(v => v)
+            .ToArray();
+        if (stops.Length == 0)
+            stops = AppSettings.DefaultZoomStops.ToArray();
+        _viewport.ZoomStops = stops;
+        // ズーム段が既定上限（16.0）を超えて設定されても弾かれないよう、クランプ上限を段の最大に追従させる。
+        _viewport.MaxScale = Math.Max(16.0, stops[^1]);
+
+        // 先読み枚数（過大値はメモリ保護のため上限クランプ）。
+        _prefetchForward = Math.Clamp(s.PrefetchForward, 0, 50);
+        _prefetchBackward = Math.Clamp(s.PrefetchBackward, 0, 50);
+
+        // 連打抑制のレート。
+        _rateBudget = Math.Max(1, s.RateBudget);
+        _rateWindow = TimeSpan.FromMilliseconds(Math.Clamp(s.RateWindowMs, 100, 60000));
+
+        // キャッシュのバイト予算（GB → bytes）。
+        _cache.MaxCacheBytes = (long)(Math.Max(0.1, s.CacheBudgetGB) * (1L << 30));
+    }
+
+    /// <summary>
+    /// 同時デコード数が現在のキャッシュと異なるとき、キャッシュを作り直して反映する。Semaphore は
+    /// 構築時にサイズ決定するため作り直しが必要。ViewModel 注入時（起動時・キャッシュが空のうち）にのみ呼ぶ
+    /// （実行中に呼ぶと保持中のデコード済み画像を失うため、設定ダイアログ保存では呼ばない＝再起動後に反映）。
+    /// </summary>
+    private void RebuildCacheForConcurrency(int concurrency)
+    {
+        concurrency = Math.Clamp(concurrency, 1, 16);
+        if (_cache.MaxConcurrentDecodes == concurrency) return;
+
+        _cache.Changed -= RefreshCacheOverlay;
+        long budget = _cache.MaxCacheBytes;
+        _cache = new PreviewBitmapCache(concurrency) { MaxCacheBytes = budget };
+        _cache.Changed += RefreshCacheOverlay;
+        _cache.IsWanted = IsPathInWindow;
+    }
+
     // 右パネルの幅変更（スプリッター/復元）に合わせて現在幅を設定へ控える（実保存は終了時）。
     private void RightPanel_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -195,6 +243,9 @@ public sealed partial class PreviewControl : UserControl
             {
                 _viewModel.PropertyChanged += OnViewModelPropertyChanged;
                 ((INotifyCollectionChanged)_viewModel.Photos).CollectionChanged += OnPhotosChanged;
+                // 同時デコード数は Semaphore を構築時にサイズ決定するため、注入時（＝起動時）に一度だけ反映する。
+                RebuildCacheForConcurrency(_viewModel.Settings.MaxConcurrentDecodes);
+                ApplyPreviewSettings(_viewModel.Settings);
                 RestoreFilmStripHeight();
                 RestoreRightPanelLayout();
             }
@@ -271,8 +322,8 @@ public sealed partial class PreviewControl : UserControl
 
     /// <summary>
     /// FocusedPhoto 変更時のプレビュー読み込み要求（連打時の VRAM 膨張対策のレート制限）。
-    /// キャッシュ済みは常に即表示。未キャッシュは直近 <see cref="RateWindow"/> 内のデコード回数が
-    /// <see cref="RateBudget"/> 未満なら即デコード、超過（押しっぱなしの大量連発）なら間引き、
+    /// キャッシュ済みは常に即表示。未キャッシュは直近 <see cref="_rateWindow"/> 内のデコード回数が
+    /// <see cref="_rateBudget"/> 未満なら即デコード、超過（押しっぱなしの大量連発）なら間引き、
     /// 停止後に最終位置を確定デコード＋近傍先読み。間引かれている間メインは直前の画像のまま
     /// （どの写真かはフィルムストリップのハイライトで分かる）。
     /// </summary>
@@ -294,7 +345,7 @@ public sealed partial class PreviewControl : UserControl
         //   ・回数が RateBudget 未満＝レートに余裕あり → 即デコード（数枚のジャンプ・通常連続切替はここを通る）
         //   ・超過＝押しっぱなしの大量連発 → 間引き。停止後の settle で最終位置を確定＋先読み。
         var now = DateTime.UtcNow;
-        if (PrunedDecodeCount(now) < RateBudget)
+        if (PrunedDecodeCount(now) < _rateBudget)
         {
             _recentDecodes.Enqueue(now);
             LoadCurrentAsync(preserveView: true, prefetch: false);
@@ -302,10 +353,10 @@ public sealed partial class PreviewControl : UserControl
         RestartSettleTimer();
     }
 
-    /// <summary>直近 <see cref="RateWindow"/> より古いデコード時刻を捨て、窓内の残数を返す。</summary>
+    /// <summary>直近 <see cref="_rateWindow"/> より古いデコード時刻を捨て、窓内の残数を返す。</summary>
     private int PrunedDecodeCount(DateTime now)
     {
-        while (_recentDecodes.Count > 0 && now - _recentDecodes.Peek() > RateWindow)
+        while (_recentDecodes.Count > 0 && now - _recentDecodes.Peek() > _rateWindow)
             _recentDecodes.Dequeue();
         return _recentDecodes.Count;
     }
@@ -558,8 +609,8 @@ public sealed partial class PreviewControl : UserControl
             int index = vm.Photos.IndexOf(vm.FocusedPhoto);
             if (index < 0) return Array.Empty<string>();
 
-            int start = Math.Max(0, index - PrefetchBackward);
-            int end = Math.Min(vm.Photos.Count - 1, index + PrefetchForward);
+            int start = Math.Max(0, index - _prefetchBackward);
+            int end = Math.Min(vm.Photos.Count - 1, index + _prefetchForward);
             var positionOnly = new List<string>(end - start + 1);
             for (int i = start; i <= end; i++)
                 positionOnly.Add(vm.Photos[i].Meta.Path);

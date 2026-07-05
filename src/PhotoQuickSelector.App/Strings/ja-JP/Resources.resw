@@ -297,6 +297,63 @@
   <data name="Settings_ClearButton.Content" xml:space="preserve">
     <value>クリア</value>
   </data>
+  <data name="Settings_GeneralTab.Header" xml:space="preserve">
+    <value>一般</value>
+  </data>
+  <data name="Settings_AdvancedTab.Header" xml:space="preserve">
+    <value>高度な設定</value>
+  </data>
+  <data name="Settings_ResetGroup.Content" xml:space="preserve">
+    <value>既定に戻す</value>
+  </data>
+  <data name="Settings_ZoomHeader.Text" xml:space="preserve">
+    <value>ズーム倍率</value>
+  </data>
+  <data name="Settings_ZoomNote.Text" xml:space="preserve">
+    <value>パーセントをカンマ区切りで入力します（例: 25, 50, 100, 200）。ホイールと +/- キーのズーム段になります。</value>
+  </data>
+  <data name="Settings_ZoomStopsBox.PlaceholderText" xml:space="preserve">
+    <value>例: 25, 50, 100, 200, 400</value>
+  </data>
+  <data name="Settings_AdvancedIntro.Text" xml:space="preserve">
+    <value>プレビューの先読みキャッシュの動作を調整します。通常は既定のままで問題ありません。</value>
+  </data>
+  <data name="Settings_CacheBudgetHeader.Text" xml:space="preserve">
+    <value>キャッシュ容量予算 (GB)</value>
+  </data>
+  <data name="Settings_CacheBudgetNote.Text" xml:space="preserve">
+    <value>先読みキャッシュがメインメモリに保持する合計サイズの上限です。超過分は表示実績の少ない古い画像から破棄します。</value>
+  </data>
+  <data name="Settings_PrefetchHeader.Text" xml:space="preserve">
+    <value>先読み枚数</value>
+  </data>
+  <data name="Settings_PrefetchNote.Text" xml:space="preserve">
+    <value>表示中の写真の前後に何枚まで先読みするか。多いほど前後移動が滑らかですがメモリを使います。</value>
+  </data>
+  <data name="Settings_PrefetchForwardLabel.Text" xml:space="preserve">
+    <value>前方（次へ）</value>
+  </data>
+  <data name="Settings_PrefetchBackwardLabel.Text" xml:space="preserve">
+    <value>後方（前へ）</value>
+  </data>
+  <data name="Settings_ConcurrencyHeader.Text" xml:space="preserve">
+    <value>同時デコード数</value>
+  </data>
+  <data name="Settings_ConcurrencyNote.Text" xml:space="preserve">
+    <value>同時に走らせるデコード本数。変更はアプリの再起動後に反映されます。</value>
+  </data>
+  <data name="Settings_RateHeader.Text" xml:space="preserve">
+    <value>連打抑制（レート制限）</value>
+  </data>
+  <data name="Settings_RateNote.Text" xml:space="preserve">
+    <value>左右キー連打時の VRAM 膨張を抑えます。時間窓内で即デコードを許す枚数と、窓の長さ (ms)。</value>
+  </data>
+  <data name="Settings_RateBudgetLabel.Text" xml:space="preserve">
+    <value>枚数</value>
+  </data>
+  <data name="Settings_RateWindowLabel.Text" xml:space="preserve">
+    <value>時間窓 (ms)</value>
+  </data>
 
   <!-- ============ PreviewControl（プレビュー） ============ -->
   <data name="Preview_CacheOverlayHeader.Text" xml:space="preserve">
