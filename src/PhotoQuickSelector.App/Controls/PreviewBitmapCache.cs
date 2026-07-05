@@ -210,6 +210,13 @@ internal sealed class PreviewBitmapCache
     public bool IsCached(string path) => _cache.ContainsKey(path);
 
     /// <summary>
+    /// 指定パスが読み込み進行中（inflight＝待機中/読込中）かどうか。走行中タスクへの相乗りは
+    /// 新規デコードを発生させないため、呼び出し側（<see cref="PreviewControl"/>）のレート制限で
+    /// デコード 1 回として課金しない判定に使う。
+    /// </summary>
+    public bool IsInflight(string path) => _inflight.ContainsKey(path);
+
+    /// <summary>
     /// キャッシュ優先で <see cref="PixelFrame"/> を取得する。読み込み中なら同一タスクを共有。
     /// <paramref name="forDisplay"/>=true（表示目的の取得。<see cref="PreviewControl"/> の
     /// 実表示ロード）は該当エントリの <see cref="CacheEntry.WasDisplayed"/> を立てる（<see cref="Trim"/>
@@ -270,12 +277,31 @@ internal sealed class PreviewBitmapCache
                 // GetPixelDataAsync + DetachPixelData は「幅×高さ×4」ちょうどの密詰め配列を返す
                 // （stride パディングなし）。SetPixelBytes / CreateFromBytes へそのまま渡せる。
                 var decoder = await BitmapDecoder.CreateAsync(stream);
+
+                // EXIF ColorSpace（0xA001）が 1（sRGB）の画像は色管理をスキップする。sRGB→sRGB でも WIC の
+                // 色管理はデコード全体の約7割（実測 +550〜640ms/枚・50MP）を占める。厳密には恒等変換ではなく
+                // 最大 ±3/255 程度の丸め差が出る（実測: 差分バイト 0.5〜1.4%）が、視覚的に知覚不能であり、
+                // SoftwareBitmap 化以前の CanvasBitmap.LoadAsync（色管理なし）時代と同じ表示に戻るだけなので許容。
+                // Adobe RGB（値 2 / 0xFFFF=Uncalibrated）やタグ無し・照会失敗は従来どおり ColorManageToSRgb（安全側）。
+                var colorMode = ColorManagementMode.ColorManageToSRgb;
+                try
+                {
+                    const string exifColorSpaceQuery = "/app1/ifd/exif/{ushort=40961}";
+                    var props = await decoder.BitmapProperties.GetPropertiesAsync(new[] { exifColorSpaceQuery });
+                    if (props.TryGetValue(exifColorSpaceQuery, out var v) && v.Value is ushort cs && cs == 1)
+                        colorMode = ColorManagementMode.DoNotColorManage;
+                }
+                catch
+                {
+                    // タグ無し（WINCODEC_ERR_PROPERTYNOTFOUND）等。色管理あり（従来動作）のままにする。
+                }
+
                 var pixels = await decoder.GetPixelDataAsync(
                     BitmapPixelFormat.Bgra8,
                     BitmapAlphaMode.Premultiplied,
                     new BitmapTransform(),
                     ExifOrientationMode.RespectExifOrientation,
-                    ColorManagementMode.ColorManageToSRgb);
+                    colorMode);
                 var frame = new PixelFrame(
                     pixels.DetachPixelData(),
                     (int)decoder.OrientedPixelWidth,

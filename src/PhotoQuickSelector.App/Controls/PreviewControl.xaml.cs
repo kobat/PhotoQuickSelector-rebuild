@@ -336,7 +336,9 @@ public sealed partial class PreviewControl : UserControl
 
     /// <summary>
     /// FocusedPhoto 変更時のプレビュー読み込み要求（連打時の VRAM 膨張対策のレート制限）。
-    /// キャッシュ済みは常に即表示。未キャッシュは直近 <see cref="_rateWindow"/> 内のデコード回数が
+    /// キャッシュ済みは常に即表示。読み込み進行中（inflight＝先読みで走行中）への相乗りも、
+    /// 新規デコードを発生させないため常に即表示（レート課金しない）。
+    /// 未キャッシュ・未走行は直近 <see cref="_rateWindow"/> 内のデコード回数が
     /// <see cref="_rateBudget"/> 未満なら即デコード、超過（押しっぱなしの大量連発）なら間引き、
     /// 停止後に最終位置を確定デコード＋近傍先読み。間引かれている間メインは直前の画像のまま
     /// （どの写真かはフィルムストリップのハイライトで分かる）。
@@ -355,7 +357,19 @@ public sealed partial class PreviewControl : UserControl
             return;
         }
 
-        // 未キャッシュ＝重いフル解像度デコード（≈200MB/枚）。直近 RateWindow 内のデコード回数で絞る:
+        // 読み込み進行中（先読みで走行中）なら、走行中タスクへの相乗りになるだけで新規デコードは
+        // 発生しない。レート課金せず常に表示要求を出す（従来はここが課金されてレート予算を浪費し、
+        // 縦型など先読み完了が遅い並びで間引きに落ちやすかった）。
+        // 相乗り判定と GetAsync の間に inflight が完了/破棄されるレースは稀にあり、その場合は
+        // 課金なしの新規デコードになるが、同時実行ゲート（2本）で有界なので許容する。
+        if (photo != null && _cache.IsInflight(photo.Meta.Path))
+        {
+            LoadCurrentAsync(preserveView: true, prefetch: false);
+            RestartSettleTimer();
+            return;
+        }
+
+        // 未キャッシュ・未走行＝重いフル解像度デコード（≈200MB/枚）。直近 RateWindow 内のデコード回数で絞る:
         //   ・回数が RateBudget 未満＝レートに余裕あり → 即デコード（数枚のジャンプ・通常連続切替はここを通る）
         //   ・超過＝押しっぱなしの大量連発 → 間引き。停止後の settle で最終位置を確定＋先読み。
         var now = DateTime.UtcNow;
@@ -392,9 +406,10 @@ public sealed partial class PreviewControl : UserControl
             s.Stop();
             if (_viewModel?.IsPreviewMode != true) return;
             // 停止後の確定: 最終位置をデコード（既にデコード済みならキャッシュヒットで無駄なし）＋近傍を先読み。
-            // 未キャッシュ＝実デコードするならレート窓に計上する（停止後なので通常は低レート）。
+            // 未キャッシュ・未走行（inflight への相乗りは新規デコードを発生させない）のときだけ
+            // レート窓に計上する（停止後なので通常は低レート）。
             var photo = _viewModel.FocusedPhoto;
-            if (photo != null && !_cache.IsCached(photo.Meta.Path))
+            if (photo != null && !_cache.IsCached(photo.Meta.Path) && !_cache.IsInflight(photo.Meta.Path))
             {
                 var now = DateTime.UtcNow;
                 PrunedDecodeCount(now);

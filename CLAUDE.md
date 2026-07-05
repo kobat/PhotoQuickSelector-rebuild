@@ -1363,9 +1363,31 @@
   - 変更: `Controls/PreviewControl.Navigator.cs`・`.xaml.cs`・`.Immersive.cs` の 3 ファイルのみ。**Core 非変更**。
     `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。実機目視（ナビ画質・切替直後の一瞬 NN→HQC
     置換・ナビリサイズ・イマーシブ復帰・縦型パンの滑らかさ）はユーザー確認推奨。
-  - **残り（未着手の改善案）**: 修正案2＝sRGB 写真（EXIF ColorSpace=1）の色管理スキップ（デコード〜3倍高速化・
-    未キャッシュ切替と先読みの温まりに効く）／修正案3＝レート制限の inflight 誤課金修正（「キャッシュにあるのに
-    遅い」の解消）／候補4＝未回転保持＋描画時 GPU 回転（縦の +80〜90ms 解消・大工事のため後回し）。
+  - **残り（未着手の改善案）**: ~~修正案2＝sRGB 写真の色管理スキップ／修正案3＝レート制限の inflight 誤課金修正~~
+    → **同日実装済み（次項）**。候補4＝未回転保持＋描画時 GPU 回転（縦の +80〜90ms 解消・大工事のため後回し）は未着手。
+
+- **デコードの sRGB 色管理スキップ＋レート制限の inflight 誤課金修正（修正案2・3）完了（2026-07-06・要実機確認）**:
+  縦型調査（前項）で判明した「未キャッシュ切替が遅い」「キャッシュにあるはずなのに遅い」の 2 因を修正。
+  実装は Sonnet サブエージェントへ委譲し差分レビュー済み。**Core 非変更**（App の 2 ファイルのみ）。
+  - **修正2＝sRGB 画像の色管理スキップ（`PreviewBitmapCache.LoadCoreAsync`）**: デコード前に EXIF ColorSpace
+    （0xA001・WIC クエリ `/app1/ifd/exif/{ushort=40961}`）を照会し、**1（sRGB）なら `DoNotColorManage`**、
+    それ以外（Adobe RGB/Uncalibrated/タグ無し/照会失敗）は従来どおり `ColorManageToSRgb`（安全側フォールバック）。
+    sRGB→sRGB でも WIC の色管理はデコード全体の約7割を占めており、実アプリ検証で **731〜908ms → 179〜334ms/枚**
+    （50MP・約 -600ms）を確認。**注意: 厳密には恒等変換ではなく最大 ±3/255 の丸め差**（差分バイト 0.5〜1.4%・
+    スタンドアロン実測）が出るが、視覚的に知覚不能＆SoftwareBitmap 化（2026-07-04）以前の
+    `CanvasBitmap.LoadAsync`（色管理なし）時代と同じ表示に戻るだけなので許容と判断。
+    Sony α1・OM-1 のテスト画像は全て ColorSpace=1（ICC なし）を確認済み＝実運用で常に効く。
+  - **修正3＝inflight 相乗りのレート誤課金修正（`PreviewControl.xaml.cs`＋`PreviewBitmapCache.IsInflight` 新設）**:
+    `RequestPreviewLoad` で「読み込み進行中（先読みで走行中）」への相乗りは新規デコードを発生させないため、
+    **レート課金（`_recentDecodes`）せず常に表示要求を出す**分岐をキャッシュ済み分岐の直後に追加。settle タイマーの
+    課金条件にも `!IsInflight` を追加。従来は相乗りまで課金されてレート予算（3枚/1500ms）を浪費し、縦型など
+    先読み完了が遅い並びで間引き（settle 150ms＋デコード待ち）に落ちやすかった。相乗り判定と GetAsync の間で
+    inflight が完了/破棄されるレースは課金なしの新規デコードになるが、同時実行ゲート（2本）で有界なので許容。
+  - 検証: スタンドアロン（scratchpad DecodeBench）で ColorSpace クエリの型/値（ushort 1）・ピクセル差・
+    時間短縮を確認 → 実アプリでも一時ログで全デコード DoNotColorManage・179〜334ms を確認（ログ・settings.json は
+    復元済み）。変更: `Controls/PreviewBitmapCache.cs`・`Controls/PreviewControl.xaml.cs`。
+    `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。実機目視（未キャッシュ切替の体感高速化・
+    **色味に違和感がないこと**・左右キー連打後の復帰・「キャッシュにあるのに遅い」の解消）はユーザー確認推奨。
 
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
