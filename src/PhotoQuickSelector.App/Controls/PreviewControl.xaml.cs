@@ -452,6 +452,9 @@ public sealed partial class PreviewControl : UserControl
             _bitmap?.Dispose();
             _bitmap = null;
             _currentMeta = null;
+            _navBitmap?.Dispose();
+            _navBitmap = null;
+            _navBitmapDirty = true;
             InvalidateAll();
             return;
         }
@@ -494,6 +497,9 @@ public sealed partial class PreviewControl : UserControl
         if (!ReferenceEquals(_bitmap, bmp)) _bitmap?.Dispose();
         _bitmap = bmp;
         _currentMeta = bmp != null ? photo.Meta : null;
+        // 写真が切り替わった（同寸の SetPixelBytes 再利用でも中身は別写真）ので、ナビ用縮小
+        // キャッシュは必ず作り直す。参照比較では検出できないため無条件でフラグを立てる。
+        _navBitmapDirty = true;
         if (bmp != null)
         {
             _currentOrientation = photo.Meta.Orientation;
@@ -575,6 +581,10 @@ public sealed partial class PreviewControl : UserControl
         _bitmap?.Dispose();
         _bitmap = null;
         _currentMeta = null;
+        // ナビ用縮小キャッシュも旧デバイスのリソースなので破棄（新デバイスで描くと例外になる）。
+        _navBitmap?.Dispose();
+        _navBitmap = null;
+        _navBitmapDirty = true;
         // デバイス再生成/DPI 変更時は現在のズーム状態を保ったまま即時再ロードする（レート制限はバイパス）。
         _settleTimer?.Stop();
         _recentDecodes.Clear();

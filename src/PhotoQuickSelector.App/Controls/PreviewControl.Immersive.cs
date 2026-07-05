@@ -47,6 +47,10 @@ public sealed partial class PreviewControl
             FilmStripRow.Height = _savedFilmStripHeight;
             FilmSplitter.Visibility = Visibility.Visible;
             FilmStrip.Visibility = Visibility.Visible;
+
+            // 畳み中は Draw を止めていた（NavCanvas_Draw の _immersive ガード）ため、開いた瞬間に
+            // 確実に描き直す（サイズ復元で SizeChanged が飛ばないケースの保険）。
+            NavCanvas.Invalidate();
         }
         else
         {

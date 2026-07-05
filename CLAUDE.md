@@ -1338,6 +1338,35 @@
     覆っているかを読む用途）。`Photos` に無い残留キャッシュ（フィルタ変更で絞込外れ等）は末尾にファイル名順。
     窓分類/表示実績ラベル・ヘッダ集計・`WindowEntries()` は非変更。
 
+- **縦型画像の表示・パンが遅い問題の調査＋ナビゲーター描画の縮小キャッシュ化 完了（2026-07-06・要実機確認）**:
+  「縦型（Orientation≠1）だけ表示までの時間がわずかに遅い／ズーム中の Alt+矢印パンが引っかかる」問題を調査し、
+  パン側の真因を修正した。調査の実測値・手法はメモリ `portrait-slowness-benchmarks` に詳細あり。
+  - **調査結果（実測で確定）**: ①パンの引っかかり＝**毎パン（`InvalidateMain`）でナビゲーターが 50MP 全体を
+    HighQualityCubic 縮小描画**していたのが真因（実アプリ内ベンチ＝セッション復元＋`CompositionTarget.Rendering` の
+    360 フレーム対角パンで、縦 p95 20.8ms・20ms 超が 44/360 → ナビ描画停止で p95 7.2ms と完全平滑化。
+    Radeon 890M iGPU・可視領域のみ描画への変更は効果なし＝巨大 dest 矩形説は棄却）。**イマーシブ（F）で畳んでも
+    `NavCanvas_Draw` が不可視サーフェスへ描画し続けるバグ**も発見（Collapsed でも Invalidate で Draw 発火・
+    ActualWidth が古いまま）＝「畳んでも遅い」の説明。②初回表示・切替の遅れ＝デコード時の **EXIF 回転が縦のみ
+    +80〜90ms**（`GetPixelDataAsync` の RespectExifOrientation）＋ **`ColorManageToSRgb` が縦横共通で
+    +550〜640ms/枚（デコード全体の約7割）**。GPU 転送・描画自体は縦横対称（オフスクリーン実測）。
+  - **修正（ナビ縮小キャッシュ・表示中1枚だけ保持＋遅延再生成）**: `_navBitmap`（`CanvasRenderTarget`・
+    `NavCanvas` の DPI で物理解像度生成）＋`_navBitmapDirty`。`NavCanvas_Draw` は有効ならキャッシュを 1:1 描画
+    （sub-ms）、無効（切替/リサイズ直後）なら**暫定フレームとして NearestNeighbor でフル解像度を直描き**
+    （ユーザー要望＝前の写真を一瞬でも残さない）し、`DispatcherQueuePriority.Low` で HQC 再生成を 1 回だけ
+    遅延スケジュール（切替フレームから HQC を追い出す＝切替も僅かに改善）。青枠/緑枠は従来どおり毎フレーム描画。
+  - **付随修正**: `NavCanvas_Draw` に `_immersive` ガード（畳み中は描画しない）＋`SetImmersive(false)` 復帰時に
+    `NavCanvas.Invalidate()`。dirty 化は `LoadCurrentAsync`（**同寸切替は `SetPixelBytes` で同一インスタンス
+    再利用＝参照比較では検出不可のため無条件フラグ**）／photo==null／`ResetCacheAndReload`（旧デバイスの
+    リソースなので破棄）の 3 経路。
+  - **効果（同ベンチで検証済み）**: フレーム間隔 縦 p95 20.8→**7.3ms**／横 14.2→**7.4ms**（ナビ表示のまま）。
+    nav draw は sub-ms。実装は Sonnet サブエージェントに委譲し差分レビュー済み。
+  - 変更: `Controls/PreviewControl.Navigator.cs`・`.xaml.cs`・`.Immersive.cs` の 3 ファイルのみ。**Core 非変更**。
+    `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。実機目視（ナビ画質・切替直後の一瞬 NN→HQC
+    置換・ナビリサイズ・イマーシブ復帰・縦型パンの滑らかさ）はユーザー確認推奨。
+  - **残り（未着手の改善案）**: 修正案2＝sRGB 写真（EXIF ColorSpace=1）の色管理スキップ（デコード〜3倍高速化・
+    未キャッシュ切替と先読みの温まりに効く）／修正案3＝レート制限の inflight 誤課金修正（「キャッシュにあるのに
+    遅い」の解消）／候補4＝未回転保持＋描画時 GPU 回転（縦の +80〜90ms 解消・大工事のため後回し）。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**
