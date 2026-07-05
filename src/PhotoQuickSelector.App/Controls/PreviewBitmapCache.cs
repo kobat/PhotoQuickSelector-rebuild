@@ -22,6 +22,43 @@ internal enum CacheItemState
 }
 
 /// <summary>
+/// <see cref="PreviewBitmapCache.Snapshot"/> の 1 項目（デバッグオーバーレイ用の詳細情報）。
+/// デコード済み（<see cref="CacheItemState.Cached"/>）以外は <see cref="Bytes"/>/<see cref="Width"/>/
+/// <see cref="Height"/>/<see cref="WasDisplayed"/>/<see cref="LastUse"/> は 0/false のダミー値。
+/// XAML には出さない（<see cref="PreviewControl"/> が表示用の <c>CacheEntry</c> へ整形する）。
+/// </summary>
+internal sealed class CacheSnapshotItem
+{
+    public CacheSnapshotItem(string path, string name, CacheItemState state, long bytes, int width, int height, bool wasDisplayed, long lastUse)
+    {
+        Path = path;
+        Name = name;
+        State = state;
+        Bytes = bytes;
+        Width = width;
+        Height = height;
+        WasDisplayed = wasDisplayed;
+        LastUse = lastUse;
+    }
+
+    /// <summary>フルパス（窓分類の辞書引きキー）。</summary>
+    public string Path { get; }
+    /// <summary>ファイル名（表示用）。</summary>
+    public string Name { get; }
+    public CacheItemState State { get; }
+    /// <summary>デコード済みピクセルのバイト数（未デコードは 0）。</summary>
+    public long Bytes { get; }
+    /// <summary>画像幅（未デコードは 0）。</summary>
+    public int Width { get; }
+    /// <summary>画像高さ（未デコードは 0）。</summary>
+    public int Height { get; }
+    /// <summary>一度でも表示目的で取得されたか（未デコードは false）。</summary>
+    public bool WasDisplayed { get; }
+    /// <summary>最終利用順（単調増分カウンタ。未デコードは 0）。</summary>
+    public long LastUse { get; }
+}
+
+/// <summary>
 /// デコード済みピクセル（BGRA8・Premultiplied・密詰め＝stride なし）＋寸法。
 /// <see cref="BitmapDecoder.GetPixelDataAsync"/> の <c>DetachPixelData()</c> は
 /// 幅×高さ×4 ちょうどの密詰め配列を返すため、そのまま
@@ -130,26 +167,40 @@ internal sealed class PreviewBitmapCache
     public Func<string, bool>? IsWanted { get; set; }
 
     /// <summary>
-    /// 現在キャッシュ中の画像のファイル名と状態の一覧（デバッグオーバーレイ用）。
-    /// 状態でグループ化して返す（cached → loading → waiting）。
-    /// <see cref="_inflight"/> は <see cref="Dictionary{TKey,TValue}"/> で列挙順が挿入順を保証せず
-    /// （削除によるスロット再利用で崩れる）、loading の上に waiting が混ざって見えるため、
-    /// 表示用に状態でソートする（状態管理コレクションには手を付けない）。
+    /// 現在キャッシュ中の画像の詳細一覧（デバッグオーバーレイ用）。デコード済み（<see cref="_cache"/> 在籍）は
+    /// 容量・寸法・表示実績・最終利用順まで含めて返し、inflight（読込中/待機中）は名前・パス・状態のみ埋める。
+    /// 並び順の責務は持たない（窓分類は <see cref="PreviewControl"/> 側にしかないため、そちらでソートする）。
     /// 色（UI 型）はここでは決めず、状態 enum までに留める（キャッシュは UI 非依存）。
     /// </summary>
-    public IReadOnlyList<(string Name, CacheItemState State)> Snapshot()
+    public IReadOnlyList<CacheSnapshotItem> Snapshot()
     {
-        var list = _cache.Keys
-            .Select(k => (Path.GetFileName(k)!, CacheItemState.Cached))
-            .ToList();
+        var list = new List<CacheSnapshotItem>(_cache.Count + _inflight.Count);
+        foreach (var kv in _cache)
+        {
+            list.Add(new CacheSnapshotItem(
+                path: kv.Key,
+                name: Path.GetFileName(kv.Key)!,
+                state: CacheItemState.Cached,
+                bytes: kv.Value.Frame.Bytes.Length,
+                width: kv.Value.Frame.Width,
+                height: kv.Value.Frame.Height,
+                wasDisplayed: kv.Value.WasDisplayed,
+                lastUse: kv.Value.LastUse));
+        }
         foreach (var path in _inflight.Keys)
-            if (!_cache.ContainsKey(path))
-                list.Add((Path.GetFileName(path)!,
-                          _loading.Contains(path) ? CacheItemState.Loading : CacheItemState.Waiting));
-
-        // 状態でグループ化して表示（enum 宣言順 = cached → loading → waiting）。
-        // OrderBy は安定ソートなので各グループ内の相対順はそのまま。
-        return list.OrderBy(x => (int)x.Item2).ToList();
+        {
+            if (_cache.ContainsKey(path)) continue;
+            list.Add(new CacheSnapshotItem(
+                path: path,
+                name: Path.GetFileName(path)!,
+                state: _loading.Contains(path) ? CacheItemState.Loading : CacheItemState.Waiting,
+                bytes: 0,
+                width: 0,
+                height: 0,
+                wasDisplayed: false,
+                lastUse: 0));
+        }
+        return list;
     }
 
     /// <summary>

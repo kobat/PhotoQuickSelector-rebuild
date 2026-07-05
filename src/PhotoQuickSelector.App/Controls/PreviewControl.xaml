@@ -113,9 +113,10 @@
                     Margin="12" Padding="10,8" CornerRadius="8"
                     Background="#A6000000" IsHitTestVisible="False"
                     Visibility="Collapsed">
-                <StackPanel Spacing="3" MaxWidth="280">
+                <StackPanel Spacing="3" MaxWidth="460">
                     <TextBlock x:Uid="Preview_CacheOverlayHeader" Text="先読みキャッシュ" Foreground="#BFFFFFFF"
                                FontSize="11" FontWeight="SemiBold" />
+                    <TextBlock x:Name="CacheOverlaySummary" Foreground="#E8FFFFFF" FontSize="11" FontFamily="Consolas" />
                     <ItemsControl ItemsSource="{x:Bind CachedFileNames, Mode=OneWay}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="ctl:CacheEntry">

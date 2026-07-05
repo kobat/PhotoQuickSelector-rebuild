@@ -17,6 +17,20 @@ using Windows.System;
 namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
+/// 先読み保持窓内でのパスの由来分類（デバッグオーバーレイのラベル表示用）。
+/// <see cref="PreviewControl.WindowEntries"/> が付与する。
+/// </summary>
+internal enum WindowSlot
+{
+    /// <summary>焦点写真そのもの。</summary>
+    Focus,
+    /// <summary>選択集合のメンバー窓（巡回順で前後）。</summary>
+    Member,
+    /// <summary>位置窓（現在位置の前後 N 枚）。</summary>
+    Position,
+}
+
+/// <summary>
 /// 右ペインの大画面プレビュー（Win2D 描画）。メイン大画面＋フィルムストリップ＋右パネル
 /// （ズームルーペ／ナビゲーター）の 3 面構成。ズーム/パン・前後ナビ・AF枠/グリッド線を担う。
 /// <para>
@@ -449,6 +463,7 @@ public sealed partial class PreviewControl : UserControl
             // 通さないと押しっぱなしナビ中に Trim が一度も走らずキャッシュが膨張する。
             // WindowPaths() は現在の FocusedPhoto 基準なので常に最新窓へ収束する。
             _cache.Trim(WindowPaths());
+            RefreshCacheOverlay();
             return;
         }
 
@@ -509,6 +524,10 @@ public sealed partial class PreviewControl : UserControl
 
         if (prefetch) _cache.Prefetch(WindowPaths());
         _cache.Trim(WindowPaths());
+        // 両隣が全部キャッシュ済みの移動では Changed が発火せず（ヒットは LastUse 更新のみ・
+        // Trim も削除ゼロなら発火しない）、窓ラベルが古いまま残るため、ナビゲーション後に明示更新する。
+        // 非表示中は RefreshCacheOverlay 冒頭のガードで即 return するのでコストなし。
+        RefreshCacheOverlay();
     }
 
     /// <summary>メイン・ズームプレビュー・ナビゲーターの 3 キャンバスを再描画する。</summary>
@@ -566,67 +585,136 @@ public sealed partial class PreviewControl : UserControl
     /// キャッシュ内容のデバッグオーバーレイ（<see cref="CacheOverlay"/>）を最新化する。
     /// キャッシュ変更通知（<see cref="PreviewBitmapCache.Changed"/>）から呼ばれ、表示中のときだけ更新する。
     /// 通知は非同期ロード継続（UI スレッド）から来るが、安全のため UI スレッドへ束ねる。
+    /// <para>
+    /// 表示行には「窓分類（フォーカス/選択窓/位置窓/窓外）」「表示実績（表示済み/未表示）」
+    /// 「容量(MB)」「寸法」を付け、並び順はフィルムストリップ（Photos の表示順）と同じにする
+    /// （読込中・待機中も同列。キャッシュがフィルム上のどの範囲を覆っているかを読みやすくする）。
+    /// ラベルはデバッグ専用オーバーレイなのでローカライズせず日本語ハードコードのまま（resw 追加は不要）。
+    /// </para>
     /// </summary>
     private void RefreshCacheOverlay()
     {
         if (CacheOverlay.Visibility != Visibility.Visible) return;
         DispatcherQueue.TryEnqueue(() =>
         {
+            var items = _cache.Snapshot();
+            var window = WindowEntries();
+            // 窓分類の辞書（先勝ち＝WindowEntries の重複除去ルールと一致）。
+            var windowSlots = new Dictionary<string, WindowSlot>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (path, slot) in window)
+                if (!windowSlots.ContainsKey(path)) windowSlots[path] = slot;
+
+            // 並び順＝フィルムストリップ（Photos の表示順）と同じ。読込中・待機中も状態で
+            // グループ化せず同列に並べる（キャッシュがフィルム上のどの範囲を覆っているかを読む用途）。
+            // Photos に無いパス（フィルタ変更で絞込結果から外れた残留キャッシュ等）は末尾にファイル名順。
+            var photoIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var photos = _viewModel?.Photos;
+            if (photos != null)
+                for (int i = 0; i < photos.Count; i++)
+                    photoIndex.TryAdd(photos[i].Meta.Path, i);
+
+            var ordered = items
+                .OrderBy(i => photoIndex.TryGetValue(i.Path, out int idx) ? idx : int.MaxValue)
+                .ThenBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // ファイル名列は全項目中の最大文字数で揃える（半角ファイル名前提の桁揃え）。
+            int nameWidth = ordered.Count > 0 ? ordered.Max(i => i.Name.Length) : 0;
+
             CachedFileNames.Clear();
-            foreach (var (name, state) in _cache.Snapshot())
+            foreach (var item in ordered)
             {
-                var (suffix, brush) = state switch
+                string namePad = item.Name.PadRight(nameWidth);
+                switch (item.State)
                 {
-                    CacheItemState.Loading => (" (loading)", LoadingBrush),
-                    CacheItemState.Waiting => (" (waiting)", WaitingBrush),
-                    _ => ("", CachedBrush),
-                };
-                CachedFileNames.Add(new CacheEntry(name + suffix, brush));
+                    case CacheItemState.Cached:
+                        double mb = item.Bytes / (1024.0 * 1024.0);
+                        string dims = $"{item.Width}×{item.Height}".PadRight(11);
+                        string label = windowSlots.TryGetValue(item.Path, out var slot)
+                            ? slot switch
+                            {
+                                WindowSlot.Focus => "フォーカス",
+                                WindowSlot.Member => "選択窓",
+                                _ => "位置窓",
+                            }
+                            : "窓外";
+                        label += "・" + (item.WasDisplayed ? "表示済み" : "未表示");
+                        CachedFileNames.Add(new CacheEntry(
+                            $"{namePad}  {mb,4:0}MB  {dims}{label}", CachedBrush));
+                        break;
+                    case CacheItemState.Loading:
+                        CachedFileNames.Add(new CacheEntry($"{namePad}  （読込中）", LoadingBrush));
+                        break;
+                    default: // Waiting
+                        CachedFileNames.Add(new CacheEntry($"{namePad}  （待機中）", WaitingBrush));
+                        break;
+                }
             }
+
+            // ヘッダ集計: デコード済み件数/合計MB/予算MB、直近デコード回数/レート予算、表示中の VRAM 目安。
+            var cachedItems = items.Where(i => i.State == CacheItemState.Cached).ToList();
+            double totalMb = cachedItems.Sum(i => i.Bytes) / (1024.0 * 1024.0);
+            double budgetMb = _cache.MaxCacheBytes / (1024.0 * 1024.0);
+            string summary = $"キャッシュ {cachedItems.Count}枚 {totalMb:0}MB / {budgetMb:0}MB" +
+                              $"   直近デコード {PrunedDecodeCount(DateTime.UtcNow)}/{_rateBudget}";
+            if (_bitmap != null && _currentMeta != null)
+            {
+                double vramMb = _bitmap.SizeInPixels.Width * (double)_bitmap.SizeInPixels.Height * 4 / (1024.0 * 1024.0);
+                summary += $"\n表示中: {_currentMeta.FileName}（VRAM ≈{vramMb:0}MB）";
+            }
+            CacheOverlaySummary.Text = summary;
         });
     }
 
     /// <summary>
     /// 現在の保持窓（先読み対象＝Trim 保護対象）のファイルパス。<see cref="Prefetch"/>・
     /// <see cref="PreviewBitmapCache.Trim"/> の保護集合・<see cref="IsPathInWindow"/> の 3 箇所すべてが
-    /// このメソッド経由なので、ここを変えるだけで全部に反映される。
+    /// このメソッド経由なので、ここを変えるだけで全部に反映される。実体は <see cref="WindowEntries"/>
+    /// （分類付き）で、本メソッドはその Path 射影。
+    /// </summary>
+    private IEnumerable<string> WindowPaths() => WindowEntries().Select(e => e.Path);
+
+    /// <summary>
+    /// 現在の保持窓を、由来分類（<see cref="WindowSlot"/>）付きで返す（デバッグオーバーレイのラベル用）。
+    /// <see cref="WindowPaths"/> はこの Path 射影＝列挙順・内容は完全一致する。
     /// <para>
-    /// 選択集合（<see cref="MainViewModel.SelectedPhotos"/>）が空のときは従来どおり位置窓のみ。
+    /// 選択集合（<see cref="MainViewModel.SelectedPhotos"/>）が空のときは従来どおり位置窓のみ
+    /// （焦点自身の要素だけ <see cref="WindowSlot.Focus"/>、残りは <see cref="WindowSlot.Position"/>）。
     /// 選択集合があるときは「位置窓（前後1）」と「メンバー窓（巡回順で前後）」の和集合を返す。
     /// yield 順は「焦点 → メンバー窓 → 位置窓」＝<see cref="Prefetch"/> はこの列挙順でゲート
     /// （同時2本）に並ぶため、巡回移動（素の ←/→）で次に表示される可能性が高いメンバーを
-    /// 位置的な隣接枚より優先して先読みする狙い。
+    /// 位置的な隣接枚より優先して先読みする狙い。重複除去は「先に足した分類が勝つ」。
     /// </para>
     /// </summary>
-    private IEnumerable<string> WindowPaths()
+    private List<(string Path, WindowSlot Slot)> WindowEntries()
     {
         var vm = _viewModel;
-        if (vm?.FocusedPhoto == null) return Array.Empty<string>();
+        if (vm?.FocusedPhoto == null) return new List<(string, WindowSlot)>();
 
         if (vm.SelectedPhotos.Count == 0)
         {
-            // 選択集合なし: 従来どおり焦点の位置窓のみ。
+            // 選択集合なし: 従来どおり焦点の位置窓のみ。焦点自身の index だけ Focus、他は Position。
             int index = vm.Photos.IndexOf(vm.FocusedPhoto);
-            if (index < 0) return Array.Empty<string>();
+            if (index < 0) return new List<(string, WindowSlot)>();
 
             int start = Math.Max(0, index - _prefetchBackward);
             int end = Math.Min(vm.Photos.Count - 1, index + _prefetchForward);
-            var positionOnly = new List<string>(end - start + 1);
+            var positionOnly = new List<(string, WindowSlot)>(end - start + 1);
             for (int i = start; i <= end; i++)
-                positionOnly.Add(vm.Photos[i].Meta.Path);
+                positionOnly.Add((vm.Photos[i].Meta.Path, i == index ? WindowSlot.Focus : WindowSlot.Position));
             return positionOnly;
         }
 
-        // 選択集合あり: 重複除去しつつ「焦点 → メンバー窓 → 位置窓」の順で返す。
+        // 選択集合あり: 重複除去しつつ「焦点 → メンバー窓 → 位置窓」の順で返す（先勝ち）。
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var result = new List<string>();
+        var result = new List<(string Path, WindowSlot Slot)>();
 
-        void Add(string path)
+        void Add(string path, WindowSlot slot)
         {
-            if (seen.Add(path)) result.Add(path);
+            if (seen.Add(path)) result.Add((path, slot));
         }
 
-        Add(vm.FocusedPhoto.Meta.Path);
+        Add(vm.FocusedPhoto.Meta.Path, WindowSlot.Focus);
 
         // メンバー窓: MainViewModel.MoveFocusWithinSelection と同じ「Photos 表示順のメンバー一覧＋
         // modulo 巻き戻し」でアンカーを決める（素の ←/→ が実際に辿る順序と一致させる）。
@@ -643,13 +731,13 @@ public sealed partial class PreviewControl : UserControl
                 // 焦点がメンバー外のとき、delta>0（→ 相当）の着地点は先頭（index 0）なので
                 // 1 手目はその先頭そのもの、以降は先頭から巡回して先読みする。
                 int idx = cur >= 0 ? (((cur + d) % n) + n) % n : (d - 1) % n;
-                Add(ordered[idx].Meta.Path);
+                Add(ordered[idx].Meta.Path, WindowSlot.Member);
             }
             for (int d = 1; d <= SelectionMemberBackward; d++)
             {
                 // delta<0（← 相当）の着地点は末尾（index n-1）。
                 int idx = cur >= 0 ? (((cur - d) % n) + n) % n : (n - 1 - (d - 1) % n);
-                Add(ordered[idx].Meta.Path);
+                Add(ordered[idx].Meta.Path, WindowSlot.Member);
             }
         }
 
@@ -660,7 +748,7 @@ public sealed partial class PreviewControl : UserControl
             int start = Math.Max(0, posIndex - SelectionPositionBackward);
             int end = Math.Min(vm.Photos.Count - 1, posIndex + SelectionPositionForward);
             for (int i = start; i <= end; i++)
-                Add(vm.Photos[i].Meta.Path);
+                Add(vm.Photos[i].Meta.Path, WindowSlot.Position);
         }
 
         return result;
