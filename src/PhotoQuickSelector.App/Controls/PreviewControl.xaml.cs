@@ -705,6 +705,10 @@ public sealed partial class PreviewControl : UserControl
     /// <para>
     /// 選択集合（<see cref="MainViewModel.SelectedPhotos"/>）が空のときは従来どおり位置窓のみ
     /// （焦点自身の要素だけ <see cref="WindowSlot.Focus"/>、残りは <see cref="WindowSlot.Position"/>）。
+    /// ただし列挙順は index 昇順（後方→焦点→前方）ではなく、<b>焦点 → +1 → -1 → +2 → -2 → …</b>
+    /// という近接順・前方優先で返す。<see cref="Prefetch"/> はこの列挙順でゲートに並ぶため、
+    /// 順送りで次に表示される可能性が高い側（直近の前後）を、より離れた側より先にデコードさせる狙い
+    /// （index 順だと後方 2 枚目が前方 1 枚目より先にスロットを取ってしまうことがあった）。
     /// 選択集合があるときは「位置窓（前後1）」と「メンバー窓（巡回順で前後）」の和集合を返す。
     /// yield 順は「焦点 → メンバー窓 → 位置窓」＝<see cref="Prefetch"/> はこの列挙順でゲート
     /// （同時2本）に並ぶため、巡回移動（素の ←/→）で次に表示される可能性が高いメンバーを
@@ -718,15 +722,29 @@ public sealed partial class PreviewControl : UserControl
 
         if (vm.SelectedPhotos.Count == 0)
         {
-            // 選択集合なし: 従来どおり焦点の位置窓のみ。焦点自身の index だけ Focus、他は Position。
+            // 選択集合なし: 焦点の位置窓のみ（内容は従来どおり）だが、列挙順を index 順から
+            // 近接順・前方優先（焦点→+1→-1→+2→-2→…）へ変更。Photos の範囲内・各方向の上限
+            // （_prefetchForward/_prefetchBackward）内のみを対象にする。
             int index = vm.Photos.IndexOf(vm.FocusedPhoto);
             if (index < 0) return new List<(string, WindowSlot)>();
 
-            int start = Math.Max(0, index - _prefetchBackward);
-            int end = Math.Min(vm.Photos.Count - 1, index + _prefetchForward);
-            var positionOnly = new List<(string, WindowSlot)>(end - start + 1);
-            for (int i = start; i <= end; i++)
-                positionOnly.Add((vm.Photos[i].Meta.Path, i == index ? WindowSlot.Focus : WindowSlot.Position));
+            int count = vm.Photos.Count;
+            var positionOnly = new List<(string, WindowSlot)> { (vm.Photos[index].Meta.Path, WindowSlot.Focus) };
+
+            int maxStep = Math.Max(_prefetchForward, _prefetchBackward);
+            for (int d = 1; d <= maxStep; d++)
+            {
+                if (d <= _prefetchForward)
+                {
+                    int fwd = index + d;
+                    if (fwd < count) positionOnly.Add((vm.Photos[fwd].Meta.Path, WindowSlot.Position));
+                }
+                if (d <= _prefetchBackward)
+                {
+                    int back = index - d;
+                    if (back >= 0) positionOnly.Add((vm.Photos[back].Meta.Path, WindowSlot.Position));
+                }
+            }
             return positionOnly;
         }
 

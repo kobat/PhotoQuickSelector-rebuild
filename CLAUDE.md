@@ -1389,6 +1389,32 @@
     `BUILD SUCCEEDED`（x64 Release・警告0）／`dotnet test` 96 件緑。実機目視（未キャッシュ切替の体感高速化・
     **色味に違和感がないこと**・左右キー連打後の復帰・「キャッシュにあるのに遅い」の解消）はユーザー確認推奨。
 
+- **表示要求の割り込み優先ゲート＋近接順先読み（案A＋C）完了（2026-07-06・要実機確認）**: 「未デコード領域へ移動した
+  直後、フォーカス画像のデコードが先に並んだ窓内先読みの後ろで待たされる」体感悪化（先読み枚数を増やすほど悪化）を解消。
+  実装は Sonnet サブエージェントへ委譲し差分レビュー済み。**Core・XAML は非変更**。
+  - **案A（`Controls/DecodeGate.cs` 新規）**: `SemaphoreSlim` 代替の**キー付き・優先昇格可能な非同期ゲート**
+    （`WaitAsync(key)`/`Promote(key)`/`Release()`）。純 C#・**UI スレッド専有（単一スレッド前提・ロックなし）**＝
+    `PreviewBitmapCache` は `ConfigureAwait(false)` 不使用で全継続が UI スレッド直列のため排他不要。
+    `TaskCompletionSource(RunContinuationsAsynchronously)` で `Release()` スタック内の同期継続（再入）を防止。
+    `Release` は待機列があれば先頭へスロット譲渡（`_inUse` 不変）、空なら空きを増やす。キー比較は OrdinalIgnoreCase。
+  - **`PreviewBitmapCache`**: `_gate` を `DecodeGate` へ置換。`GetAsync(forDisplay:true)` が**相乗り（inflight あり）・
+    新規開始の双方で `Promote(path)`** を呼び、表示待ちの 1 枚を待機列先頭へ割り込ませる（`LoadCoreAsync` は最初の
+    await＝`WaitAsync` まで同期実行されるため新規登録直後の Promote が効く）。読込中（ゲート取得済み）への Promote は
+    no-op＝進行中デコード（最大 `MaxConcurrentDecodes` 本）の完了待ちは従来どおり残る（最悪 200〜300ms 程度）。
+  - **案C（`PreviewControl.WindowEntries()`）**: 選択集合なしの位置窓の列挙順を index 順（後方→焦点→前方）から
+    **近接順・前方優先（焦点→+1→-1→+2→-2→…）**へ変更（集合は同一・順序のみ）。`Prefetch` はこの順でゲートに並ぶため
+    順送りで次に見る前方 1 枚目が後方 2 枚目より先にデコードされる。`Trim` 保護・`IsPathInWindow` は順序非依存で影響なし。
+  - **効果の設計判断（検討の経緯）**: 押しっぱなし継続中は先読みが settle まで走らず表示要求もレート制限されるため
+    ゲートはほぼ空き＝案A/B とも効果薄。効くのは「一時停止→窓の先読き走行中にジャンプ」の場面。案B（表示要求の
+    スロット借用＝同時実行超過）は「+1 上限だと離した瞬間に借用枠が塞がっていて効かないことがある」とのユーザー指摘が
+    妥当で、採用するなら上限なし即時開始形だが、**ユーザー判断で案A＋C のみ採用**（残る最悪待ちは進行中 1 本≈300ms）。
+  - **テスト**: `DecodeGate` は純 C# のため `PreviewViewport` と同じソースリンク方式で xUnit 化（`DecodeGateTests.cs`
+    6 件＝容量内即時許可/FIFO/Promote 先頭移動/no-op/スロット返却/大小無視）。**計 102 件緑**。
+  - 変更/新規: `Controls/DecodeGate.cs`（新規）・`Controls/PreviewBitmapCache.cs`・`Controls/PreviewControl.xaml.cs`、
+    `tests/…/PhotoQuickSelector.Core.Tests.csproj`・`DecodeGateTests.cs`（新規）。`BUILD SUCCEEDED`（x64 Release・警告0）／
+    `dotnet test` 102 件緑。実機目視（`C` オーバーレイで「一時停止→即ジャンプ」時にフォーカス画像が（待機中）を
+    経ずに早く（読込中）へ遷移・順送りの引っかかり軽減）はユーザー確認推奨。
+
 ## 残タスク（次の候補）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**

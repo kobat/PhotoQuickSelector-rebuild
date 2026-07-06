@@ -31,4 +31,10 @@
              Link="Linked\PreviewViewport.cs" />
   </ItemGroup>
 
+  <!-- DecodeGate も純 C#（WinUI/WinRT 非依存）なので同じ方式でソースリンクしてテストする。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PhotoQuickSelector.App\Controls\DecodeGate.cs"
+             Link="Linked\DecodeGate.cs" />
+  </ItemGroup>
+
 </Project>
