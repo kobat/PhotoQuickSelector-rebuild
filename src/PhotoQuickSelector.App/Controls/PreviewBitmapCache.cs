@@ -23,12 +23,12 @@ internal enum CacheItemState
 /// <summary>
 /// <see cref="PreviewBitmapCache.Snapshot"/> の 1 項目（デバッグオーバーレイ用の詳細情報）。
 /// デコード済み（<see cref="CacheItemState.Cached"/>）以外は <see cref="Bytes"/>/<see cref="Width"/>/
-/// <see cref="Height"/>/<see cref="WasDisplayed"/>/<see cref="LastUse"/> は 0/false のダミー値。
+/// <see cref="Height"/>/<see cref="LastUse"/> は 0 のダミー値。
 /// XAML には出さない（<see cref="PreviewControl"/> が表示用の <c>CacheEntry</c> へ整形する）。
 /// </summary>
 internal sealed class CacheSnapshotItem
 {
-    public CacheSnapshotItem(string path, string name, CacheItemState state, long bytes, int width, int height, bool wasDisplayed, long lastUse)
+    public CacheSnapshotItem(string path, string name, CacheItemState state, long bytes, int width, int height, long lastUse)
     {
         Path = path;
         Name = name;
@@ -36,7 +36,6 @@ internal sealed class CacheSnapshotItem
         Bytes = bytes;
         Width = width;
         Height = height;
-        WasDisplayed = wasDisplayed;
         LastUse = lastUse;
     }
 
@@ -51,8 +50,6 @@ internal sealed class CacheSnapshotItem
     public int Width { get; }
     /// <summary>画像高さ（未デコードは 0）。</summary>
     public int Height { get; }
-    /// <summary>一度でも表示目的で取得されたか（未デコードは false）。</summary>
-    public bool WasDisplayed { get; }
     /// <summary>最終利用順（単調増分カウンタ。未デコードは 0）。</summary>
     public long LastUse { get; }
 }
@@ -109,14 +106,15 @@ internal sealed class PixelFrame
 /// 取得済み）のキーは待機列に居ないため対象外＝進行中デコードの完了待ちはそのまま残る。
 /// </para>
 /// <para>
-/// 【表示実績優先の2段階 LRU＋バイト予算】先読み（Prefetch）対象＝Trim で残す対象を分離した。
-/// 従来は「窓外は即破棄」だったため、2枚を左右キーで往復するたびに窓から外れた側（≈200MB）が
-/// 毎回捨てられ再デコードされる無駄があった。<see cref="Trim"/> は呼び出し側が渡す現在窓
-/// （<c>keep</c>）を無条件保護しつつ、それ以外は合計バイト数が <see cref="MaxCacheBytes"/> を
-/// 超えている間だけ「未表示（先読みのみ）の古い順 → 表示済みの古い順」で破棄する。予算内なら
-/// 窓外でも残すため、往復の再デコードが減る。表示目的の取得（<see cref="GetAsync"/> の
-/// <c>forDisplay: true</c>）だけが <see cref="CacheEntry.WasDisplayed"/> を立てる（<see cref="Prefetch"/>
-/// 経由の先読みだけの取得では立てない）。
+/// 【LRU＋バイト予算】<see cref="Trim"/> は呼び出し側が渡す現在窓（<c>keep</c>）を無条件保護しつつ、
+/// それ以外は合計バイト数が <see cref="MaxCacheBytes"/> を超えている間だけ <see cref="CacheEntry.LastUse"/>
+/// の古い順で破棄する。予算内なら窓外でも残すため、2枚を左右キーで往復するような「一度外れてまた戻る」
+/// ケースの再デコードを避けられる。キャッシュヒットは <see cref="Prefetch"/> 経由でも
+/// <see cref="GetAsync"/> が LastUse を更新するため、窓近傍は常に新しく保たれる。かつては表示実績
+/// （<c>WasDisplayed</c>）を優先する 2 段階 LRU だったが、窓外バイパス（<see cref="IsWanted"/>）と
+/// grant 時の窓分類優先度選択（<see cref="DecodePriority"/>）により投機的デコードが上流で既に
+/// 排除されている現在は、直近の先読み（未表示）が古い表示済みより先に捨てられる逆効果しか
+/// もたらさなくなったため撤去した。
 /// </para>
 /// UI 非依存（WinRT の imaging API のみに依存し Win2D デバイスを必要としない）なので単体テスト可能。
 /// </summary>
@@ -128,30 +126,24 @@ internal sealed class PreviewBitmapCache
     /// <summary>キャッシュの合計バイト予算（既定 2GB。<see cref="Trim"/> が参照。実行中に変更可）。</summary>
     public long MaxCacheBytes { get; set; } = 2L << 30;
 
-    /// <summary>キャッシュ 1 件分の付随情報（表示実績優先 LRU の判定材料）。</summary>
+    /// <summary>キャッシュ 1 件分の付随情報（LRU の判定材料）。</summary>
     private sealed class CacheEntry
     {
-        public CacheEntry(PixelFrame frame, long lastUse, bool wasDisplayed)
+        public CacheEntry(PixelFrame frame, long lastUse)
         {
             Frame = frame;
             LastUse = lastUse;
-            WasDisplayed = wasDisplayed;
         }
 
         public PixelFrame Frame { get; }
         /// <summary>単調増分カウンタ（<see cref="_useCounter"/>）による最終利用順。時計に依存しない。</summary>
         public long LastUse { get; set; }
-        /// <summary>一度でも「表示目的」（<see cref="GetAsync"/> の forDisplay: true）で取得されたか。</summary>
-        public bool WasDisplayed { get; set; }
     }
 
     private readonly Dictionary<string, CacheEntry> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Task<PixelFrame?>> _inflight = new(StringComparer.OrdinalIgnoreCase);
     // ゲートを取得してファイル読み込み＋デコード中のパス（ゲート順番待ちの待機中と区別する）。
     private readonly HashSet<string> _loading = new(StringComparer.OrdinalIgnoreCase);
-    // inflight（読込中/待機中）に対する forDisplay 要求を記録する。完了時にキャッシュ挿入する
-    // CacheEntry.WasDisplayed へ反映するため（先読み開始後に表示目的の取得が重なるケースに対応）。
-    private readonly HashSet<string> _pendingDisplay = new(StringComparer.OrdinalIgnoreCase);
     private readonly DecodeGate _gate;
     private int _generation; // Clear（全破棄）でキャッシュを無効化する世代
     private long _useCounter; // LastUse 採番用の単調増分カウンタ（DateTime は使わない）
@@ -183,7 +175,7 @@ internal sealed class PreviewBitmapCache
 
     /// <summary>
     /// 現在キャッシュ中の画像の詳細一覧（デバッグオーバーレイ用）。デコード済み（<see cref="_cache"/> 在籍）は
-    /// 容量・寸法・表示実績・最終利用順まで含めて返し、inflight（読込中/待機中）は名前・パス・状態のみ埋める。
+    /// 容量・寸法・最終利用順まで含めて返し、inflight（読込中/待機中）は名前・パス・状態のみ埋める。
     /// 並び順の責務は持たない（窓分類は <see cref="PreviewControl"/> 側にしかないため、そちらでソートする）。
     /// 色（UI 型）はここでは決めず、状態 enum までに留める（キャッシュは UI 非依存）。
     /// </summary>
@@ -199,7 +191,6 @@ internal sealed class PreviewBitmapCache
                 bytes: kv.Value.Frame.Bytes.Length,
                 width: kv.Value.Frame.Width,
                 height: kv.Value.Frame.Height,
-                wasDisplayed: kv.Value.WasDisplayed,
                 lastUse: kv.Value.LastUse));
         }
         foreach (var path in _inflight.Keys)
@@ -212,7 +203,6 @@ internal sealed class PreviewBitmapCache
                 bytes: 0,
                 width: 0,
                 height: 0,
-                wasDisplayed: false,
                 lastUse: 0));
         }
         return list;
@@ -232,32 +222,26 @@ internal sealed class PreviewBitmapCache
     public bool IsInflight(string path) => _inflight.ContainsKey(path);
 
     /// <summary>
-    /// キャッシュ優先で <see cref="PixelFrame"/> を取得する。読み込み中なら同一タスクを共有。
-    /// <paramref name="forDisplay"/>=true（表示目的の取得。<see cref="PreviewControl"/> の
-    /// 実表示ロード）は該当エントリの <see cref="CacheEntry.WasDisplayed"/> を立てる（<see cref="Trim"/>
-    /// の 2 段階 LRU で優先的に残す対象になる）。<see cref="Prefetch"/> はこれを false で呼ぶ。
+    /// キャッシュ優先で <see cref="PixelFrame"/> を取得する。読み込み中なら同一タスクを共有（inflight 相乗り）。
     /// <para>
-    /// 表示目的の取得が既存の inflight（待機中/読込中）へ相乗りする場合・新規に待機列へ並ぶ場合の
-    /// いずれも、ゲートへの割り込みは行わない。順番は <see cref="DecodeGate"/> が grant のたびに
+    /// 新規に待機列へ並ぶ場合・既存の inflight（待機中/読込中）へ相乗りする場合のいずれも、
+    /// ゲートへの割り込みは行わない。順番は <see cref="DecodeGate"/> が grant のたびに
     /// <see cref="DecodePriority"/> で再評価するため、フォーカス（表示要求）は自然と最優先で
     /// 選ばれる（index 0）。
     /// </para>
     /// </summary>
-    public Task<PixelFrame?> GetAsync(string path, bool forDisplay)
+    public Task<PixelFrame?> GetAsync(string path)
     {
         if (_cache.TryGetValue(path, out var entry))
         {
             entry.LastUse = ++_useCounter;
-            if (forDisplay) entry.WasDisplayed = true;
             return Task.FromResult<PixelFrame?>(entry.Frame);
         }
         if (_inflight.TryGetValue(path, out var running))
         {
-            if (forDisplay) _pendingDisplay.Add(path);
             return running;
         }
 
-        if (forDisplay) _pendingDisplay.Add(path);
         var task = LoadCoreAsync(path, _generation);
         _inflight[path] = task;
         Changed?.Invoke(); // 読込中エントリが増えた
@@ -276,9 +260,8 @@ internal sealed class PreviewBitmapCache
             {
                 // ゲート取得までに保持窓を外れた / 全破棄（Clear）されたら、読み込まず破棄する。
                 // 押しっぱなしで通過した写真はここで安価に捨てられる（メモリを使わない）。
-                // 破棄する経路では _pendingDisplay に積んだままだとリークするので必ず取り除く。
-                if (generation != _generation) { _pendingDisplay.Remove(path); return null; }
-                if (IsWanted != null && !IsWanted(path)) { _pendingDisplay.Remove(path); return null; }
+                if (generation != _generation) { return null; }
+                if (IsWanted != null && !IsWanted(path)) { return null; }
 
                 // 待機中 → 読み込み中（ファイル読み込み＋デコード）へ遷移。
                 // _inflight の増減を伴わない遷移なので、ここで Changed を発火してオーバーレイを更新する。
@@ -329,10 +312,9 @@ internal sealed class PreviewBitmapCache
                     pixels.DetachPixelData(),
                     (int)decoder.OrientedPixelWidth,
                     (int)decoder.OrientedPixelHeight);
-                if (generation != _generation) { _pendingDisplay.Remove(path); return null; } // byte[] は GC 管理なので Dispose 不要
-                // 挿入時に LastUse を採番し、先読み中に表示目的の取得が重なっていれば WasDisplayed へ反映する。
-                bool wasDisplayed = _pendingDisplay.Remove(path);
-                _cache[path] = new CacheEntry(frame, ++_useCounter, wasDisplayed);
+                if (generation != _generation) { return null; } // byte[] は GC 管理なので Dispose 不要
+                // 挿入時に LastUse を採番する。
+                _cache[path] = new CacheEntry(frame, ++_useCounter);
                 return frame;
             }
             finally
@@ -343,7 +325,6 @@ internal sealed class PreviewBitmapCache
         }
         catch
         {
-            _pendingDisplay.Remove(path); // 読み込み/デコード失敗でもリークさせない
             return null;
         }
         finally
@@ -353,21 +334,21 @@ internal sealed class PreviewBitmapCache
         }
     }
 
-    /// <summary>指定パス群をキャッシュへ先読みする（fire-and-forget）。表示目的ではないので WasDisplayed は立てない。</summary>
+    /// <summary>指定パス群をキャッシュへ先読みする（fire-and-forget）。</summary>
     public void Prefetch(IEnumerable<string> paths)
     {
         foreach (var path in paths)
-            _ = GetAsync(path, forDisplay: false);
+            _ = GetAsync(path);
     }
 
     /// <summary>
     /// <paramref name="keep"/>（呼び出し側が渡す現在の保持窓）は無条件で保護する。それ以外は、
     /// キャッシュ合計バイト数が <see cref="MaxCacheBytes"/> を超えている間だけ、
-    /// 「未表示（先読みのみ）の古い順 → 表示済みの古い順」（<see cref="CacheEntry.WasDisplayed"/> 昇順→
-    /// <see cref="CacheEntry.LastUse"/> 昇順）で破棄する。予算内なら窓外でも残す＝2枚往復のような
-    /// 「一度外れてまた戻る」ケースの再デコードを避けられる。表示中の 1 枚は呼び出し側
-    /// （<see cref="PreviewControl"/>）が独立した <see cref="Microsoft.Graphics.Canvas.CanvasBitmap"/> として
-    /// GPU へ転送・所有するため、このキャッシュ（<see cref="PixelFrame"/>）側では別途の保護不要。
+    /// LastUse の古い順（最後に使われてから最も時間が経ったもの）で破棄する。予算内なら
+    /// 窓外でも残す＝2枚往復のような「一度外れてまた戻る」ケースの再デコードを避けられる。
+    /// 表示中の 1 枚は呼び出し側（<see cref="PreviewControl"/>）が独立した
+    /// <see cref="Microsoft.Graphics.Canvas.CanvasBitmap"/> として GPU へ転送・所有するため、
+    /// このキャッシュ（<see cref="PixelFrame"/>）側では別途の保護不要。
     /// <c>byte[]</c> は GC 管理のため Dispose 不要で Remove するだけでよい。
     /// </summary>
     public void Trim(IEnumerable<string> keep)
@@ -379,11 +360,10 @@ internal sealed class PreviewBitmapCache
         bool removed = false;
         if (total > MaxCacheBytes)
         {
-            // 予算超過分だけ、保護対象外を「未表示優先→古い順」で破棄する。
+            // 予算超過分だけ、保護対象外を古い順（LastUse 昇順）で破棄する。
             var candidates = _cache
                 .Where(kv => !keepSet.Contains(kv.Key))
-                .OrderBy(kv => kv.Value.WasDisplayed)   // false（未表示）が先
-                .ThenBy(kv => kv.Value.LastUse)          // 古い順
+                .OrderBy(kv => kv.Value.LastUse)          // 古い順
                 .ToList();
 
             foreach (var kv in candidates)

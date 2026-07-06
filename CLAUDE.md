@@ -50,13 +50,13 @@
   セッション復元／全画面・イマーシブ・完全全画面（Shift+F）／Dark テーマ／日英ローカライズ
   （resw＋shortcuts.json SSOT・F1 チートシート）／設定ダイアログ（一般／高度な設定の 2 タブ）
 - **パフォーマンス**: サムネイル＝圧縮バイト常駐＋可視分デコード（容量固定 LRU）／プレビュー先読み
-  キャッシュ＝BGRA8 `byte[]`（PixelFrame）保持・2段階LRU＋容量予算・DecodeGate（grant 時の窓分類
+  キャッシュ＝BGRA8 `byte[]`（PixelFrame）保持・LRU（LastUse 単独）＋容量予算・DecodeGate（grant 時の窓分類
   優先度選択＝フォーカス→選択窓→位置窓）・レート制限・sRGB 色管理スキップ／ナビゲーター縮小ビットマップキャッシュ
 - **配布**: unpackaged 自己完結 EXE（フォルダ／単一ファイルの pubxml 2 系統）・LICENSE／
   THIRD-PARTY-NOTICES 同梱・アプリアイコン・README（日英）
 
-**実機確認が未了の項目**: なし（直近＝ゲート grant 時の窓分類優先度選択（Promote 廃止）も
-**ユーザー実機確認済み（2026-07-07）**。それ以前 2026-07-05〜06 の 6 件は 2026-07-06 確認済み）。
+**実機確認が未了の項目**: なし（直近＝Trim の表示実績（WasDisplayed）優先撤去＝LastUse 単独 LRU 化も
+**ユーザー実機確認済み（2026-07-07）**）。
 
 **次の候補（未着手）**: 縦型画像の未回転保持＋描画時 GPU 回転（縦のデコード +80〜90ms 解消。大工事のため後回し。
 実測値はメモリ `portrait-slowness-benchmarks` と HISTORY.md「縦型画像の表示・パンが遅い問題」節）。

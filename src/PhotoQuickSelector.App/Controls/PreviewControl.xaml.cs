@@ -478,7 +478,7 @@ public sealed partial class PreviewControl : UserControl
             return;
         }
 
-        var frame = await _cache.GetAsync(photo.Meta.Path, forDisplay: true);
+        var frame = await _cache.GetAsync(photo.Meta.Path);
         if (token != _loadToken)
         {
             // 新しい読み込みに追い越された。表示は最新側に任せるが、ここで Trim を
@@ -615,7 +615,8 @@ public sealed partial class PreviewControl : UserControl
     /// キャッシュ変更通知（<see cref="PreviewBitmapCache.Changed"/>）から呼ばれ、表示中のときだけ更新する。
     /// 通知は非同期ロード継続（UI スレッド）から来るが、安全のため UI スレッドへ束ねる。
     /// <para>
-    /// 表示行には「窓分類（フォーカス/選択窓/位置窓/窓外）」「表示実績（表示済み/未表示）」
+    /// 表示行には「窓分類（フォーカス/選択窓/位置窓/窓外）」
+    /// 「最終利用順（LastUse。単調増分カウンタの生値＝小さいほど次に破棄されやすい）」
     /// 「容量(MB)」「寸法」を付け、並び順はフィルムストリップ（Photos の表示順）と同じにする
     /// （読込中・待機中も同列。キャッシュがフィルム上のどの範囲を覆っているかを読みやすくする）。
     /// ラベルはデバッグ専用オーバーレイなのでローカライズせず日本語ハードコードのまま（resw 追加は不要）。
@@ -667,7 +668,7 @@ public sealed partial class PreviewControl : UserControl
                                 _ => "位置窓",
                             }
                             : "窓外";
-                        label += "・" + (item.WasDisplayed ? "表示済み" : "未表示");
+                        label += $"・LastUse {item.LastUse}";
                         CachedFileNames.Add(new CacheEntry(
                             $"{namePad}  {mb,4:0}MB  {dims}{label}", CachedBrush));
                         break;
