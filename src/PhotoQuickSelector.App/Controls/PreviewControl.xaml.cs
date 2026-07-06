@@ -133,6 +133,9 @@ public sealed partial class PreviewControl : UserControl
         // 【案2】デコード順が回ってきた時点で「まだ保持窓内か」を判定し、窓外なら読み込みを破棄する。
         // 押しっぱなしで通過した写真の不要ロードを安価に捨て、同時実行ゲートと併せて膨張を抑える。
         _cache.IsWanted = IsPathInWindow;
+        // ゲート grant 時の優先度＝WindowEntries の index（フォーカス→選択窓→位置窓）。
+        // 詳細は DecodePriorityOf の doc コメント参照。
+        _cache.DecodePriority = DecodePriorityOf;
 
         // Esc ではプレビューを抜けない（ユーザー要望）。プレビュー表示のまま維持する。
         // プレビュー終了はダブルクリック（SPEC §2）で行う。以前あった Esc→ExitPreview の
@@ -228,6 +231,7 @@ public sealed partial class PreviewControl : UserControl
         _cache = new PreviewBitmapCache(concurrency) { MaxCacheBytes = budget };
         _cache.Changed += RefreshCacheOverlay;
         _cache.IsWanted = IsPathInWindow;
+        _cache.DecodePriority = DecodePriorityOf;
     }
 
     // 右パネルの幅変更（スプリッター/復元）に合わせて現在幅を設定へ控える（実保存は終了時）。
@@ -706,13 +710,16 @@ public sealed partial class PreviewControl : UserControl
     /// 選択集合（<see cref="MainViewModel.SelectedPhotos"/>）が空のときは従来どおり位置窓のみ
     /// （焦点自身の要素だけ <see cref="WindowSlot.Focus"/>、残りは <see cref="WindowSlot.Position"/>）。
     /// ただし列挙順は index 昇順（後方→焦点→前方）ではなく、<b>焦点 → +1 → -1 → +2 → -2 → …</b>
-    /// という近接順・前方優先で返す。<see cref="Prefetch"/> はこの列挙順でゲートに並ぶため、
-    /// 順送りで次に表示される可能性が高い側（直近の前後）を、より離れた側より先にデコードさせる狙い
-    /// （index 順だと後方 2 枚目が前方 1 枚目より先にスロットを取ってしまうことがあった）。
+    /// という近接順・前方優先で返す。この列挙順（index）がそのままゲート grant 時の優先度
+    /// （<see cref="DecodePriorityOf"/>）になる。投入順（<see cref="Prefetch"/> がこの列挙順で
+    /// ゲートに並ぶ順）は優先度が同値のときのタイブレークにすぎず、実際のデコード順は
+    /// <see cref="DecodeGate.Release"/>（grant）のたびに現在の窓で再評価される。順送りで次に
+    /// 表示される可能性が高い側（直近の前後）を、より離れた側より優先させる狙い
+    /// （index 順だと後方 2 枚目が前方 1 枚目より先に優先度を得てしまうことがあった）。
     /// 選択集合があるときは「位置窓（前後1）」と「メンバー窓（巡回順で前後）」の和集合を返す。
-    /// yield 順は「焦点 → メンバー窓 → 位置窓」＝<see cref="Prefetch"/> はこの列挙順でゲート
-    /// （同時2本）に並ぶため、巡回移動（素の ←/→）で次に表示される可能性が高いメンバーを
-    /// 位置的な隣接枚より優先して先読みする狙い。重複除去は「先に足した分類が勝つ」。
+    /// yield 順は「焦点 → メンバー窓 → 位置窓」＝この列挙順（index）がそのままゲート grant 時の
+    /// 優先度になり、巡回移動（素の ←/→）で次に表示される可能性が高いメンバーを位置的な隣接枚
+    /// より優先してデコードさせる狙い。重複除去は「先に足した分類が勝つ」（＝優先度が高くなる）。
     /// </para>
     /// </summary>
     private List<(string Path, WindowSlot Slot)> WindowEntries()
@@ -804,6 +811,21 @@ public sealed partial class PreviewControl : UserControl
             if (string.Equals(p, path, StringComparison.OrdinalIgnoreCase))
                 return true;
         return false;
+    }
+
+    /// <summary>
+    /// ゲート grant 時の優先度（<see cref="PreviewBitmapCache.DecodePriority"/> 用）。
+    /// <see cref="WindowEntries"/> の index をそのまま返す（フォーカス=0 → 選択窓 → 位置窓の順で小さい）。
+    /// 窓外は int.MaxValue（最下位。実際に順番が来ても <see cref="IsPathInWindow"/> で破棄される）。
+    /// grant のたびに現在の窓で再評価されるため、投入後にフォーカスが移動しても順序が陳腐化しない。
+    /// </summary>
+    private int DecodePriorityOf(string path)
+    {
+        var entries = WindowEntries();
+        for (int i = 0; i < entries.Count; i++)
+            if (string.Equals(entries[i].Path, path, StringComparison.OrdinalIgnoreCase))
+                return i;
+        return int.MaxValue;
     }
 }
 

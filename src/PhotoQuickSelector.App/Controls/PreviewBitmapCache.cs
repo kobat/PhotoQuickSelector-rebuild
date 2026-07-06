@@ -101,11 +101,12 @@ internal sealed class PixelFrame
 /// 窓外になっているので、メモリを使わず安価に捨てられる（実デコードは着地写真＋近傍のみ）。
 /// </para>
 /// <para>
-/// 【表示要求の割り込み優先】<see cref="DecodeGate"/> は FIFO の待機列内でキーを指定して先頭へ
-/// 割り込ませる <see cref="DecodeGate.Promote"/> を持つ。表示目的の取得（<c>forDisplay: true</c>）が
-/// 既に inflight（待機中/読込中）のタスクへ相乗りしたとき・新規に待機列へ並んだときの双方で
-/// <see cref="DecodeGate.Promote"/> を呼び、先読み（Prefetch）専用の inflight より優先してゲートの
-/// 順番を回す。読込中（既にゲート取得済み）のキーへの Promote は待機列に居ないため no-op になる。
+/// 【grant 時の窓分類優先度選択】<see cref="DecodeGate"/> はスロット解放（grant）のたびに
+/// <see cref="DecodePriority"/>（＝<c>PreviewControl.WindowEntries()</c> の index）で待機列全員を
+/// 再評価し、最優先のキーへスロットを譲渡する。表示要求（フォーカス）は index 0 なので常に
+/// 最優先になり、旧 Promote が担っていた役割（表示要求を先読み専用の inflight より優先させる）を
+/// 包含する。投入順（FIFO）は優先度が同値のときのタイブレークとしてのみ残る。読込中（既にゲート
+/// 取得済み）のキーは待機列に居ないため対象外＝進行中デコードの完了待ちはそのまま残る。
 /// </para>
 /// <para>
 /// 【表示実績優先の2段階 LRU＋バイト予算】先読み（Prefetch）対象＝Trim で残す対象を分離した。
@@ -173,6 +174,14 @@ internal sealed class PreviewBitmapCache
     public Func<string, bool>? IsWanted { get; set; }
 
     /// <summary>
+    /// <see cref="DecodeGate"/> が grant（スロット解放）のたびに待機列の各キーを評価する優先度
+    /// （小さいほど優先・窓外は <see cref="int.MaxValue"/>）。<see cref="PreviewControl"/> が
+    /// <c>WindowEntries()</c> の index（フォーカス→選択窓→位置窓の順）で設定する。null なら
+    /// <see cref="DecodeGate"/> は純 FIFO で grant する。
+    /// </summary>
+    public Func<string, int>? DecodePriority { get => _gate.GetPriority; set => _gate.GetPriority = value; }
+
+    /// <summary>
     /// 現在キャッシュ中の画像の詳細一覧（デバッグオーバーレイ用）。デコード済み（<see cref="_cache"/> 在籍）は
     /// 容量・寸法・表示実績・最終利用順まで含めて返し、inflight（読込中/待機中）は名前・パス・状態のみ埋める。
     /// 並び順の責務は持たない（窓分類は <see cref="PreviewControl"/> 側にしかないため、そちらでソートする）。
@@ -228,10 +237,10 @@ internal sealed class PreviewBitmapCache
     /// 実表示ロード）は該当エントリの <see cref="CacheEntry.WasDisplayed"/> を立てる（<see cref="Trim"/>
     /// の 2 段階 LRU で優先的に残す対象になる）。<see cref="Prefetch"/> はこれを false で呼ぶ。
     /// <para>
-    /// 表示目的の取得は、既存の inflight（待機中/読込中）への相乗り・新規の待機列追加のいずれでも
-    /// <see cref="DecodeGate.Promote"/> でゲートの待機列先頭へ割り込ませる。これにより、表示待ちの
-    /// 1 枚が先読み専用の inflight より先にデコードされる。読込中（既にゲート取得済み）のキーへの
-    /// Promote は待機列に居ないため no-op（進行中デコードの完了を待つのみ＝従来と同じ）。
+    /// 表示目的の取得が既存の inflight（待機中/読込中）へ相乗りする場合・新規に待機列へ並ぶ場合の
+    /// いずれも、ゲートへの割り込みは行わない。順番は <see cref="DecodeGate"/> が grant のたびに
+    /// <see cref="DecodePriority"/> で再評価するため、フォーカス（表示要求）は自然と最優先で
+    /// 選ばれる（index 0）。
     /// </para>
     /// </summary>
     public Task<PixelFrame?> GetAsync(string path, bool forDisplay)
@@ -244,20 +253,13 @@ internal sealed class PreviewBitmapCache
         }
         if (_inflight.TryGetValue(path, out var running))
         {
-            if (forDisplay)
-            {
-                _pendingDisplay.Add(path);
-                _gate.Promote(path);
-            }
+            if (forDisplay) _pendingDisplay.Add(path);
             return running;
         }
 
         if (forDisplay) _pendingDisplay.Add(path);
         var task = LoadCoreAsync(path, _generation);
         _inflight[path] = task;
-        // LoadCoreAsync は最初の await（_gate.WaitAsync）まで同期実行されるため、ここに来た時点で
-        // 待機列に並び終わっている（または即取得済み）。並んでいれば Promote が効く。
-        if (forDisplay) _gate.Promote(path);
         Changed?.Invoke(); // 読込中エントリが増えた
         return task;
     }
@@ -267,7 +269,8 @@ internal sealed class PreviewBitmapCache
         try
         {
             // 同時実行ゲート。順番が来るまで待つ（待機中はバイトを確保しないので軽量）。
-            // 表示目的の取得が後から相乗り/新規登録されると Promote で待機列の先頭へ割り込む。
+            // 順番は grant のたびに DecodePriority で再評価される（フォーカスが最優先）ため、
+            // 待機中に表示目的の取得が後から相乗りしても、次の grant で自然に優先される。
             await _gate.WaitAsync(path);
             try
             {
