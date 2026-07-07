@@ -359,6 +359,12 @@
   <data name="Preview_CacheOverlayHeader.Text" xml:space="preserve">
     <value>先読みキャッシュ</value>
   </data>
+  <data name="Preview_LoupeTab.Content" xml:space="preserve">
+    <value>ルーペ</value>
+  </data>
+  <data name="Preview_ExifTab.Content" xml:space="preserve">
+    <value>EXIF</value>
+  </data>
 
   <!-- ============ コード側（Loc.Get。ドット無しの素のキー） ============ -->
   <!-- 共通ボタン・断片 -->

@@ -41,6 +41,8 @@
           "description": { "ja": "イマーシブ表示（右パネル/フィルムストリップを畳む）の切替", "en": "Toggle immersive view (collapses the right panel/filmstrip)" } },
         { "keys": "I",
           "description": { "ja": "メタ情報オーバーレイの切替", "en": "Toggle the metadata overlay" } },
+        { "keys": "E",
+          "description": { "ja": "右パネル上段をルーペ⇄EXIF詳細で切替", "en": "Toggle the right panel between the loupe and EXIF details" } },
         { "keys": "G",
           "description": { "ja": "構図グリッドの種類を巡回（なし→中央十字→三分割→正方形）", "en": "Cycle the composition grid type (none → center cross → rule of thirds → squares)" } },
         { "keys": "Shift+G",

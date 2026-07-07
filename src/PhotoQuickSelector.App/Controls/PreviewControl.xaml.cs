@@ -263,6 +263,7 @@ public sealed partial class PreviewControl : UserControl
                 ApplyPreviewSettings(_viewModel.Settings);
                 RestoreFilmStripHeight();
                 RestoreRightPanelLayout();
+                SetExifPanelVisible(_viewModel.Settings.PreviewExifPanel);
             }
             Bindings.Update();
         }
@@ -283,6 +284,7 @@ public sealed partial class PreviewControl : UserControl
                 // 連打中のフル解像度デコード膨張を防ぐため throttle 経由で要求する。
                 RequestPreviewLoad();
                 ScrollSelectedIntoView();
+                RefreshExifPanel();
                 break;
             case nameof(MainViewModel.IsPreviewMode):
                 if (_viewModel?.IsPreviewMode == true)
@@ -293,6 +295,7 @@ public sealed partial class PreviewControl : UserControl
                     LoadCurrentAsync(preserveView: false);
                     FocusForKeys();
                     ScrollSelectedIntoView();
+                    RefreshExifPanel();
                 }
                 break;
             case nameof(MainViewModel.GridKind):

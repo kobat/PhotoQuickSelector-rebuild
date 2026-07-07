@@ -136,20 +136,32 @@
                 ResizeBehavior="BasedOnAlignment"
                 ResizeDirection="Auto" />
 
-            <!-- 右カラム: 上=ズームプレビュー(ルーペ) / 下=ナビゲーター -->
+            <!-- 右カラム: 上=ズームプレビュー(ルーペ)⇄EXIF詳細（タブ/E キーで切替） / 下=ナビゲーター -->
             <Grid x:Name="RightPanel" Grid.Column="2"
                   Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
                   SizeChanged="RightPanel_SizeChanged">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" MinHeight="80" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition x:Name="NavRow" Height="220" MinHeight="100" />
                 </Grid.RowDefinitions>
 
+                <!-- 上段の表示切替タブ（ルーペ / EXIF）。IsTabStop=False でクリックしてもフォーカスを奪わず、
+                     キー操作（←/→ 等のグローバル集約）を妨げない -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="4" Padding="6,4,6,2">
+                    <ToggleButton x:Name="LoupeTabButton" x:Uid="Preview_LoupeTab"
+                                  FontSize="11" Padding="12,4" MinHeight="0" IsTabStop="False"
+                                  IsChecked="True" Click="LoupeTabButton_Click" />
+                    <ToggleButton x:Name="ExifTabButton" x:Uid="Preview_ExifTab"
+                                  FontSize="11" Padding="12,4" MinHeight="0" IsTabStop="False"
+                                  Click="ExifTabButton_Click" />
+                </StackPanel>
+
                 <!-- ズームプレビュー（100% ルーペ。独立スクロール） -->
                 <canvas:CanvasControl
                     x:Name="ZoomCanvas"
-                    Grid.Row="0"
+                    Grid.Row="1"
                     ClearColor="Transparent"
                     Draw="ZoomCanvas_Draw"
                     CreateResources="SubCanvas_CreateResources"
@@ -159,9 +171,12 @@
                     PointerReleased="ZoomCanvas_PointerReleased"
                     PointerWheelChanged="ZoomCanvas_PointerWheelChanged" />
 
+                <!-- EXIF 詳細（ルーペと同一セルで排他表示。内容の供給は PreviewControl.ExifPanel.cs） -->
+                <ctl:ExifDetailPanel x:Name="ExifPanel" Grid.Row="1" Visibility="Collapsed" />
+
                 <!-- ズームプレビューとナビゲーターのリサイズ用スプリッター -->
                 <controls:GridSplitter
-                    Grid.Row="1"
+                    Grid.Row="2"
                     Height="8"
                     HorizontalAlignment="Stretch"
                     ResizeBehavior="BasedOnAlignment"
@@ -170,7 +185,7 @@
                 <!-- ナビゲーター（全体縮小画像＋表示領域矩形＋AF枠） -->
                 <canvas:CanvasControl
                     x:Name="NavCanvas"
-                    Grid.Row="2"
+                    Grid.Row="3"
                     ClearColor="Transparent"
                     Draw="NavCanvas_Draw"
                     CreateResources="SubCanvas_CreateResources"

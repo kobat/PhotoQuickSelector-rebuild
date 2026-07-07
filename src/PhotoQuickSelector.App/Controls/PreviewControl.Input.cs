@@ -149,6 +149,13 @@ public sealed partial class PreviewControl
             return true;
         }
 
+        // E : 右パネル上段をルーペ ⇄ EXIF 詳細で切替（Ctrl/Alt 併用の外部連携 E は下の PhotoFileCommands 側）
+        if (KeyboardModifiers.None && key == VirtualKey.E)
+        {
+            ToggleExifPanel();
+            return true;
+        }
+
         // C : 先読みキャッシュ内容のデバッグオーバーレイ（右上）をトグル
         if (KeyboardModifiers.None && key == VirtualKey.C)
         {
