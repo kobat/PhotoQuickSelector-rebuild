@@ -30,9 +30,27 @@
         </Button>
         <!-- フィルタボタン（開閉ボタンとステータステキストの間）。件数表示はこのボタン内（FilteredCountText）に集約。 -->
         <ctl:FilterBar Grid.Column="1" x:Name="FilterControl" Margin="0,0,8,0" />
-        <TextBlock Grid.Column="2" VerticalAlignment="Center"
-                   Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                   TextTrimming="CharacterEllipsis" />
+        <!-- ステータス表示。パスモード時は末尾フォルダ名（tail）を Auto 列で常時保証し、親ディレクトリ部（head）側を末尾省略する
+             （CharacterEllipsis は末尾から削るため、単一 TextBlock だと一番重要な末尾フォルダ名から消える）。
+             内側 Grid の HorizontalAlignment=Left により、幅が足りる時は head と tail が隣接し、不足時のみ * 列の head が縮む。 -->
+        <Grid Grid.Column="2" VerticalAlignment="Center">
+            <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                       Visibility="{x:Bind ViewModel.StatusMessageVisibility, Mode=OneWay}"
+                       ToolTipService.ToolTip="{x:Bind ViewModel.StatusText, Mode=OneWay}" />
+            <Grid HorizontalAlignment="Left" VerticalAlignment="Center"
+                  Visibility="{x:Bind ViewModel.StatusPathVisibility, Mode=OneWay}"
+                  ToolTipService.ToolTip="{x:Bind ViewModel.StatusText, Mode=OneWay}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind ViewModel.StatusPathHead, Mode=OneWay}"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{x:Bind ViewModel.StatusPathTail, Mode=OneWay}"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Grid>
 
         <!-- メタ情報パネル（2段・右寄せ）。DataContext=選択写真、内部はクラシック Binding（null セーフ）。 -->
         <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="3" Margin="12,0"

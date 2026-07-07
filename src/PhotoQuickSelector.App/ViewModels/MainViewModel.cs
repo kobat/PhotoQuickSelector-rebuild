@@ -333,6 +333,55 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string StatusText { get; set; } = Loc.Get("Status_Initial");
 
+    /// <summary>
+    /// パス表示モード時の親ディレクトリ部（末尾セパレータなし）。<see cref="StatusPathTail"/> が
+    /// 空ならメッセージ表示モード（<see cref="StatusText"/> をそのまま表示）。
+    /// </summary>
+    [ObservableProperty]
+    public partial string StatusPathHead { get; set; } = "";
+
+    /// <summary>
+    /// パス表示モード時の「セパレータ＋末尾フォルダ名」（例 `\20260228`）。末尾省略の対象から外し、
+    /// 常に全体表示することで幅が狭くても一番重要な末尾フォルダ名が見切れないようにする。
+    /// </summary>
+    [ObservableProperty]
+    public partial string StatusPathTail { get; set; } = "";
+
+    public Visibility StatusPathVisibility => StatusPathTail.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility StatusMessageVisibility => StatusPathTail.Length > 0 ? Visibility.Collapsed : Visibility.Visible;
+
+    partial void OnStatusPathTailChanged(string value)
+    {
+        OnPropertyChanged(nameof(StatusPathVisibility));
+        OnPropertyChanged(nameof(StatusMessageVisibility));
+    }
+
+    // メッセージ系（読み込み中/エラー等）の代入はここでパスモードを解除する。
+    // SetStatusPath 内の StatusText 代入も本ハンドラを通るが、直後に head/tail を再設定するため問題ない。
+    partial void OnStatusTextChanged(string value)
+    {
+        StatusPathHead = "";
+        StatusPathTail = "";
+    }
+
+    /// <summary>
+    /// ステータスバーへフォルダパスを表示する。末尾フォルダ名（tail）を末尾省略の対象から外すため
+    /// head/tail に分割して保持する（<see cref="StatusPathHead"/>/<see cref="StatusPathTail"/>）。
+    /// </summary>
+    private void SetStatusPath(string folderPath)
+    {
+        StatusText = folderPath; // ツールチップ全文＋フォールバック表示用。この代入で head/tail は一旦クリアされる。
+
+        var trimmed = Path.TrimEndingDirectorySeparator(folderPath);
+        var name = Path.GetFileName(trimmed);
+        // ルート（例 `D:\`）や、セパレータを含まない裸の名前（範囲外スライスになる）は単一表示のまま
+        if (string.IsNullOrEmpty(name) || trimmed.Length <= name.Length) return;
+
+        StatusPathTail = Path.DirectorySeparatorChar + name;
+        StatusPathHead = trimmed[..^(name.Length + 1)]; // name とその直前のセパレータを除去（末尾セパレータなし）
+    }
+
     [ObservableProperty]
     public partial string? CurrentFolder { get; set; }
 
@@ -732,7 +781,7 @@ public partial class MainViewModel : ObservableObject
 
             ApplyFilter();
             // 枚数はフィルタボタンの件数表示（FilteredCountText）と重複するため、ここでは開いているフォルダのパスのみ表示する。
-            StatusText = folderPath;
+            SetStatusPath(folderPath);
 
             // 選択の復元: 指定ファイルが絞込結果に在れば選択する（消えた/絞り込みで外れた場合は下のフォールバック）。
             if (restoreSelectedFile != null)
