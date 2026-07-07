@@ -130,24 +130,21 @@ public sealed partial class PreviewControl : UserControl
         _filmMetrics = (FilmStripMetrics)Resources["FilmMetrics"];
         _cache = new PreviewBitmapCache();
         _cache.Changed += RefreshCacheOverlay;
-        // 【案2】デコード順が回ってきた時点で「まだ保持窓内か」を判定し、窓外なら読み込みを破棄する。
-        // 押しっぱなしで通過した写真の不要ロードを安価に捨て、同時実行ゲートと併せて膨張を抑える。
+        // デコード順が回ってきた時点で「まだ保持窓内か」を判定し、窓外なら読み込みを破棄する。
         _cache.IsWanted = IsPathInWindow;
         // ゲート grant 時の優先度＝WindowEntries の index（フォーカス→選択窓→位置窓）。
-        // 詳細は DecodePriorityOf の doc コメント参照。
         _cache.DecodePriority = DecodePriorityOf;
 
-        // Esc ではプレビューを抜けない（ユーザー要望）。プレビュー表示のまま維持する。
-        // プレビュー終了はダブルクリック（SPEC §2）で行う。以前あった Esc→ExitPreview の
-        // KeyboardAccelerator は撤去した。なお全画面中の Esc（通常表示へ復帰）は MainWindow 側で処理する。
+        // Esc ではプレビューを抜けない（ユーザー要望）。プレビュー終了はダブルクリック（SPEC §2）。
+        // 全画面中の Esc（通常表示へ復帰）は MainWindow 側で処理する。
     }
 
     // フィルムストリップも可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
     private void FilmStrip_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
         => _filmLoader.Handle(args);
 
-    // フィルムストリップのダブルクリックでサムネイル一覧（グリッド）へ戻る。マウスでのプレビュー終了導線
-    // （旧: メイン大画面のダブルクリック）の受け皿。戻り先はグリッドが FocusedPhoto を選択状態で表示する。
+    // フィルムストリップのダブルクリックでサムネイル一覧（グリッド）へ戻る（マウスでのプレビュー終了導線）。
+    // 戻り先はグリッドが FocusedPhoto を選択状態で表示する。
     private void FilmStrip_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
     {
         _viewModel?.ExitPreview();
@@ -362,8 +359,7 @@ public sealed partial class PreviewControl : UserControl
         }
 
         // 読み込み進行中（先読みで走行中）なら、走行中タスクへの相乗りになるだけで新規デコードは
-        // 発生しない。レート課金せず常に表示要求を出す（従来はここが課金されてレート予算を浪費し、
-        // 縦型など先読み完了が遅い並びで間引きに落ちやすかった）。
+        // 発生しない＝レート課金せず常に表示要求を出す。
         // 相乗り判定と GetAsync の間に inflight が完了/破棄されるレースは稀にあり、その場合は
         // 課金なしの新規デコードになるが、同時実行ゲート（2本）で有界なので許容する。
         if (photo != null && _cache.IsInflight(photo.Meta.Path))
@@ -373,9 +369,8 @@ public sealed partial class PreviewControl : UserControl
             return;
         }
 
-        // 未キャッシュ・未走行＝重いフル解像度デコード（≈200MB/枚）。直近 RateWindow 内のデコード回数で絞る:
-        //   ・回数が RateBudget 未満＝レートに余裕あり → 即デコード（数枚のジャンプ・通常連続切替はここを通る）
-        //   ・超過＝押しっぱなしの大量連発 → 間引き。停止後の settle で最終位置を確定＋先読み。
+        // 未キャッシュ・未走行＝重いフル解像度デコード。直近 RateWindow 内のデコード回数で絞る
+        // （規則の全体像は _recentDecodes 宣言部のコメント参照）。
         var now = DateTime.UtcNow;
         if (PrunedDecodeCount(now) < _rateBudget)
         {
@@ -489,11 +484,9 @@ public sealed partial class PreviewControl : UserControl
             return;
         }
 
-        // メインメモリの BGRA8 バイト列から GPU へ転送。同一寸法なら既存 _bitmap へ SetPixelBytes で
-        // 上書き転送して再利用する（VRAM の確保/解放 churn 回避・CPU コピーなし。連写フォルダでは
-        // ほぼ常に同寸）。寸法違い・初回は CreateFromBytes で作り直す。稀にデバイスロスト直後だと
-        // 転送/生成に失敗しうるが、その場合は CreateResources → ResetCacheAndReload 経由で
-        // 再ロードされるので null 表示で流してよい。
+        // メインメモリの BGRA8 バイト列から GPU へ転送（同寸再利用の詳細は TryUpdateBitmapInPlace）。
+        // 稀にデバイスロスト直後だと転送/生成に失敗しうるが、その場合は CreateResources →
+        // ResetCacheAndReload 経由で再ロードされるので null 表示で流してよい。
         CanvasBitmap? bmp = null;
         if (frame != null)
         {
@@ -634,8 +627,6 @@ public sealed partial class PreviewControl : UserControl
             foreach (var (path, slot) in window)
                 if (!windowSlots.ContainsKey(path)) windowSlots[path] = slot;
 
-            // 並び順＝フィルムストリップ（Photos の表示順）と同じ。読込中・待機中も状態で
-            // グループ化せず同列に並べる（キャッシュがフィルム上のどの範囲を覆っているかを読む用途）。
             // Photos に無いパス（フィルタ変更で絞込結果から外れた残留キャッシュ等）は末尾にファイル名順。
             var photoIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var photos = _viewModel?.Photos;
@@ -708,19 +699,15 @@ public sealed partial class PreviewControl : UserControl
     /// 現在の保持窓を、由来分類（<see cref="WindowSlot"/>）付きで返す（デバッグオーバーレイのラベル用）。
     /// <see cref="WindowPaths"/> はこの Path 射影＝列挙順・内容は完全一致する。
     /// <para>
-    /// 選択集合（<see cref="MainViewModel.SelectedPhotos"/>）が空のときは従来どおり位置窓のみ
-    /// （焦点自身の要素だけ <see cref="WindowSlot.Focus"/>、残りは <see cref="WindowSlot.Position"/>）。
-    /// ただし列挙順は index 昇順（後方→焦点→前方）ではなく、<b>焦点 → +1 → -1 → +2 → -2 → …</b>
-    /// という近接順・前方優先で返す。この列挙順（index）がそのままゲート grant 時の優先度
-    /// （<see cref="DecodePriorityOf"/>）になる。投入順（<see cref="Prefetch"/> がこの列挙順で
-    /// ゲートに並ぶ順）は優先度が同値のときのタイブレークにすぎず、実際のデコード順は
-    /// <see cref="DecodeGate.Release"/>（grant）のたびに現在の窓で再評価される。順送りで次に
-    /// 表示される可能性が高い側（直近の前後）を、より離れた側より優先させる狙い
-    /// （index 順だと後方 2 枚目が前方 1 枚目より先に優先度を得てしまうことがあった）。
-    /// 選択集合があるときは「位置窓（前後1）」と「メンバー窓（巡回順で前後）」の和集合を返す。
-    /// yield 順は「焦点 → メンバー窓 → 位置窓」＝この列挙順（index）がそのままゲート grant 時の
-    /// 優先度になり、巡回移動（素の ←/→）で次に表示される可能性が高いメンバーを位置的な隣接枚
-    /// より優先してデコードさせる狙い。重複除去は「先に足した分類が勝つ」（＝優先度が高くなる）。
+    /// この列挙順（index）がそのままゲート grant 時の優先度（<see cref="DecodePriorityOf"/>）になる。
+    /// 投入順（<see cref="Prefetch"/> がこの列挙順でゲートに並ぶ順）は優先度が同値のときの
+    /// タイブレークにすぎず、実際のデコード順は grant のたびに現在の窓で再評価される。
+    /// 選択集合（<see cref="MainViewModel.SelectedPhotos"/>）が空のときは位置窓のみを
+    /// <b>焦点 → +1 → -1 → +2 → -2 → …</b> の近接順・前方優先で返す＝順送りで次に表示される
+    /// 可能性が高い側（直近の前後）を、より離れた側より優先させる。
+    /// 選択集合があるときは「焦点 → メンバー窓（巡回順で前後）→ 位置窓（前後1）」の順＝巡回移動
+    /// （素の ←/→）で次に表示される可能性が高いメンバーを位置的な隣接枚より優先させる。
+    /// 重複除去は「先に足した分類が勝つ」（＝優先度が高くなる）。
     /// </para>
     /// </summary>
     private List<(string Path, WindowSlot Slot)> WindowEntries()
@@ -730,9 +717,8 @@ public sealed partial class PreviewControl : UserControl
 
         if (vm.SelectedPhotos.Count == 0)
         {
-            // 選択集合なし: 焦点の位置窓のみ（内容は従来どおり）だが、列挙順を index 順から
-            // 近接順・前方優先（焦点→+1→-1→+2→-2→…）へ変更。Photos の範囲内・各方向の上限
-            // （_prefetchForward/_prefetchBackward）内のみを対象にする。
+            // 選択集合なし: 焦点の位置窓のみ。列挙順は近接順・前方優先（焦点→+1→-1→+2→-2→…）。
+            // Photos の範囲内・各方向の上限（_prefetchForward/_prefetchBackward）内のみを対象にする。
             int index = vm.Photos.IndexOf(vm.FocusedPhoto);
             if (index < 0) return new List<(string, WindowSlot)>();
 
@@ -805,7 +791,7 @@ public sealed partial class PreviewControl : UserControl
         return result;
     }
 
-    /// <summary>【案2】指定パスが現在の保持窓内かどうか。キャッシュのデコード可否判定に使う。</summary>
+    /// <summary>指定パスが現在の保持窓内かどうか。キャッシュのデコード可否判定に使う。</summary>
     private bool IsPathInWindow(string path)
     {
         foreach (var p in WindowPaths())

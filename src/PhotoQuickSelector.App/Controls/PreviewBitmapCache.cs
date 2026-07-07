@@ -80,41 +80,22 @@ internal sealed class PixelFrame
 /// <para>
 /// デコード結果は <see cref="PixelFrame"/>（BGRA8 の <c>byte[]</c>・メインメモリ常駐）で保持し、
 /// GPU（VRAM）を消費しない。表示時は <see cref="Microsoft.Graphics.Canvas.CanvasBitmap.SetPixelBytes(byte[])"/>
-/// （同寸再利用）／<c>CreateFromBytes</c>（作り直し）による GPU への転送のみ。キャッシュのバイト列を
-/// 直接転送 API へ渡すため、切替時の CPU コピーは 0 回。デバイス非依存＝Win2D のデバイス再生成
-/// （デバイスロスト/DPI 変更）が起きてもこのキャッシュ自体は生き残る。
+/// （同寸再利用）／<c>CreateFromBytes</c>（作り直し）による GPU への転送のみ＝切替時の CPU コピーは 0 回。
+/// デバイス非依存なので Win2D のデバイス再生成（デバイスロスト/DPI 変更）でもキャッシュは生き残る。
 /// </para>
 /// <para>
-/// デコードは重いので、表示中とその近傍だけをメモリに保持する。
 /// 同一パスの同時要求は 1 つのタスクに集約する（<see cref="GetAsync"/>）。
 /// 全破棄（<see cref="Clear"/>）では世代を進め、進行中の読み込みは完了時に世代不一致で自分を破棄する。
 /// </para>
 /// <para>
-/// 【案2: 同時実行ゲート＋窓外バイパス】左右キー押しっぱなしで通過した写真の読み込み（inflight）が
-/// 解放されず増え続ける問題への対策として、重い「バイト読み込み＋デコード」を
-/// <see cref="DecodeGate"/> で同時 <see cref="MaxConcurrentDecodes"/> 本に制限する。
-/// ゲート取得時点で <see cref="IsWanted"/>（現在の保持窓内か）を判定し、外れていれば
-/// バイトを確保せず即破棄する。押しっぱなしで通過した写真はゲートの順番が回る頃には
-/// 窓外になっているので、メモリを使わず安価に捨てられる（実デコードは着地写真＋近傍のみ）。
+/// 重い「バイト読み込み＋デコード」は <see cref="DecodeGate"/> で同時 <see cref="MaxConcurrentDecodes"/>
+/// 本に制限する。スロット解放（grant）のたびに待機列全員を <see cref="DecodePriority"/> で再評価し
+/// 最優先のキーへ譲渡する（フォーカス＝index 0 が常に最優先。投入順 FIFO は同値のタイブレーク）。
+/// ゲート取得時点で <see cref="IsWanted"/>（現在の保持窓内か）を判定し、外れていればバイトを確保せず
+/// 即破棄する＝押しっぱなしで通過した写真はメモリを使わず安価に捨てられる。
 /// </para>
 /// <para>
-/// 【grant 時の窓分類優先度選択】<see cref="DecodeGate"/> はスロット解放（grant）のたびに
-/// <see cref="DecodePriority"/>（＝<c>PreviewControl.WindowEntries()</c> の index）で待機列全員を
-/// 再評価し、最優先のキーへスロットを譲渡する。表示要求（フォーカス）は index 0 なので常に
-/// 最優先になり、旧 Promote が担っていた役割（表示要求を先読み専用の inflight より優先させる）を
-/// 包含する。投入順（FIFO）は優先度が同値のときのタイブレークとしてのみ残る。読込中（既にゲート
-/// 取得済み）のキーは待機列に居ないため対象外＝進行中デコードの完了待ちはそのまま残る。
-/// </para>
-/// <para>
-/// 【LRU＋バイト予算】<see cref="Trim"/> は呼び出し側が渡す現在窓（<c>keep</c>）を無条件保護しつつ、
-/// それ以外は合計バイト数が <see cref="MaxCacheBytes"/> を超えている間だけ <see cref="CacheEntry.LastUse"/>
-/// の古い順で破棄する。予算内なら窓外でも残すため、2枚を左右キーで往復するような「一度外れてまた戻る」
-/// ケースの再デコードを避けられる。キャッシュヒットは <see cref="Prefetch"/> 経由でも
-/// <see cref="GetAsync"/> が LastUse を更新するため、窓近傍は常に新しく保たれる。かつては表示実績
-/// （<c>WasDisplayed</c>）を優先する 2 段階 LRU だったが、窓外バイパス（<see cref="IsWanted"/>）と
-/// grant 時の窓分類優先度選択（<see cref="DecodePriority"/>）により投機的デコードが上流で既に
-/// 排除されている現在は、直近の先読み（未表示）が古い表示済みより先に捨てられる逆効果しか
-/// もたらさなくなったため撤去した。
+/// 破棄は <see cref="Trim"/>（現在窓を保護した LastUse 単独 LRU＋バイト予算 <see cref="MaxCacheBytes"/>）。
 /// </para>
 /// UI 非依存（WinRT の imaging API のみに依存し Win2D デバイスを必要としない）なので単体テスト可能。
 /// </summary>
@@ -159,7 +140,7 @@ internal sealed class PreviewBitmapCache
     public event Action? Changed;
 
     /// <summary>
-    /// 【案2】そのパスが今も読み込む価値があるか（保持窓内か）を返す述語。
+    /// そのパスが今も読み込む価値があるか（保持窓内か）を返す述語。
     /// デコードの順番（ゲート取得）が回ってきた時点で評価し、false なら破棄する。
     /// <see cref="PreviewControl"/> が現在の保持窓で設定する。null なら常に読み込む。
     /// </summary>
@@ -223,12 +204,7 @@ internal sealed class PreviewBitmapCache
 
     /// <summary>
     /// キャッシュ優先で <see cref="PixelFrame"/> を取得する。読み込み中なら同一タスクを共有（inflight 相乗り）。
-    /// <para>
-    /// 新規に待機列へ並ぶ場合・既存の inflight（待機中/読込中）へ相乗りする場合のいずれも、
-    /// ゲートへの割り込みは行わない。順番は <see cref="DecodeGate"/> が grant のたびに
-    /// <see cref="DecodePriority"/> で再評価するため、フォーカス（表示要求）は自然と最優先で
-    /// 選ばれる（index 0）。
-    /// </para>
+    /// ゲートへの割り込みは行わない（順番は grant のたびに <see cref="DecodePriority"/> で再評価される）。
     /// </summary>
     public Task<PixelFrame?> GetAsync(string path)
     {
@@ -253,13 +229,10 @@ internal sealed class PreviewBitmapCache
         try
         {
             // 同時実行ゲート。順番が来るまで待つ（待機中はバイトを確保しないので軽量）。
-            // 順番は grant のたびに DecodePriority で再評価される（フォーカスが最優先）ため、
-            // 待機中に表示目的の取得が後から相乗りしても、次の grant で自然に優先される。
             await _gate.WaitAsync(path);
             try
             {
                 // ゲート取得までに保持窓を外れた / 全破棄（Clear）されたら、読み込まず破棄する。
-                // 押しっぱなしで通過した写真はここで安価に捨てられる（メモリを使わない）。
                 if (generation != _generation) { return null; }
                 if (IsWanted != null && !IsWanted(path)) { return null; }
 
@@ -280,15 +253,11 @@ internal sealed class PreviewBitmapCache
                 await stream.WriteAsync(bytes.AsBuffer());
                 stream.Seek(0);
 
-                // GetPixelDataAsync + DetachPixelData は「幅×高さ×4」ちょうどの密詰め配列を返す
-                // （stride パディングなし）。SetPixelBytes / CreateFromBytes へそのまま渡せる。
                 var decoder = await BitmapDecoder.CreateAsync(stream);
 
                 // EXIF ColorSpace（0xA001）が 1（sRGB）の画像は色管理をスキップする。sRGB→sRGB でも WIC の
-                // 色管理はデコード全体の約7割（実測 +550〜640ms/枚・50MP）を占める。厳密には恒等変換ではなく
-                // 最大 ±3/255 程度の丸め差が出る（実測: 差分バイト 0.5〜1.4%）が、視覚的に知覚不能であり、
-                // SoftwareBitmap 化以前の CanvasBitmap.LoadAsync（色管理なし）時代と同じ表示に戻るだけなので許容。
-                // Adobe RGB（値 2 / 0xFFFF=Uncalibrated）やタグ無し・照会失敗は従来どおり ColorManageToSRgb（安全側）。
+                // 色管理はデコード全体の約7割を占める。丸め差（最大 ±3/255 程度）は視覚的に知覚不能で許容。
+                // Adobe RGB（値 2 / 0xFFFF=Uncalibrated）やタグ無し・照会失敗は ColorManageToSRgb（安全側）。
                 var colorMode = ColorManagementMode.ColorManageToSRgb;
                 try
                 {
@@ -313,7 +282,6 @@ internal sealed class PreviewBitmapCache
                     (int)decoder.OrientedPixelWidth,
                     (int)decoder.OrientedPixelHeight);
                 if (generation != _generation) { return null; } // byte[] は GC 管理なので Dispose 不要
-                // 挿入時に LastUse を採番する。
                 _cache[path] = new CacheEntry(frame, ++_useCounter);
                 return frame;
             }
@@ -343,13 +311,11 @@ internal sealed class PreviewBitmapCache
 
     /// <summary>
     /// <paramref name="keep"/>（呼び出し側が渡す現在の保持窓）は無条件で保護する。それ以外は、
-    /// キャッシュ合計バイト数が <see cref="MaxCacheBytes"/> を超えている間だけ、
-    /// LastUse の古い順（最後に使われてから最も時間が経ったもの）で破棄する。予算内なら
-    /// 窓外でも残す＝2枚往復のような「一度外れてまた戻る」ケースの再デコードを避けられる。
+    /// キャッシュ合計バイト数が <see cref="MaxCacheBytes"/> を超えている間だけ LastUse の古い順で破棄する。
+    /// 予算内なら窓外でも残す＝2枚往復のような「一度外れてまた戻る」ケースの再デコードを避けられる。
     /// 表示中の 1 枚は呼び出し側（<see cref="PreviewControl"/>）が独立した
     /// <see cref="Microsoft.Graphics.Canvas.CanvasBitmap"/> として GPU へ転送・所有するため、
     /// このキャッシュ（<see cref="PixelFrame"/>）側では別途の保護不要。
-    /// <c>byte[]</c> は GC 管理のため Dispose 不要で Remove するだけでよい。
     /// </summary>
     public void Trim(IEnumerable<string> keep)
     {
@@ -360,10 +326,9 @@ internal sealed class PreviewBitmapCache
         bool removed = false;
         if (total > MaxCacheBytes)
         {
-            // 予算超過分だけ、保護対象外を古い順（LastUse 昇順）で破棄する。
             var candidates = _cache
                 .Where(kv => !keepSet.Contains(kv.Key))
-                .OrderBy(kv => kv.Value.LastUse)          // 古い順
+                .OrderBy(kv => kv.Value.LastUse)
                 .ToList();
 
             foreach (var kv in candidates)
@@ -379,9 +344,8 @@ internal sealed class PreviewBitmapCache
 
     /// <summary>
     /// 全破棄し世代を進める。進行中の読み込みは完了時に世代不一致で自分を破棄する。
-    /// キャッシュはデバイス非依存（PixelFrame＝byte[]）になったため、Win2D のデバイス再生成では
-    /// 呼ぶ必要がない（呼び出し元が無くなったが、全無効化用 API として維持）。byte[] は GC 管理のため
-    /// Dispose 不要。
+    /// キャッシュはデバイス非依存（PixelFrame＝byte[]）のため Win2D のデバイス再生成では呼ぶ必要がない
+    /// （現在呼び出し元は無いが、全無効化用 API として維持）。
     /// </summary>
     public void Clear()
     {
