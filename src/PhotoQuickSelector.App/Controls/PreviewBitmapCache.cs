@@ -107,6 +107,20 @@ internal sealed class PreviewBitmapCache
     /// <summary>キャッシュの合計バイト予算（既定 2GB。<see cref="Trim"/> が参照。実行中に変更可）。</summary>
     public long MaxCacheBytes { get; set; } = 2L << 30;
 
+    /// <summary>
+    /// デコード後ピクセル（BGRA8＝幅×高さ×4 バイト）の 1 枚あたり上限。解凍爆弾対策：JPEG はヘッダ上
+    /// 65535×65535（BGRA 約 17GB）まで宣言できるため、確保前にヘッダ宣言寸法で弾く。
+    /// 1GB ≈ 268MP は実在カメラの最大級（Phase One 150MP ≈ 605MB）に余裕で収まり、
+    /// .NET の <c>byte[]</c> 上限（約 2.1GB。超えると <c>DetachPixelData</c> がどのみち失敗）より十分下。
+    /// </summary>
+    private const long MaxPixelBytesPerImage = 1L << 30;
+
+    /// <summary>
+    /// 読み込む実ファイルサイズの上限（512MB）。<see cref="File.ReadAllBytesAsync(string, System.Threading.CancellationToken)"/>
+    /// が全量をメモリへ読むため、非画像の巨大ファイルを誤って掴んだときの防御。
+    /// </summary>
+    private const long MaxFileBytes = 512L << 20;
+
     /// <summary>キャッシュ 1 件分の付随情報（LRU の判定材料）。</summary>
     private sealed class CacheEntry
     {
@@ -248,12 +262,20 @@ internal sealed class PreviewBitmapCache
                 // EXIF Orientation は WIC が適用するため、ストリーム経由でも自動回転は維持される
                 // （RespectExifOrientation で正立済みピクセルを得る＝従来の CanvasBitmap.LoadAsync の
                 // 自動回転と同じ結果）。
+                // 実ファイルが異常に大きい場合は全量読み込みを行わない（null＝表示なしで既存フローに乗る）。
+                if (new FileInfo(path).Length > MaxFileBytes) { return null; }
+
                 var bytes = await File.ReadAllBytesAsync(path);
                 using var stream = new InMemoryRandomAccessStream();
                 await stream.WriteAsync(bytes.AsBuffer());
                 stream.Seek(0);
 
                 var decoder = await BitmapDecoder.CreateAsync(stream);
+
+                // ヘッダ宣言寸法から必要バイト数を見積もり、上限超過は GetPixelDataAsync の全面確保前に
+                // 弾く（解凍爆弾対策）。uint 同士の乗算はオーバーフローするため long で計算する。
+                long pixelBytes = (long)decoder.OrientedPixelWidth * decoder.OrientedPixelHeight * 4;
+                if (pixelBytes > MaxPixelBytesPerImage) { return null; }
 
                 // EXIF ColorSpace（0xA001）が 1（sRGB）の画像は色管理をスキップする。sRGB→sRGB でも WIC の
                 // 色管理はデコード全体の約7割を占める。丸め差（最大 ±3/255 程度）は視覚的に知覚不能で許容。
