@@ -30,9 +30,21 @@
         </Button>
         <!-- フィルタボタン（開閉ボタンとステータステキストの間）。件数表示はこのボタン内（FilteredCountText）に集約。 -->
         <ctl:FilterBar Grid.Column="1" x:Name="FilterControl" Margin="0,0,8,0" />
-        <TextBlock Grid.Column="2" VerticalAlignment="Center"
-                   Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                   TextTrimming="CharacterEllipsis" />
+        <!-- ステータス（フォルダパス等）。前半は末尾トリミングで縮み、末尾セグメント（今開いているフォルダ名）は
+             非トリミングで常時表示する（小画面・長パスでも「今どこか」が消えない）。全体はツールチップで確認可。
+             ToolTip は空だと枠だけ出るため、パス表示がある時だけ StatusText を出す（ZoomText と同様の運用）。 -->
+        <Grid Grid.Column="2" ToolTipService.ToolTip="{x:Bind ViewModel.StatusText, Mode=OneWay}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                       Text="{x:Bind ViewModel.StatusPathPrefix, Mode=OneWay}"
+                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+            <TextBlock Grid.Column="1" VerticalAlignment="Center"
+                       Text="{x:Bind ViewModel.StatusPathLeaf, Mode=OneWay}"
+                       FontWeight="SemiBold" TextWrapping="NoWrap" />
+        </Grid>
 
         <!-- メタ情報パネル（2段・右寄せ）。DataContext=選択写真、内部はクラシック Binding（null セーフ）。 -->
         <StackPanel Grid.Column="3" VerticalAlignment="Center" Spacing="3" Margin="12,0"

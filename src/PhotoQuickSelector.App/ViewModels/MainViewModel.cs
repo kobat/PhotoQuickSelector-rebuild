@@ -333,6 +333,36 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string StatusText { get; set; } = Loc.Get("Status_Initial");
 
+    // StatusText を「前半（省略可）＋末尾セグメント（省略不可）」へ分割してステータスバーへ渡す。
+    // 目的: 長パス・小画面でも今開いているフォルダ名（末尾）だけは必ず見えるようにする（末尾トリミングだと真っ先に消える）。
+    // ルール: 最後の '\' で分割し、前半＝区切りまで（末尾トリミング側）、末尾＝最終セグメント（非トリミング側）。
+    //         区切りが無いメッセージ（エラー等）は全体を前半へ入れて従来どおり末尾トリミングさせる。
+    partial void OnStatusTextChanged(string value)
+    {
+        OnPropertyChanged(nameof(StatusPathPrefix));
+        OnPropertyChanged(nameof(StatusPathLeaf));
+    }
+
+    /// <summary>ステータス文字列の前半（末尾フォルダ名を除いた部分）。長いときはこちら側が末尾トリミングで縮む。</summary>
+    public string StatusPathPrefix
+    {
+        get
+        {
+            int sep = StatusText.LastIndexOf('\\');
+            return sep >= 0 ? StatusText[..(sep + 1)] : StatusText;
+        }
+    }
+
+    /// <summary>ステータス文字列の末尾セグメント（今開いているフォルダ名）。常時表示（非トリミング）する。</summary>
+    public string StatusPathLeaf
+    {
+        get
+        {
+            int sep = StatusText.LastIndexOf('\\');
+            return sep >= 0 ? StatusText[(sep + 1)..] : string.Empty;
+        }
+    }
+
     [ObservableProperty]
     public partial string? CurrentFolder { get; set; }
 
