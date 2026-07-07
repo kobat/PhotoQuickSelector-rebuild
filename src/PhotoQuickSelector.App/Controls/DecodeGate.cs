@@ -7,7 +7,7 @@ namespace PhotoQuickSelector_App.Controls;
 /// <summary>
 /// <see cref="System.Threading.SemaphoreSlim"/> の代替となる、キー付き・優先度コールバック対応の非同期ゲート。
 /// <para>
-/// 【背景】<see cref="PreviewBitmapCache"/> は重いデコードの同時実行数を本ゲートで制限している。
+/// <see cref="PreviewBitmapCache"/> は重いデコードの同時実行数を本ゲートで制限している。
 /// スロットの空き（<see cref="Release"/> による grant）が出るたびに <see cref="GetPriority"/>
 /// コールバックで待機列全員の「その時点の」優先度を再評価し、最も必要とされているキー（フォーカス→
 /// 選択窓→位置窓という窓分類順）へスロットを譲渡する。投入順（FIFO）は同値のときのタイブレーク
@@ -35,7 +35,7 @@ internal sealed class DecodeGate
     /// <summary>
     /// grant（<see cref="Release"/>）のたびに待機列内の各キーへ呼ばれる優先度コールバック。
     /// 戻り値が小さいほど優先。窓外相当のキーには <see cref="int.MaxValue"/> を返す想定。
-    /// null なら従来どおり純 FIFO で先頭へ譲渡する。<see cref="PreviewBitmapCache"/> が
+    /// null なら純 FIFO で先頭へ譲渡する。<see cref="PreviewBitmapCache"/> が
     /// <c>PreviewControl.WindowEntries()</c> の index を返すコールバックを設定する。
     /// </summary>
     public Func<string, int>? GetPriority { get; set; }
@@ -71,7 +71,7 @@ internal sealed class DecodeGate
 
     /// <summary>
     /// スロットを 1 つ返却する。待機列があれば、<see cref="GetPriority"/> が設定されていれば
-    /// 待機列を線形走査してその時点の優先度が厳密に最小のエントリへ、未設定なら従来どおり先頭
+    /// 待機列を線形走査してその時点の優先度が厳密に最小のエントリへ、未設定なら先頭
     /// （FIFO）のエントリへスロットをそのまま譲渡する（<see cref="_inUse"/> は変えない）。
     /// 同値の場合は先に並んだ方（走査で最初に見つかった方）が勝つ＝FIFO がタイブレークになる。
     /// 待機列が空なら空き本数を増やす。
