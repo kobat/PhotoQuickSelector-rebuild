@@ -392,6 +392,11 @@
     <value>A rating data file (PhotoQuickSelector.sqlite3) will be created in this folder. Continue?</value>
   </data>
 
+  <!-- EXIF detail panel (PreviewControl) -->
+  <data name="ExifPanel_Loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+
   <!-- Status bar messages (MainViewModel / MainPage) -->
   <data name="Status_Initial" xml:space="preserve">
     <value>Select a folder in the tree on the left and open it with the Load button.</value>

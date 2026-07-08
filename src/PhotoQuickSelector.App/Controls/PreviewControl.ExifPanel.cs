@@ -1,13 +1,17 @@
-using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
-using PhotoQuickSelector.Core;
 
 namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
 /// 右パネル上段の EXIF 詳細パネル（ルーペと同一セルで排他表示。E キー／ヘッダのタブで切替）。
-/// 全タグの読取り（ファイル I/O＋パース）はバックグラウンドで行い、焦点写真の変更に追従する。
 /// 表示状態は <see cref="AppSettings.PreviewExifPanel"/> に永続化（実保存は終了時の一括 Save）。
+///
+/// 描画コスト対策の要点（画像切替のスピードを損なわないため）:
+///   ・全タグ解析（ファイル I/O＋パース）は <see cref="PhotoItemViewModel.EnsureExifGroupsAsync"/> で
+///     バックグラウンド実行＋VM 常駐キャッシュ（往復での再解析ゼロ）。
+///   ・焦点変更（←/→ 連打経路）では重い <c>ShowTags</c>（グループ化 ListView の再構築）を行わず、
+///     プレースホルダ「読込中…」だけ即表示する。実描画は停止後に settle タイマ経由で 1 回だけ行う
+///     （キャッシュ済み・未解析にかかわらず「1 停止 1 回」に統一）。誤った（前の写真の）情報は出さない。
 /// </summary>
 public sealed partial class PreviewControl
 {
@@ -36,7 +40,8 @@ public sealed partial class PreviewControl
 
         if (showExif)
         {
-            RefreshExifPanel();
+            // 表示へ切り替えた瞬間は連打経路ではないので即描画（キャッシュ済みは即・未解析は解析）。
+            RenderExifForFocus();
         }
         else
         {
@@ -47,10 +52,31 @@ public sealed partial class PreviewControl
     }
 
     /// <summary>
-    /// 焦点写真の全タグを読み直してパネルへ反映する。非表示中・プレビュー外では何もしない
-    /// （表示に切り替えた瞬間に読み直すので取りこぼさない）。
+    /// 焦点変更（連打経路）での軽量更新。重い <c>ShowTags</c> は行わず、プレースホルダだけ即表示する
+    /// （<c>ShowMessage</c> は可視性トグル＝ListView の再構築を伴わない）。実描画は停止後の
+    /// <see cref="RenderExifForFocus"/>（settle タイマ）が 1 回だけ行う。非表示中・プレビュー外では何もしない。
     /// </summary>
-    private async void RefreshExifPanel()
+    private void OnFocusChangedForExif()
+    {
+        if (!_showExifPanel || _viewModel?.IsPreviewMode != true) return;
+
+        _exifLoadToken++; // 進行中の解析結果（前の焦点ぶん）を無効化する
+        if (_viewModel.FocusedPhoto == null)
+        {
+            ExifPanel.ShowTags(null);
+            return;
+        }
+
+        // 前の写真の内容を残さない＝誤情報を出さない。中身は settle 後に確定描画する。
+        ExifPanel.ShowMessage(Loc.Get("ExifPanel_Loading"));
+    }
+
+    /// <summary>
+    /// 焦点写真の EXIF をパネルへ実際に描画する（停止後の settle 確定・E キー/タブ切替・プレビュー入場から呼ぶ）。
+    /// キャッシュ済みなら即 <c>ShowTags</c>、未解析はバックグラウンド解析を待って反映する。
+    /// 追い越し（描画確定前に焦点がさらに動いた）／ルーペへ切替済みはトークンで破棄する。
+    /// </summary>
+    private async void RenderExifForFocus()
     {
         if (!_showExifPanel || _viewModel?.IsPreviewMode != true) return;
 
@@ -62,10 +88,16 @@ public sealed partial class PreviewControl
             return;
         }
 
-        // 読取りは 1 ファイル数ms〜十数ms だが UI スレッドから外す。先読みキャッシュとは独立
-        // （ピクセルではなくメタデータのみで軽量なため、都度読みで足りる）。
-        string path = photo.Meta.Path;
-        var groups = await Task.Run(() => ExifTagReader.ReadAllTags(path));
+        // 常駐キャッシュ済み（＝一度見た画像）は再解析ゼロで即表示。
+        if (photo.CachedExifGroups is { } cached)
+        {
+            ExifPanel.ShowTags(cached);
+            return;
+        }
+
+        // 未解析はバックグラウンドで解析（UI スレッドを塞がない）。待つ間は読込中を出しておく。
+        ExifPanel.ShowMessage(Loc.Get("ExifPanel_Loading"));
+        var groups = await photo.EnsureExifGroupsAsync();
         if (token != _exifLoadToken || !_showExifPanel) return; // 追い越し/ルーペへ切替済みは捨てる
         ExifPanel.ShowTags(groups);
     }
