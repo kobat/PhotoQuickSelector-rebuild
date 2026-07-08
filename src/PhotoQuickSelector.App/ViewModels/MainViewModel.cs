@@ -64,6 +64,7 @@ public partial class MainViewModel : ObservableObject
         RebuildShortcuts();
         Filter.Changed += (_, _) => ApplyFilter();
         ShowInfoOverlay = Settings.ShowInfoOverlay;
+        ShowExifPanel = Settings.ShowExifPanel;
         GridKind = Settings.GridKind;
         GridReference = Settings.GridReference;
     }
@@ -478,6 +479,19 @@ public partial class MainViewModel : ObservableObject
     {
         Settings.ShowInfoOverlay = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
         OnPropertyChanged(nameof(InfoOverlayVisibility));
+    }
+
+    /// <summary>プレビュー右上の EXIF 詳細パネル（E キー。ズームルーペと排他）。全生タグを列挙する。</summary>
+    [ObservableProperty]
+    public partial bool ShowExifPanel { get; set; }
+
+    public Visibility ExifPanelVisibility =>
+        ShowExifPanel ? Visibility.Visible : Visibility.Collapsed;
+
+    partial void OnShowExifPanelChanged(bool value)
+    {
+        Settings.ShowExifPanel = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
+        OnPropertyChanged(nameof(ExifPanelVisibility));
     }
 
     public Visibility ThumbnailVisibility => IsPreviewMode ? Visibility.Collapsed : Visibility.Visible;

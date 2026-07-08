@@ -82,6 +82,7 @@ public sealed partial class PhotoStatusBar : UserControl
         FullScreenToggleItem.IsChecked = IsFullScreenProvider?.Invoke() ?? false;
         ImmersiveToggleItem.IsChecked = IsImmersiveProvider?.Invoke() ?? false;
         InfoToggleItem.IsChecked = _viewModel.ShowInfoOverlay;
+        ExifToggleItem.IsChecked = _viewModel.ShowExifPanel;
 
         // プレビュー専用群はプレビュー時のみ、ファイル連携は写真選択時のみ有効。
         PreviewSubItem.IsEnabled = _viewModel.IsPreviewMode;
@@ -105,6 +106,11 @@ public sealed partial class PhotoStatusBar : UserControl
     private void MenuInfo_Click(object sender, RoutedEventArgs e)
     {
         if (_viewModel is not null) _viewModel.ShowInfoOverlay = InfoToggleItem.IsChecked;
+    }
+
+    private void MenuExif_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.ShowExifPanel = ExifToggleItem.IsChecked;
     }
 
     private void MenuGridKind_Click(object sender, RoutedEventArgs e)

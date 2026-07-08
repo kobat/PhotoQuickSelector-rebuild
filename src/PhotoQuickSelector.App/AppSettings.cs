@@ -38,6 +38,9 @@ public sealed class AppSettings
     /// <summary>プレビューのメタ情報オーバーレイ（案B / I キー）を表示するか。</summary>
     public bool ShowInfoOverlay { get; set; } = true;
 
+    /// <summary>プレビュー右上に EXIF 詳細パネル（E キー・全生タグ）を表示するか。既定はルーペ優先で false。</summary>
+    public bool ShowExifPanel { get; set; }
+
     /// <summary>プレビューの構図グリッドの種類（G キーで巡回）。</summary>
     public GridOverlayKind GridKind { get; set; } = GridOverlayKind.None;
 

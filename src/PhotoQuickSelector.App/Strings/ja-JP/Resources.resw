@@ -134,6 +134,9 @@
   <data name="Menu_InfoToggle.Text" xml:space="preserve">
     <value>メタ情報オーバーレイ</value>
   </data>
+  <data name="Menu_ExifToggle.Text" xml:space="preserve">
+    <value>EXIF 詳細パネル</value>
+  </data>
   <data name="Menu_GridKind.Text" xml:space="preserve">
     <value>構図グリッド: 種類を変更</value>
   </data>
@@ -358,6 +361,9 @@
   <!-- ============ PreviewControl（プレビュー） ============ -->
   <data name="Preview_CacheOverlayHeader.Text" xml:space="preserve">
     <value>先読みキャッシュ</value>
+  </data>
+  <data name="Preview_ExifPanelHeader.Text" xml:space="preserve">
+    <value>EXIF 詳細（全タグ）</value>
   </data>
 
   <!-- ============ コード側（Loc.Get。ドット無しの素のキー） ============ -->

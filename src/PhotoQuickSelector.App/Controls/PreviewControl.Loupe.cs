@@ -40,6 +40,8 @@ public sealed partial class PreviewControl
 
     private void ZoomCanvas_Draw(CanvasControl sender, CanvasDrawEventArgs args)
     {
+        // EXIF パネル表示中はルーペが不透明パネルで覆われる。無駄な再描画を省く。
+        if (_viewModel?.ShowExifPanel == true) return;
         if (_bitmap == null) return;  // 空/読み込み中は ClearColor（テーマ背景）を見せる
         var ds = args.DrawingSession;
         ds.Clear(PhotoBackdropColor); // 写真表示中は暗い余白にする

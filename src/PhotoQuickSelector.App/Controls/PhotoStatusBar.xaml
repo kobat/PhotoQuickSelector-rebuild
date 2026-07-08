@@ -183,6 +183,10 @@
                                               Text="メタ情報オーバーレイ"
                                               KeyboardAcceleratorTextOverride="I"
                                               Click="MenuInfo_Click" />
+                        <ToggleMenuFlyoutItem x:Name="ExifToggleItem" x:Uid="Menu_ExifToggle"
+                                              Text="EXIF 詳細パネル"
+                                              KeyboardAcceleratorTextOverride="E"
+                                              Click="MenuExif_Click" />
                         <MenuFlyoutItem x:Uid="Menu_GridKind" Text="構図グリッド: 種類を変更"
                                         KeyboardAcceleratorTextOverride="G"
                                         Click="MenuGridKind_Click" />

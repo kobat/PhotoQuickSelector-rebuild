@@ -6,6 +6,15 @@ public readonly record struct PointI(int X, int Y);
 /// <summary>整数サイズ。AF フォーカス枠に使用。</summary>
 public readonly record struct SizeI(int Width, int Height);
 
+/// <summary>生 EXIF ダンプの 1 タグ（表示名＋説明文字列）。<see cref="MetadataReader.ReadRawDump"/> が生成。</summary>
+public sealed record ExifTag(string Name, string Value);
+
+/// <summary>
+/// 生 EXIF ダンプの 1 ディレクトリ（Exif SubIFD／GPS／Sony Makernote 等）とその全タグ。
+/// EXIF 詳細パネルの見出し＋行の元データ。
+/// </summary>
+public sealed record ExifDirectoryDump(string Name, IReadOnlyList<ExifTag> Tags);
+
 /// <summary>
 /// 1 枚の画像から抽出した不変メタデータ。<see cref="MetadataReader"/> が生成する。
 /// 評価（rating 等）は含まない（それは <see cref="PhotoEvaluation"/>）。

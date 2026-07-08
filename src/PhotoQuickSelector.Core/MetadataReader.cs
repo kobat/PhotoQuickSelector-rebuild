@@ -93,6 +93,34 @@ public static class MetadataReader
         };
     }
 
+    /// <summary>
+    /// 画像の全 EXIF/メタデータを「ディレクトリ→タグ」の生ダンプとして読む（EXIF 詳細パネル用）。
+    /// <see cref="Read"/> の厳選項目と違い、MetadataExtractor が認識した全ディレクトリ・全タグを
+    /// そのまま列挙する。ファイル I/O＋解析を伴う（数 ms）ため、呼び出しは非同期／キャッシュ前提。
+    /// 失敗時は空リストを返す（例外は投げない）。
+    /// </summary>
+    public static IReadOnlyList<ExifDirectoryDump> ReadRawDump(string path)
+    {
+        try
+        {
+            var directories = ImageMetadataReader.ReadMetadata(path);
+            var result = new List<ExifDirectoryDump>();
+            foreach (var directory in directories)
+            {
+                var tags = new List<ExifTag>();
+                foreach (var tag in directory.Tags)
+                    tags.Add(new ExifTag(tag.Name, tag.Description ?? ""));
+                if (tags.Count > 0)
+                    result.Add(new ExifDirectoryDump(directory.Name, tags));
+            }
+            return result;
+        }
+        catch
+        {
+            return Array.Empty<ExifDirectoryDump>();
+        }
+    }
+
     private static string ReadLensModel(ExifSubIfdDirectory? subIfd)
     {
         var lens = GetString(subIfd, ExifDirectoryBase.TagLensModel);

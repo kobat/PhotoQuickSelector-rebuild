@@ -14,6 +14,31 @@
     <UserControl.Resources>
         <!-- フィルムストリップのサムネイル寸法（高さ調節に追従）。各セルが Source バインドで参照する。 -->
         <ctl:FilmStripMetrics x:Key="FilmMetrics" />
+
+        <!-- EXIF 詳細パネルの行テンプレート。selector は ListView の ItemTemplateSelector 属性から
+             StaticResource 参照するため、ListView より前に評価される UserControl.Resources に置く
+             （ListView.Resources 内だと属性→子要素の解析順で前方参照になり起動時 XAML クラッシュ）。 -->
+        <DataTemplate x:Key="ExifHeaderTemplate" x:DataType="ctl:ExifRow">
+            <TextBlock Text="{x:Bind Name}" FontSize="12" FontWeight="SemiBold"
+                       Margin="0,8,0,2"
+                       Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+        </DataTemplate>
+        <DataTemplate x:Key="ExifTagTemplate" x:DataType="ctl:ExifRow">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="110" MaxWidth="150" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{x:Bind Name}" FontSize="11"
+                           TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Grid.Column="1" Text="{x:Bind Value}" FontSize="11"
+                           TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+            </Grid>
+        </DataTemplate>
+        <ctl:ExifRowTemplateSelector x:Key="ExifRowSelector"
+                                     HeaderTemplate="{StaticResource ExifHeaderTemplate}"
+                                     TagTemplate="{StaticResource ExifTagTemplate}" />
     </UserControl.Resources>
 
     <Grid Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
@@ -158,6 +183,33 @@
                     PointerMoved="ZoomCanvas_PointerMoved"
                     PointerReleased="ZoomCanvas_PointerReleased"
                     PointerWheelChanged="ZoomCanvas_PointerWheelChanged" />
+
+                <!-- EXIF 詳細パネル（E キー。右上ルーペと排他＝ルーペの上に不透明で重畳）。
+                     全生タグを ListView（仮想化）で列挙。データは PhotoItemViewModel が遅延生成し常駐（往復で即表示）。
+                     見出し行／タグ行は ExifRowTemplateSelector で描き分ける。 -->
+                <Grid x:Name="ExifPanel" Grid.Row="0"
+                      Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                      Visibility="{x:Bind ViewModel.ExifPanelVisibility, Mode=OneWay}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" x:Uid="Preview_ExifPanelHeader" Text="EXIF 詳細"
+                               Margin="10,8,10,4" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <ListView Grid.Row="1" x:Name="ExifList"
+                              ItemsSource="{x:Bind ExifRows, Mode=OneWay}"
+                              SelectionMode="None" IsItemClickEnabled="False"
+                              ItemTemplateSelector="{StaticResource ExifRowSelector}">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="Padding" Value="10,0" />
+                                <Setter Property="MinHeight" Value="0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                    </ListView>
+                </Grid>
 
                 <!-- ズームプレビューとナビゲーターのリサイズ用スプリッター -->
                 <controls:GridSplitter

@@ -149,6 +149,13 @@ public sealed partial class PreviewControl
             return true;
         }
 
+        // E : EXIF 詳細パネル（右上ルーペと排他）トグル。修飾子なしのみ（Ctrl+E/Alt+E/Ctrl+Alt+E は外部連携）。
+        if (KeyboardModifiers.None && key == VirtualKey.E)
+        {
+            _viewModel.ShowExifPanel = !_viewModel.ShowExifPanel;
+            return true;
+        }
+
         // C : 先読みキャッシュ内容のデバッグオーバーレイ（右上）をトグル
         if (KeyboardModifiers.None && key == VirtualKey.C)
         {

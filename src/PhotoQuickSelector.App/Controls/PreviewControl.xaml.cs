@@ -106,6 +106,15 @@ public sealed partial class PreviewControl : UserControl
     /// <summary>キャッシュ中の画像（状態色付き）一覧（デバッグオーバーレイ用。C キーでトグル）。</summary>
     public ObservableCollection<CacheEntry> CachedFileNames { get; } = new();
 
+    /// <summary>EXIF 詳細パネル（E キー）の行（見出し＋タグを平坦化）。焦点写真の生ダンプから作る。</summary>
+    public ObservableCollection<ExifRow> ExifRows { get; } = new();
+
+    // EXIF パネルの読み込み世代（待機中に焦点が移ったら破棄）。連打スクラブ中は中間コマを解析しないよう
+    // デバウンスタイマ経由で更新する（＝止まった画像だけ解析。切替のフィーリングを維持）。
+    private int _exifToken;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _exifDebounceTimer;
+    private static readonly TimeSpan ExifDebounceDelay = TimeSpan.FromMilliseconds(120);
+
     // 先読みキャッシュオーバーレイの状態別文字色（cached=白／loading=緑系／waiting=灰系）。
     private static readonly Brush CachedBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE8, 0xFF, 0xFF, 0xFF));
     private static readonly Brush LoadingBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x7C, 0xE3, 0x8B));
@@ -283,6 +292,14 @@ public sealed partial class PreviewControl : UserControl
                 // 連打中のフル解像度デコード膨張を防ぐため throttle 経由で要求する。
                 RequestPreviewLoad();
                 ScrollSelectedIntoView();
+                ScheduleExifRefresh(); // EXIF パネル表示中のみ、デバウンス後に生ダンプを更新
+                break;
+            case nameof(MainViewModel.ShowExifPanel):
+                if (_viewModel?.ShowExifPanel == true)
+                    _ = RefreshExifPanelAsync(); // 表示直後は即ロード（デバウンス不要）
+                else
+                    ExifRows.Clear();            // 非表示化で行を解放（VM 側の生ダンプキャッシュは残す）
+                ZoomCanvas.Invalidate();         // ルーペ描画の抑止/再開を反映
                 break;
             case nameof(MainViewModel.IsPreviewMode):
                 if (_viewModel?.IsPreviewMode == true)
@@ -293,6 +310,7 @@ public sealed partial class PreviewControl : UserControl
                     LoadCurrentAsync(preserveView: false);
                     FocusForKeys();
                     ScrollSelectedIntoView();
+                    _ = RefreshExifPanelAsync(); // パネル表示状態を復元して入場した場合に反映
                 }
                 break;
             case nameof(MainViewModel.GridKind):
@@ -313,6 +331,58 @@ public sealed partial class PreviewControl : UserControl
     {
         if (_viewModel?.FocusedPhoto is { } photo)
             DispatcherQueue.TryEnqueue(() => FilmStrip.ScrollIntoView(photo));
+    }
+
+    // === EXIF 詳細パネル（E キー。右上ルーペと排他） ===
+
+    /// <summary>
+    /// EXIF パネル更新をデバウンス予約する（焦点変更ごとに呼ばれる）。連打スクラブ中は都度リセットされ、
+    /// 止まってから <see cref="ExifDebounceDelay"/> 後に一度だけ解析する（中間コマは解析しない）。
+    /// パネル非表示中は何もしない＝切替の hot path に一切の解析を乗せない。
+    /// </summary>
+    private void ScheduleExifRefresh()
+    {
+        if (_viewModel?.ShowExifPanel != true) return;
+        _exifDebounceTimer ??= CreateExifDebounceTimer();
+        _exifDebounceTimer.Stop();
+        _exifDebounceTimer.Start();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateExifDebounceTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = ExifDebounceDelay;
+        timer.IsRepeating = false;
+        timer.Tick += (s, _) => { s.Stop(); _ = RefreshExifPanelAsync(); };
+        return timer;
+    }
+
+    /// <summary>
+    /// 焦点写真の全生タグを（バックグラウンドで一度だけ解析・以後常駐）読み、パネルへ流す。
+    /// 待機中に焦点が移った／新しい要求が来た場合は結果を破棄する（陳腐化ドロップ）。
+    /// </summary>
+    private async System.Threading.Tasks.Task RefreshExifPanelAsync()
+    {
+        if (_viewModel?.ShowExifPanel != true) return;
+
+        var photo = _viewModel.FocusedPhoto;
+        int token = ++_exifToken;
+        if (photo == null) { ExifRows.Clear(); return; }
+
+        await photo.EnsureRawExifAsync();
+
+        // 待機中に焦点が移った／後続要求が来たなら破棄（この行の結果は陳腐）。
+        if (token != _exifToken || !ReferenceEquals(_viewModel.FocusedPhoto, photo)) return;
+
+        ExifRows.Clear();
+        var dump = photo.RawExif;
+        if (dump == null) return;
+        foreach (var directory in dump)
+        {
+            ExifRows.Add(new ExifRow(isHeader: true, directory.Name, ""));
+            foreach (var tag in directory.Tags)
+                ExifRows.Add(new ExifRow(isHeader: false, tag.Name, tag.Value));
+        }
     }
 
     /// <summary>

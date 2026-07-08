@@ -89,6 +89,43 @@ public partial class PhotoItemViewModel : ObservableObject
                 "https://www.google.com/maps/search/?api=1&query={0},{1}", lat, lon))
             : null;
 
+    // --- EXIF 詳細パネル（E キー）用の全生タグダンプ。表示時のみ遅延生成し常駐（往復で即表示）。---
+
+    private IReadOnlyList<ExifDirectoryDump>? _rawExif;
+    private Task? _rawExifTask;
+
+    /// <summary>読込済みの生 EXIF ダンプ（未読なら null）。<see cref="EnsureRawExifAsync"/> 完了後に有効。</summary>
+    public IReadOnlyList<ExifDirectoryDump>? RawExif => _rawExif;
+
+    /// <summary>
+    /// 全 EXIF タグの生ダンプ（<see cref="MetadataReader.ReadRawDump"/>）を一度だけワーカースレッドで読み、
+    /// 常駐させる（サムネイルバイトと同じ遅延・重複排除パターン）。再呼び出しは即完了（キャッシュ）。
+    /// ファイル I/O＋解析は UI スレッドへ戻さないので切替のフィーリングを損ねない。
+    /// </summary>
+    public Task EnsureRawExifAsync()
+    {
+        if (_rawExif != null) return Task.CompletedTask;
+        // 呼び出しは UI スレッドからのみ（プレビューの EXIF パネル更新）なのでロック不要。
+        return _rawExifTask ??= LoadRawExifAsync();
+    }
+
+    private async Task LoadRawExifAsync()
+    {
+        try
+        {
+            var path = Meta.Path;
+            _rawExif = await Task.Run(() => MetadataReader.ReadRawDump(path)).ConfigureAwait(false);
+        }
+        catch
+        {
+            _rawExif = Array.Empty<ExifDirectoryDump>();
+        }
+        finally
+        {
+            _rawExifTask = null;
+        }
+    }
+
     /// <summary>
     /// 全件常駐させる圧縮サムネイル（シェルの JPEG バイトをそのまま保持＝1 枚 ~30KB）。
     /// 重い非圧縮 <see cref="BitmapImage"/> は画面に見えているコンテナ分だけ
