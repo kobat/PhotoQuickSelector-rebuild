@@ -11,7 +11,7 @@
 - 構成:
   - `src/PhotoQuickSelector.Core/` … UI 非依存（メタデータ抽出・評価モデル・SQLite 永続化）
   - `src/PhotoQuickSelector.App/` … WinUI アプリ（左右分割UI・サムネイル・キー操作）
-  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（103 件）
+  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（107 件）
 
 ## ビルド / 起動（重要）
 - **packaged（MSIX 開発）構成**で開発している。**exe を直接ダブルクリックしない**（無音終了する）。
@@ -43,13 +43,13 @@
 ## 現在の状態（要約）
 
 **Phase 1〜4 すべて完了**。旧アプリの機能同等＋既知バグ改善を達成し、**v0.1.0** として公開向け発行済み。
-`dotnet test` **103 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`）。
+`dotnet test` **107 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`）。
 
 - **Core**: メタデータ抽出（EXIF／AF点／GPS／LensMake）・SQLite 永続化（旧DB互換・遅延作成＋作成確認）・
   フィルタ・クリップボード出力・Reject移動・リネームコピー（いずれも純関数＋xUnit）
 - **App（主要機能）**: 左右分割UI（フォルダツリー／お気に入り／最近）／サムネイルグリッド／プレビュー
   （Win2D 3面構成＝メイン＋ルーペ＋ナビゲーター・フィルムストリップ・AF枠・構図グリッド・DPI考慮の
-  段ズーム・ズーム状態維持）／評価編集（単一＋複数選択の一括評価）／フィルタ＋bat 書き出し／外部連携／
+  段ズーム・ズーム状態維持・EXIF 詳細パネル＝右パネル上段をルーペと `E`/タブで切替）／評価編集（単一＋複数選択の一括評価）／フィルタ＋bat 書き出し／外部連携／
   セッション復元／全画面・イマーシブ・完全全画面（Shift+F）／Dark テーマ／日英ローカライズ
   （resw＋shortcuts.json SSOT・F1 チートシート）／設定ダイアログ（一般／高度な設定の 2 タブ）
 - **パフォーマンス**: サムネイル＝圧縮バイト常駐＋可視分デコード（容量固定 LRU）／プレビュー先読み
@@ -102,6 +102,9 @@
 - `Shift+F` 完全全画面モード（ウィンドウ全画面＋左ペイン/ステータスバー非表示＋イマーシブ＋余白0 を一括）。グリッド時は
   プレビューに入って全画面化。解除は `Shift+F` または `Esc`（入る前の状態へ正確復元）
 - プレビュー中: `I` メタ情報オーバーレイ（案B）トグル / `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
+- プレビュー中: `E` 右パネル上段をルーペ⇄EXIF 詳細で切替（上段のタブクリックでも可。状態は
+  `AppSettings.PreviewExifPanel` に永続化。全ディレクトリ・全タグ＝Core `ExifTagReader.ReadAllTags`／
+  UI `Controls/ExifDetailPanel`・グループ化 ListView 仮想化）
 - プレビュー中: `G` 構図グリッド種類を巡回（None→中央十字→三分割→正方形→None）/ `Shift+G` グリッド基準を切替
   （画像⇄Canvas）。正方形は短辺を N 等分した正方セルを画像中央から対称配置（N＝`AppSettings.GridSquareDivisions`・既定8。
   偶数Nは中央に線・奇数Nは中央線なし）。種類/基準は `AppSettings` に永続化（次回起動で復元）

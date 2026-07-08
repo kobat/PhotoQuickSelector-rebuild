@@ -263,6 +263,7 @@ public sealed partial class PreviewControl : UserControl
                 ApplyPreviewSettings(_viewModel.Settings);
                 RestoreFilmStripHeight();
                 RestoreRightPanelLayout();
+                SetExifPanelVisible(_viewModel.Settings.PreviewExifPanel);
             }
             Bindings.Update();
         }
@@ -283,6 +284,8 @@ public sealed partial class PreviewControl : UserControl
                 // 連打中のフル解像度デコード膨張を防ぐため throttle 経由で要求する。
                 RequestPreviewLoad();
                 ScrollSelectedIntoView();
+                // 連打経路。ここでは placeholder のみ即表示し、実描画は settle 後の RenderExifForFocus に委ねる。
+                OnFocusChangedForExif();
                 break;
             case nameof(MainViewModel.IsPreviewMode):
                 if (_viewModel?.IsPreviewMode == true)
@@ -293,6 +296,7 @@ public sealed partial class PreviewControl : UserControl
                     LoadCurrentAsync(preserveView: false);
                     FocusForKeys();
                     ScrollSelectedIntoView();
+                    RenderExifForFocus(); // 入場は連打経路ではないので即描画
                 }
                 break;
             case nameof(MainViewModel.GridKind):
@@ -415,6 +419,8 @@ public sealed partial class PreviewControl : UserControl
                 _recentDecodes.Enqueue(now);
             }
             LoadCurrentAsync(preserveView: true, prefetch: true);
+            // 停止後に EXIF 詳細も確定描画（1 停止 1 回）。表示中でなければ RenderExifForFocus 側で no-op。
+            RenderExifForFocus();
         };
         return timer;
     }

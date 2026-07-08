@@ -359,6 +359,12 @@
   <data name="Preview_CacheOverlayHeader.Text" xml:space="preserve">
     <value>先読みキャッシュ</value>
   </data>
+  <data name="Preview_LoupeTab.Content" xml:space="preserve">
+    <value>ルーペ</value>
+  </data>
+  <data name="Preview_ExifTab.Content" xml:space="preserve">
+    <value>EXIF</value>
+  </data>
 
   <!-- ============ コード側（Loc.Get。ドット無しの素のキー） ============ -->
   <!-- 共通ボタン・断片 -->
@@ -384,6 +390,11 @@
   </data>
   <data name="Msg_ConfirmCreateStoreContent" xml:space="preserve">
     <value>このフォルダに評価データファイル（PhotoQuickSelector.sqlite3）を作成します。よろしいですか？</value>
+  </data>
+
+  <!-- EXIF 詳細パネル（PreviewControl） -->
+  <data name="ExifPanel_Loading" xml:space="preserve">
+    <value>読込中…</value>
   </data>
 
   <!-- ステータスバー文言（MainViewModel / MainPage） -->

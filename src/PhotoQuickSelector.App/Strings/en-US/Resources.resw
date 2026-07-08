@@ -359,6 +359,12 @@
   <data name="Preview_CacheOverlayHeader.Text" xml:space="preserve">
     <value>Prefetch cache</value>
   </data>
+  <data name="Preview_LoupeTab.Content" xml:space="preserve">
+    <value>Loupe</value>
+  </data>
+  <data name="Preview_ExifTab.Content" xml:space="preserve">
+    <value>EXIF</value>
+  </data>
 
   <!-- ============ Code-side (Loc.Get, plain keys without dot) ============ -->
   <!-- Common buttons / fragments -->
@@ -384,6 +390,11 @@
   </data>
   <data name="Msg_ConfirmCreateStoreContent" xml:space="preserve">
     <value>A rating data file (PhotoQuickSelector.sqlite3) will be created in this folder. Continue?</value>
+  </data>
+
+  <!-- EXIF detail panel (PreviewControl) -->
+  <data name="ExifPanel_Loading" xml:space="preserve">
+    <value>Loading…</value>
   </data>
 
   <!-- Status bar messages (MainViewModel / MainPage) -->

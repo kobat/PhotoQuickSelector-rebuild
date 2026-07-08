@@ -99,6 +99,48 @@ public partial class PhotoItemViewModel : ObservableObject
     /// <summary>バイト取得中の共有タスク（in-flight 重複排除）。完了後は <see cref="_thumbnailBytes"/> がガード。</summary>
     private Task? _loadBytesTask;
 
+    /// <summary>
+    /// EXIF 詳細パネル用の全タグ（全ディレクトリ）。一度解析したら常駐させ、往復での再解析をゼロにする
+    /// （<see cref="_thumbnailBytes"/> と同じ「一度だけ取得して持ち続ける」パターン）。フォルダ再読込で
+    /// Photos ごと破棄されるため別途 LRU は不要。破損・未対応ファイルは空リストが入る（無限リトライしない）。
+    /// </summary>
+    private IReadOnlyList<ExifTagGroup>? _exifGroups;
+
+    /// <summary>EXIF 解析中の共有タスク（in-flight 重複排除）。完了後は <see cref="_exifGroups"/> がガード。</summary>
+    private Task<IReadOnlyList<ExifTagGroup>>? _exifLoadTask;
+
+    /// <summary>常駐済みの EXIF 全タグ。未解析なら null（呼び出し側が同期で「即表示できるか」を判定する）。</summary>
+    public IReadOnlyList<ExifTagGroup>? CachedExifGroups => _exifGroups;
+
+    /// <summary>
+    /// EXIF 全タグを一度だけ解析して常駐させる。以後の呼び出しはキャッシュを返す（再解析ゼロ）。
+    /// 解析（ファイル I/O＋パース）は <see cref="ExifTagReader.ReadAllTags"/> ＝バックグラウンドスレッドで行い、
+    /// UI スレッドを塞がない。同一写真への同時呼び出しは 1 本の解析タスクを共有する（in-flight 重複排除）。
+    /// 呼び出しは UI スレッドからのみ（プレビューの焦点変更）なのでロック不要。
+    /// </summary>
+    public Task<IReadOnlyList<ExifTagGroup>> EnsureExifGroupsAsync()
+    {
+        if (_exifGroups != null) return Task.FromResult(_exifGroups);
+        return _exifLoadTask ??= LoadExifCoreAsync();
+    }
+
+    private async Task<IReadOnlyList<ExifTagGroup>> LoadExifCoreAsync()
+    {
+        string path = Meta.Path;
+        try
+        {
+            // ReadAllTags は throw せず、破損・未対応時は空リストを返す（＝空でも常駐＝再試行しない）。
+            var groups = await Task.Run(() => ExifTagReader.ReadAllTags(path)).ConfigureAwait(false);
+            _exifGroups = groups;
+            return groups;
+        }
+        finally
+        {
+            // 成功時は _exifGroups が以後のガード。タスク参照は解放しておく。
+            _exifLoadTask = null;
+        }
+    }
+
     // レーティング★のブラシ（不透明のまま RGB で濃淡を表現）
     private static readonly Brush NormalRatingBrush = new SolidColorBrush(Colors.Gold);            // #FFD700
     private static readonly Brush ExifRatingBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xF2, 0xE2, 0xA8)); // 淡い金

@@ -26,6 +26,7 @@
 | `Shift+Alt+← / →` | Fit / 100% |
 | `F` | Toggle immersive view (collapses the right panel/filmstrip) |
 | `I` | Toggle the metadata overlay |
+| `E` | Toggle the right panel between the loupe and EXIF details |
 | `G` | Cycle the composition grid type (none → center cross → rule of thirds → squares) |
 | `Shift+G` | Toggle the composition grid reference (image ⇄ canvas) |
 | `C` | Toggle the prefetch cache overlay (debug) |
