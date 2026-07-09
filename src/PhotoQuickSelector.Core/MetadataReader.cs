@@ -30,6 +30,7 @@ public static class MetadataReader
         var subIfd = directories.OfType<ExifSubIfdDirectory>().FirstOrDefault();
         var sony = directories.OfType<SonyType1MakernoteDirectory>().FirstOrDefault();
         var olympus = directories.OfType<OlympusEquipmentMakernoteDirectory>().FirstOrDefault();
+        var olympusCameraSettings = directories.OfType<OlympusCameraSettingsMakernoteDirectory>().FirstOrDefault();
         var gps = directories.OfType<GpsDirectory>().FirstOrDefault();
         var xmp = directories.OfType<XmpDirectory>().FirstOrDefault();
 
@@ -47,6 +48,8 @@ public static class MetadataReader
 
         var (takenOffset, takenDescription) = ReadTakenDateTime(subIfd);
         var (focusPoint, focusSize, focusReferenceSize) = ReadSonyFocus(sony);
+        if (focusPoint == null)
+            (focusPoint, focusSize, focusReferenceSize) = ReadOlympusFocus(olympusCameraSettings);
         var (hasGps, gpsDescription, gpsLat, gpsLon) = ReadGps(gps);
 
         return new ImageMetadata
@@ -175,6 +178,38 @@ public static class MetadataReader
         }
 
         return (point, size, referenceSize);
+    }
+
+    /// <summary>
+    /// Olympus / OM メーカーノートの AF 枠（Camera Settings tag 0x0304 "AF Areas"）を読む。
+    /// 各要素は 1 枠を「画面全体に対する 0..255 の割合」で左上・右下の 4 隅として詰めた int32。
+    /// バイトは上位から left, top, right, bottom（例 0x8C76937F = (140,118)-(147,127)）。0 は未使用枠。
+    /// Sony と同じ「中心＋枠サイズ＋基準サイズ」表現へ写す（描画・ルーペ・ナビ経路を共用するため）。
+    /// 中心は 2 隅の平均で 0.5 単位を生むので、基準を 255→510・中心/サイズを 2 倍し整数のまま無損失に格納する
+    /// （<see cref="PointI"/>/<see cref="SizeI"/> は int）。座標は生センサー基準として扱い、描画側の
+    /// OrientationMatrix で表示空間へ写す（Orientation=1 の横位置では恒等）。
+    /// </summary>
+    private static (PointI?, SizeI?, SizeI?) ReadOlympusFocus(OlympusCameraSettingsMakernoteDirectory? camera)
+    {
+        var areas = camera?.GetInt32Array(0x0304);
+        if (areas == null) return (null, null, null);
+
+        foreach (var packed in areas)
+        {
+            if (packed == 0) continue; // 未使用枠 (0,0)-(0,0)
+            var v = (uint)packed;
+            int left = (int)((v >> 24) & 0xFF);
+            int top = (int)((v >> 16) & 0xFF);
+            int right = (int)((v >> 8) & 0xFF);
+            int bottom = (int)(v & 0xFF);
+
+            // 2×255 基準（中心が 0.5 単位になるため 2 倍して整数化＝無損失）。
+            var referenceSize = new SizeI(510, 510);
+            var point = new PointI(left + right, top + bottom);
+            var size = new SizeI(2 * (right - left), 2 * (bottom - top));
+            return (point, size, referenceSize);
+        }
+        return (null, null, null);
     }
 
     private static (bool HasGps, string Description, double? Latitude, double? Longitude) ReadGps(GpsDirectory? gps)

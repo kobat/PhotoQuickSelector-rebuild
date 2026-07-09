@@ -103,7 +103,8 @@ public sealed partial class PreviewControl
     private static readonly Color FocusColor = Color.FromArgb(0xEE, 0x66, 0xFF, 0x66);
 
     /// <summary>
-    /// Sony AF フォーカス枠を描く。フォーカス点・枠は「生センサー px（Orientation 適用前）」の値なので、
+    /// AF フォーカス枠を描く（Sony／Olympus 共通。読取り側で同じ中心＋枠＋基準サイズ表現へ正規化済み）。
+    /// フォーカス点・枠は「生センサー基準（Orientation 適用前）」の値なので、
     /// <see cref="PreviewViewport.OrientationMatrix"/> で表示空間（正立ビットマップ座標）へ写してから
     /// <see cref="PreviewViewport.ImageToCanvas"/> でキャンバスへ変換する。線幅はキャンバス空間で固定。
     /// </summary>

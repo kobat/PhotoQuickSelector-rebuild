@@ -48,4 +48,27 @@ public class MetadataReaderFocusTests
         Assert.InRange(point.X, 0, reference.Width);
         Assert.InRange(point.Y, 0, reference.Height);
     }
+
+    /// <summary>
+    /// Olympus / OM の AF 枠（Camera Settings tag 0x0304）を既知の 1 枚で厳密検証する。
+    /// P2280057.JPG は AF Areas = (140/255,118/255)-(147/255,127/255)。案A の 2×255 基準へ
+    /// 中心=(287,245)・サイズ=(14,18)・基準=(510,510) で無損失にマップされることを確認する。
+    /// </summary>
+    [Fact]
+    public void ReadOlympusFocus_MapsAfAreaToDoubledReference()
+    {
+        var path = System.IO.Path.Combine(ImagesFolder, "P2280057.JPG");
+        if (!File.Exists(path)) return; // 実画像が無い環境ではスキップ相当
+
+        var meta = MetadataReader.Read(path);
+
+        Assert.NotNull(meta.FocusPoint);
+        Assert.NotNull(meta.FocusSize);
+        Assert.NotNull(meta.FocusReferenceSize);
+
+        Assert.Equal(new SizeI(510, 510), meta.FocusReferenceSize!.Value);
+        // 中心 = (left+right, top+bottom), サイズ = (2*(right-left), 2*(bottom-top))
+        Assert.Equal(new PointI(140 + 147, 118 + 127), meta.FocusPoint!.Value);
+        Assert.Equal(new SizeI(2 * (147 - 140), 2 * (127 - 118)), meta.FocusSize!.Value);
+    }
 }

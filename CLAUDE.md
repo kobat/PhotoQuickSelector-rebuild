@@ -11,7 +11,7 @@
 - 構成:
   - `src/PhotoQuickSelector.Core/` … UI 非依存（メタデータ抽出・評価モデル・SQLite 永続化）
   - `src/PhotoQuickSelector.App/` … WinUI アプリ（左右分割UI・サムネイル・キー操作）
-  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（107 件）
+  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（108 件）
 
 ## ビルド / 起動（重要）
 - **packaged（MSIX 開発）構成**で開発している。**exe を直接ダブルクリックしない**（無音終了する）。
@@ -43,7 +43,7 @@
 ## 現在の状態（要約）
 
 **Phase 1〜4 すべて完了**。旧アプリの機能同等＋既知バグ改善を達成し、**v0.1.0** として公開向け発行済み。
-`dotnet test` **107 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`）。
+`dotnet test` **108 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`）。
 
 - **Core**: メタデータ抽出（EXIF／AF点／GPS／LensMake）・SQLite 永続化（旧DB互換・遅延作成＋作成確認）・
   フィルタ・クリップボード出力・Reject移動・リネームコピー（いずれも純関数＋xUnit）
