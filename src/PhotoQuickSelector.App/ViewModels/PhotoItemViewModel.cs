@@ -324,7 +324,9 @@ public partial class PhotoItemViewModel : ObservableObject
             {
                 // I/O（特に冷えたシェルキャッシュの高解像度デコード）は UI スレッドへ戻さない。
                 var file = await StorageFile.GetFileFromPathAsync(Meta.Path).AsTask().ConfigureAwait(false);
-                using var thumbnail = await file.GetThumbnailAsync(ThumbnailMode.PicturesView, 320)
+                // SingleItem＝アスペクト比保持＋EXIF Orientation 適用。正方形セル＋Uniform で横は上下・縦は
+                // 左右に帯が出て向きが判る。PicturesView は正方形寄りにクロップされ向きが潰れるため使わない。
+                using var thumbnail = await file.GetThumbnailAsync(ThumbnailMode.SingleItem, 320)
                     .AsTask().ConfigureAwait(false);
                 if (thumbnail == null || thumbnail.Size == 0) return;
 
