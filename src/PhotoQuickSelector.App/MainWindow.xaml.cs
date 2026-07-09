@@ -101,7 +101,11 @@ public sealed partial class MainWindow : Window
         // フルスクリーン中なら通常表示へ戻す。Esc は SPEC §3-7 で本来「選択リセット」用途なので、いずれでも
         // ないときは未処理のまま通す（将来用途を潰さない）。PreviewKeyDown(tunneling) はフォーカス管理の
         // Esc 消費より前に届くため、ここで拾えば確実。
-        if (e.Key == Windows.System.VirtualKey.Escape)
+        // ただし選択集合があるときは全画面解除より選択解除を優先する（段階的 Esc＝1階層ずつ剥がす）。
+        // ここで消費せず HandleGlobalKeyDown → SelectionKeyCommands.ClearSelection へ通し、次の Esc（選択なし）で
+        // 全画面を解除する。全画面中の選別作業でレイアウトが不意に崩れるのを防ぐ。
+        if (e.Key == Windows.System.VirtualKey.Escape &&
+            !(RootFrame.Content is MainPage sel && sel.ViewModel.SelectedPhotos.Count > 0))
         {
             if (RootFrame.Content is MainPage page && page.IsFullImageMode)
             {
