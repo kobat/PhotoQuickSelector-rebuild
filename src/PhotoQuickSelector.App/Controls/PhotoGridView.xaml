@@ -20,12 +20,14 @@
         DoubleTapped="PhotoGrid_DoubleTapped"
         ContainerContentChanging="PhotoGrid_ContainerContentChanging">
         <GridView.Resources>
-            <!-- 焦点（=選択）の枠を既定のアクセント色（青＝水色）から白系へ差し替える。
+            <!-- 焦点（=選択）の枠を既定のアクセント色（青＝水色）から純白へ差し替える。
                  焦点＝選択として同期しているため、GridViewItem の「選択」枠が焦点インジケータになる。
-                 フィルムストリップの焦点リング（#FFE0E0E0）と色を揃える。 -->
-            <SolidColorBrush x:Key="GridViewItemSelectedBorderBrush" Color="#FFE0E0E0" />
-            <SolidColorBrush x:Key="GridViewItemSelectedPointerOverBorderBrush" Color="#FFE0E0E0" />
-            <SolidColorBrush x:Key="GridViewItemSelectedPressedBorderBrush" Color="#FFE0E0E0" />
+                 焦点は「くっきりした純白の枠」、選択集合メンバーは「白の塗りウォッシュ」という別チャンネルで
+                 表現し（案A）、焦点が最も明るく強い縁取りになるよう純白に揃える。
+                 フィルムストリップの焦点リング（#FFFFFFFF）と色を揃える。 -->
+            <SolidColorBrush x:Key="GridViewItemSelectedBorderBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="GridViewItemSelectedPointerOverBorderBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="GridViewItemSelectedPressedBorderBrush" Color="#FFFFFFFF" />
         </GridView.Resources>
         <GridView.ItemContainerStyle>
             <!-- BasedOn 必須: 既定スタイルを丸ごと置き換えると選択枠（SelectedBorderBrush を描く
@@ -80,9 +82,12 @@
                             </Border>
                         </StackPanel>
 
-                        <!-- 選択集合メンバーのハイライト（白の外枠＋半透明白の背景ウォッシュ）。焦点は GridView
-                             標準の選択ビジュアル。メンバー時のみ SelectionHighlightOpacity(1.0) で可視。 -->
-                        <Border CornerRadius="4" BorderThickness="3"
+                        <!-- 選択集合メンバーのハイライト（案A＝「塗りウォッシュ」チャンネル）。半透明白の背景
+                             ウォッシュ主体で「集合の一員」を示し、縁取りは 1px の淡い白のみに留める。焦点の純白枠
+                             （GridView 標準の選択ビジュアル）と競合しないよう、太い枠は使わない。
+                             ウォッシュは薄め（#33FFFFFF＝20%）にして写真の発色を残す（濃いと「色あせ＝削除」に見える）。
+                             メンバー時のみ SelectionHighlightOpacity(1.0) で可視。 -->
+                        <Border CornerRadius="4" BorderThickness="1"
                                 BorderBrush="#FFFFFFFF" Background="#33FFFFFF"
                                 IsHitTestVisible="False"
                                 Opacity="{x:Bind SelectionHighlightOpacity, Mode=OneWay}" />

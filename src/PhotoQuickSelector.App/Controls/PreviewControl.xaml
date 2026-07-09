@@ -282,16 +282,19 @@
                                 </Border>
                             </Grid>
                         </Border>
-                        <!-- 焦点のアクセント外枠（空リング・グレー）。セル本体に重ね最外周へ描画。
+                        <!-- 焦点のアクセント外枠（案A＝「枠」チャンネル・くっきり純白）。セル本体に重ね最外周へ描画。
                              焦点時のみ FocusFrameOpacity(1.0) で可視。子が無いので Opacity=0 でも画像は残る。
-                             枠は常設しレイアウト不変。カラーラベル枠（内側）とは別レイヤで併存。 -->
+                             枠は常設しレイアウト不変。カラーラベル枠（内側）とは別レイヤで併存。
+                             メンバーの塗りウォッシュより明るく強い縁取りになるよう純白（#FFFFFFFF）にする。 -->
                         <Border CornerRadius="6" BorderThickness="3"
-                                BorderBrush="#FFE0E0E0"
+                                BorderBrush="#FFFFFFFF"
                                 IsHitTestVisible="False"
                                 Opacity="{x:Bind FocusFrameOpacity, Mode=OneWay}" />
-                        <!-- 選択集合メンバーのハイライト（白の外枠＋半透明白の背景ウォッシュ）。焦点リングの内側に
-                             別レイヤで重ね、メンバー時のみ SelectionHighlightOpacity(1.0) で可視。 -->
-                        <Border CornerRadius="5" BorderThickness="2" Margin="1"
+                        <!-- 選択集合メンバーのハイライト（案A＝「塗りウォッシュ」チャンネル）。半透明白の背景ウォッシュ
+                             主体で「集合の一員」を示し、縁取りは 1px の淡い白のみ。焦点の純白枠（外周）と競合しないよう
+                             太い枠は使わない。ウォッシュは薄め（#33FFFFFF＝20%）にして写真の発色を残す（濃いと「色あせ＝
+                             削除」に見える）。焦点リングの内側に別レイヤで重ね、メンバー時のみ可視。 -->
+                        <Border CornerRadius="5" BorderThickness="1" Margin="1"
                                 BorderBrush="#FFFFFFFF" Background="#33FFFFFF"
                                 IsHitTestVisible="False"
                                 Opacity="{x:Bind SelectionHighlightOpacity, Mode=OneWay}" />
