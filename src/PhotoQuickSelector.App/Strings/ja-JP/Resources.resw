@@ -377,6 +377,9 @@
   <data name="Msg_Run" xml:space="preserve">
     <value>実行</value>
   </data>
+  <data name="Msg_Continue" xml:space="preserve">
+    <value>続行</value>
+  </data>
   <data name="Msg_NoFolderLoaded" xml:space="preserve">
     <value>フォルダが読み込まれていません。</value>
   </data>
@@ -584,6 +587,18 @@
   </data>
   <data name="Ctx_SelectAll" xml:space="preserve">
     <value>すべて選択</value>
+  </data>
+  <data name="BulkWarn_Title" xml:space="preserve">
+    <value>多数のファイルへの操作</value>
+  </data>
+  <data name="BulkWarn_OpenMessage" xml:space="preserve">
+    <value>選択中の {0} 個のファイルをそれぞれ既定のアプリで開こうとしています。多数のウィンドウが開く可能性があります。続行しますか？</value>
+  </data>
+  <data name="BulkWarn_ShareMessage" xml:space="preserve">
+    <value>選択中の {0} 個のファイルを共有しようとしています。共有アプリが設定されている場合はファイルごとに起動されます。続行しますか？</value>
+  </data>
+  <data name="BulkWarn_CopyMessage" xml:space="preserve">
+    <value>選択中の {0} 個のファイルをクリップボードへコピーします。ファイル数が多いと準備に時間がかかり、すぐには貼り付けられないことがあります。続行しますか？</value>
   </data>
   <data name="Share_MultipleTitle" xml:space="preserve">
     <value>{0} 個のファイル</value>

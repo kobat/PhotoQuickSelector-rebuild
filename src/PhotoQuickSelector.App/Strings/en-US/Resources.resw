@@ -377,6 +377,9 @@
   <data name="Msg_Run" xml:space="preserve">
     <value>Run</value>
   </data>
+  <data name="Msg_Continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
   <data name="Msg_NoFolderLoaded" xml:space="preserve">
     <value>No folder is loaded.</value>
   </data>
@@ -584,6 +587,18 @@ Log: {1}</value>
   </data>
   <data name="Ctx_SelectAll" xml:space="preserve">
     <value>Select all</value>
+  </data>
+  <data name="BulkWarn_Title" xml:space="preserve">
+    <value>Operation on Many Files</value>
+  </data>
+  <data name="BulkWarn_OpenMessage" xml:space="preserve">
+    <value>You are about to open {0} files, each in its default app. This may open many windows. Continue?</value>
+  </data>
+  <data name="BulkWarn_ShareMessage" xml:space="preserve">
+    <value>You are about to share {0} files. If a share app is configured, it will be launched once per file. Continue?</value>
+  </data>
+  <data name="BulkWarn_CopyMessage" xml:space="preserve">
+    <value>You are about to copy {0} files to the clipboard. Preparing many files takes time, so pasting may not be available immediately. Continue?</value>
   </data>
   <data name="Share_MultipleTitle" xml:space="preserve">
     <value>{0} files</value>

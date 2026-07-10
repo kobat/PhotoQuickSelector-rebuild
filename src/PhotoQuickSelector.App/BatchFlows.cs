@@ -132,6 +132,21 @@ public static class BatchFlows
         await dialog.ShowAsync();
     }
 
+    /// <summary>続行/キャンセルを問う汎用確認ダイアログ。続行なら true。既定ボタンはキャンセル（安全側）。</summary>
+    public static async Task<bool> ConfirmAsync(XamlRoot xamlRoot, string title, string message)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
+            PrimaryButtonText = Loc.Get("Msg_Continue"),
+            CloseButtonText = Loc.Get("Msg_Cancel"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = xamlRoot,
+        };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
     /// <summary>bat 内容を読み取り専用で見せ、実行/キャンセルを問う確認ダイアログ。実行なら true。</summary>
     public static async Task<bool> ConfirmBatchAsync(XamlRoot xamlRoot, string title, string intro, string batText)
     {
