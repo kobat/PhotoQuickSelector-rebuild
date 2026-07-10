@@ -592,6 +592,41 @@ public partial class MainViewModel : ObservableObject
         SetSelectionRange(_selectionPivot!, Photos[next]);
     }
 
+    /// <summary>Ctrl+クリック: 指定写真へ焦点を移し、選択集合への参加/解除をトグルする。</summary>
+    public void ToggleSelectionAt(PhotoItemViewModel photo)
+    {
+        if (!Photos.Contains(photo)) return;
+        // 集合が空の状態から始めるときは、元の焦点も集合に残す（Ctrl+←/→ と同じ流儀）。
+        // ただしクリック先が焦点そのものなら Ctrl+Space と同じ単純トグル。
+        if (SelectedPhotos.Count == 0 && FocusedPhoto != null && !ReferenceEquals(FocusedPhoto, photo))
+        {
+            FocusedPhoto.IsInSelection = true;
+            SelectedPhotos.Add(FocusedPhoto);
+        }
+        SetFocusManaged(photo);
+        ToggleFocusInSelection();
+    }
+
+    /// <summary>Shift+クリック: レンジ起点（pivot）からクリック写真までを連続選択し、焦点をそこへ移す。</summary>
+    public void ExtendSelectionTo(PhotoItemViewModel photo)
+    {
+        if (!Photos.Contains(photo)) return;
+        if (_selectionPivot == null || !Photos.Contains(_selectionPivot))
+            _selectionPivot = FocusedPhoto ?? photo;
+        SetFocusManaged(photo);
+        SetSelectionRange(_selectionPivot!, photo);
+    }
+
+    /// <summary>
+    /// 素のクリック（修飾なし）による焦点移動。クリック先が選択集合のメンバーなら集合を維持したまま
+    /// 焦点だけ移し、集合外なら通常の焦点移動（＝集合リセット）にフォールバックする。
+    /// </summary>
+    public void FocusByClick(PhotoItemViewModel? photo)
+    {
+        if (photo != null && photo.IsInSelection) SetFocusManaged(photo);
+        else FocusedPhoto = photo;
+    }
+
     /// <summary>Ctrl+←/→ : 選択集合を変えずに焦点だけ移動する（焦点は集合外へも出られる）。</summary>
     public void MoveFocusKeepingSelection(int delta)
     {

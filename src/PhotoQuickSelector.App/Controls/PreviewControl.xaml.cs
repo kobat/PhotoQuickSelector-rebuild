@@ -151,6 +151,19 @@ public sealed partial class PreviewControl : UserControl
         e.Handled = true;
     }
 
+    // フィルムストリップのクリック→VM 焦点/選択集合へ反映（ビュー→VM 方向。VM→ビューは OneWay バインド）。
+    private void FilmStrip_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_viewModel == null) return;
+        if (ReferenceEquals(FilmStrip.SelectedItem, _viewModel.FocusedPhoto)) return;  // エコー（理由はグリッド側コメント参照）
+        if (SelectionMouseCommands.TryHandle(e, _viewModel))
+        {
+            FilmStrip.SelectedItem = _viewModel.FocusedPhoto;
+            return;
+        }
+        _viewModel.FocusByClick(FilmStrip.SelectedItem as PhotoItemViewModel);
+    }
+
     // フィルムストリップの右クリックで操作メニューを表示（グリッドと共通＝PhotoContextMenu）。
     private void FilmStrip_RightTapped(object sender, RightTappedRoutedEventArgs e)
     {

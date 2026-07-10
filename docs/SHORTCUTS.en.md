@@ -66,6 +66,8 @@
 | `Alt+0 – 5` | Bulk rating (all members of the selection set) |
 | `Alt+6 – 9 / Alt+P` | Bulk color label (all members of the selection set) |
 | `Ctrl+Alt+↑ / ↓` | Bulk flag (all members of the selection set) |
+| `Ctrl+Click` | Move focus to the clicked photo and toggle it in/out of the selection set (grid/film strip) |
+| `Shift+Click` | Range selection (from the pivot to the clicked photo; grid/film strip) |
 
 ## File actions
 

@@ -105,7 +105,11 @@
         { "keys": "Alt+6 – 9 / Alt+P",
           "description": { "ja": "一括カラーラベル（選択集合の全メンバーへ）", "en": "Bulk color label (all members of the selection set)" } },
         { "keys": "Ctrl+Alt+↑ / ↓",
-          "description": { "ja": "一括フラグ（選択集合の全メンバーへ）", "en": "Bulk flag (all members of the selection set)" } }
+          "description": { "ja": "一括フラグ（選択集合の全メンバーへ）", "en": "Bulk flag (all members of the selection set)" } },
+        { "keys": { "ja": "Ctrl+クリック", "en": "Ctrl+Click" },
+          "description": { "ja": "クリック先へ焦点を移し選択集合へ参加/解除（グリッド/フィルムストリップ共通）", "en": "Move focus to the clicked photo and toggle it in/out of the selection set (grid/film strip)" } },
+        { "keys": { "ja": "Shift+クリック", "en": "Shift+Click" },
+          "description": { "ja": "レンジ選択（起点からクリック先までを連続選択。グリッド/フィルムストリップ共通）", "en": "Range selection (from the pivot to the clicked photo; grid/film strip)" } }
       ]
     },
     {

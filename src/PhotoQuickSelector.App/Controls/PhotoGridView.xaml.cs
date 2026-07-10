@@ -65,8 +65,20 @@ public sealed partial class PhotoGridView : UserControl
 
     private void PhotoGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_viewModel != null)
-            _viewModel.FocusedPhoto = PhotoGrid.SelectedItem as PhotoItemViewModel;
+        if (_viewModel == null) return;
+        // VM→グリッド反映（OnViewModelPropertyChanged や下の復元代入）で発火したエコーは無視。
+        // これが無いと、Ctrl+←/→（キーボード焦点移動）の反映時に Ctrl 押下状態の SelectionChanged が
+        // 発火し、マウス修飾クリックと誤判定してトグルしてしまう。
+        if (ReferenceEquals(PhotoGrid.SelectedItem, _viewModel.FocusedPhoto)) return;
+        if (SelectionMouseCommands.TryHandle(e, _viewModel))
+        {
+            // Ctrl+クリックの解除で SelectedItem=null になるケースを含め、グリッド選択を焦点へ復元。
+            // この代入で再発火する SelectionChanged は上のエコー判定で止まる。
+            PhotoGrid.SelectedItem = _viewModel.FocusedPhoto;
+            return;
+        }
+        // 素のクリック＝焦点移動（メンバー上なら集合維持、集合外なら集合リセット＝決定2）
+        _viewModel.FocusByClick(PhotoGrid.SelectedItem as PhotoItemViewModel);
     }
 
     private void PhotoGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)

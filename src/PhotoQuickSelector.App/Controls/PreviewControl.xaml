@@ -206,13 +206,16 @@
             ResizeDirection="Auto" />
 
         <!-- 下段: フィルムストリップ（横スクロール・右端まで全幅・高さは行に追従） -->
+        <!-- VM→ビューは OneWay バインド、ビュー→VM は SelectionChanged で反映（修飾クリック対応のため。
+             二重更新はコードビハインドのエコー判定で防ぐ）。 -->
         <ListView
             x:Name="FilmStrip"
             Grid.Row="2"
             Padding="4,0,4,2"
             SizeChanged="FilmStrip_SizeChanged"
             ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
-            SelectedItem="{x:Bind ViewModel.FocusedPhoto, Mode=TwoWay}"
+            SelectedItem="{x:Bind ViewModel.FocusedPhoto, Mode=OneWay}"
+            SelectionChanged="FilmStrip_SelectionChanged"
             SelectionMode="Single"
             ScrollViewer.HorizontalScrollMode="Enabled"
             ScrollViewer.HorizontalScrollBarVisibility="Auto"
