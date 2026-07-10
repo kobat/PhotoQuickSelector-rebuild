@@ -646,6 +646,30 @@ public partial class MainViewModel : ObservableObject
         SetFocusManaged(ordered[next]);
     }
 
+    /// <summary>
+    /// 絞込結果（<see cref="Photos"/>）の全件を選択集合にする（右クリックメニュー「すべて選択」）。
+    /// 焦点は据え置き（未設定なら先頭）。焦点移動で集合が消えないよう <see cref="_managingSelection"/> で囲う。
+    /// </summary>
+    public void SelectAll()
+    {
+        if (Photos.Count == 0) return;
+        _managingSelection = true;
+        try
+        {
+            foreach (var p in SelectedPhotos) p.IsInSelection = false;
+            SelectedPhotos.Clear();
+            foreach (var p in Photos)
+            {
+                p.IsInSelection = true;
+                SelectedPhotos.Add(p);
+            }
+            if (FocusedPhoto == null || !Photos.Contains(FocusedPhoto))
+                FocusedPhoto = Photos[0];
+            _selectionPivot = FocusedPhoto;
+        }
+        finally { _managingSelection = false; }
+    }
+
     /// <summary>Esc : 選択集合を解除する（焦点は据え置き）。</summary>
     public void ClearSelection()
     {

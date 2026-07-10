@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -42,20 +43,49 @@ public static class ShareHelper
         }
 
         // 未設定（または exe 消失）→ Windows 標準の共有シート。
-        await ShowShareSheetAsync(filePath);
+        await ShowShareSheetAsync(new[] { filePath });
     }
 
-    private static async Task ShowShareSheetAsync(string filePath)
+    /// <summary>
+    /// 複数ファイルを共有する（右クリックメニューの一括共有）。<paramref name="settings"/> の SharePath が
+    /// 設定済み（かつ存在）なら各ファイルを引数にして exe を起動、そうでなければ共有シートに全件を載せる。
+    /// </summary>
+    public static async Task ShareAsync(IReadOnlyList<string> filePaths, AppSettings settings)
     {
-        StorageFile file;
-        try
+        if (filePaths == null || filePaths.Count == 0) return;
+        if (filePaths.Count == 1) { await ShareAsync(filePaths[0], settings); return; }
+
+        var sharePath = settings?.SharePath;
+        if (!string.IsNullOrWhiteSpace(sharePath) && File.Exists(sharePath))
         {
-            file = await StorageFile.GetFileFromPathAsync(filePath);
+            // exe は 1 プロセスで複数パスを受けられるとは限らないため、各ファイルを個別に起動する。
+            foreach (var path in filePaths)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo(sharePath)
+                    {
+                        Arguments = $"\"{path}\"",
+                        UseShellExecute = true,
+                    });
+                }
+                catch { /* 起動失敗は黙殺 */ }
+            }
+            return;
         }
-        catch
+
+        await ShowShareSheetAsync(filePaths);
+    }
+
+    private static async Task ShowShareSheetAsync(IReadOnlyList<string> filePaths)
+    {
+        var files = new List<StorageFile>();
+        foreach (var path in filePaths)
         {
-            return; // ファイル消失等。
+            try { files.Add(await StorageFile.GetFileFromPathAsync(path)); }
+            catch { /* 消失ファイルは飛ばす */ }
         }
+        if (files.Count == 0) return; // 全滅なら共有シートを出さない。
 
         try
         {
@@ -67,8 +97,10 @@ public static class ShareHelper
             manager.DataRequested += (_, args) =>
             {
                 var deferral = args.Request.GetDeferral();
-                args.Request.Data.Properties.Title = file.Name;
-                args.Request.Data.SetStorageItems(new[] { file });
+                args.Request.Data.Properties.Title = files.Count == 1
+                    ? files[0].Name
+                    : Loc.Get("Share_MultipleTitle", files.Count);
+                args.Request.Data.SetStorageItems(files);
                 deferral.Complete();
             };
 

@@ -512,6 +512,83 @@
     <value>次の名前が複数の写真に割り当たります（{0} 件）。テンプレートに連番（{{seq:000}}）等を加えてください: {1}</value>
   </data>
 
+  <!-- 右クリックメニュー（PhotoContextMenu） -->
+  <data name="Ctx_TargetCount" xml:space="preserve">
+    <value>{0} 枚が対象</value>
+  </data>
+  <data name="Ctx_AllFilesSuffix" xml:space="preserve">
+    <value>(全選択ファイル)</value>
+  </data>
+  <data name="Ctx_Rating" xml:space="preserve">
+    <value>レーティング</value>
+  </data>
+  <data name="Ctx_RatingClear" xml:space="preserve">
+    <value>なし (0)</value>
+  </data>
+  <data name="Ctx_ColorLabel" xml:space="preserve">
+    <value>カラーラベル</value>
+  </data>
+  <data name="Ctx_Color_Red" xml:space="preserve">
+    <value>赤</value>
+  </data>
+  <data name="Ctx_Color_Yellow" xml:space="preserve">
+    <value>黄</value>
+  </data>
+  <data name="Ctx_Color_Green" xml:space="preserve">
+    <value>緑</value>
+  </data>
+  <data name="Ctx_Color_Blue" xml:space="preserve">
+    <value>青</value>
+  </data>
+  <data name="Ctx_Color_Purple" xml:space="preserve">
+    <value>紫</value>
+  </data>
+  <data name="Ctx_Flag" xml:space="preserve">
+    <value>フラグ</value>
+  </data>
+  <data name="Ctx_Flag_Pick" xml:space="preserve">
+    <value>採用</value>
+  </data>
+  <data name="Ctx_Flag_None" xml:space="preserve">
+    <value>フラグなし</value>
+  </data>
+  <data name="Ctx_Flag_Reject" xml:space="preserve">
+    <value>除外</value>
+  </data>
+  <data name="Ctx_CopyFiles" xml:space="preserve">
+    <value>ファイルをコピー</value>
+  </data>
+  <data name="Ctx_CopyFiles_DisplayedOnly" xml:space="preserve">
+    <value>表示中のファイルのみ</value>
+  </data>
+  <data name="Ctx_CopyFiles_IncludeSiblings" xml:space="preserve">
+    <value>関連ファイルも含める（RAW 等）</value>
+  </data>
+  <data name="Ctx_CopyPath" xml:space="preserve">
+    <value>パスをコピー</value>
+  </data>
+  <data name="Ctx_Explorer" xml:space="preserve">
+    <value>エクスプローラーで表示</value>
+  </data>
+  <data name="Ctx_OpenDefault" xml:space="preserve">
+    <value>既定のアプリで開く</value>
+  </data>
+  <data name="Ctx_Share" xml:space="preserve">
+    <value>共有</value>
+  </data>
+  <data name="Ctx_Reject" xml:space="preserve">
+    <value>Reject フォルダへ移動…</value>
+  </data>
+  <data name="Ctx_CopyRename" xml:space="preserve">
+    <value>リネームしてコピー…</value>
+  </data>
+  <data name="Ctx_SelectAll" xml:space="preserve">
+    <value>すべて選択</value>
+  </data>
+  <data name="Share_MultipleTitle" xml:space="preserve">
+    <value>{0} 個のファイル</value>
+  </data>
+
   <!-- ショートカット一覧（F1 / ShortcutCheatSheet） -->
   <!-- LangCode: shortcuts.json 等の言語選択に使う。resw の解決結果＝実際の表示言語と常に一致する。 -->
   <data name="LangCode" xml:space="preserve">

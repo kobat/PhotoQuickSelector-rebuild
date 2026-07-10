@@ -18,6 +18,7 @@
         IsItemClickEnabled="False"
         SelectionChanged="PhotoGrid_SelectionChanged"
         DoubleTapped="PhotoGrid_DoubleTapped"
+        RightTapped="PhotoGrid_RightTapped"
         ContainerContentChanging="PhotoGrid_ContainerContentChanging">
         <GridView.Resources>
             <!-- 焦点（=選択）の枠を既定のアクセント色（青＝水色）から純白へ差し替える。

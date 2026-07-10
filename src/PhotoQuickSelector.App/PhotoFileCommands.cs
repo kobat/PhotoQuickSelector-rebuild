@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using PhotoQuickSelector_App.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
@@ -71,6 +73,37 @@ public static class PhotoFileCommands
     public static void Share(PhotoItemViewModel item, AppSettings settings)
     {
         if (item is not null) _ = ShareHelper.ShareAsync(item.Meta.Path, settings);
+    }
+
+    // === 複数選択（右クリックメニュー）対応 ===
+
+    /// <summary>選択集合の全メンバーを既定アプリで開く（メニュー「既定のアプリで開く」の一括版）。</summary>
+    public static void OpenWithDefault(IEnumerable<PhotoItemViewModel> items)
+    {
+        foreach (var item in items)
+            if (item is not null) OpenWithDefault(item.Meta.Path);
+    }
+
+    /// <summary>選択集合の全メンバーのフルパスを 1 行 1 パスでクリップボードへコピーする。</summary>
+    public static void CopyPaths(IEnumerable<PhotoItemViewModel> items)
+    {
+        var paths = items.Where(i => i is not null).Select(i => i.Meta.Path).ToList();
+        if (paths.Count == 0) return;
+        try
+        {
+            var data = new DataPackage();
+            data.SetText(string.Join("\r\n", paths));
+            Clipboard.SetContent(data);
+        }
+        catch { /* クリップボード占有等は黙殺 */ }
+    }
+
+    /// <summary>選択集合の全メンバーを共有する（設定済み exe は各ファイルを引数起動／共有シートは複数同時）。</summary>
+    public static void Share(IReadOnlyList<PhotoItemViewModel> items, AppSettings settings)
+    {
+        var paths = items.Where(i => i is not null).Select(i => i.Meta.Path).ToList();
+        if (paths.Count == 0) return;
+        _ = ShareHelper.ShareAsync(paths, settings);
     }
 
     /// <summary>エクスプローラで対象ファイルを選択状態にして表示する（<c>/select,</c>）。</summary>

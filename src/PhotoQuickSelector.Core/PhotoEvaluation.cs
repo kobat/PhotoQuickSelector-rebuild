@@ -85,6 +85,16 @@ public sealed class PhotoEvaluation
         return FlagRating;
     }
 
+    /// <summary>
+    /// フラグを直接設定（拒否 -1 / 中立 0 / 採用 +1 にクランプ）。段階遷移の <see cref="FlagUp"/>/
+    /// <see cref="FlagDown"/> と違い、メニューから状態を一発指定するときに使う。
+    /// </summary>
+    public int SetFlag(int value)
+    {
+        PersistedFlagRating = Math.Clamp(value, -1, 1);
+        return FlagRating;
+    }
+
     /// <summary>カラーラベルのオン/オフをトグルし、新しい値(0 or 1)を返す。</summary>
     public int ToggleColorLabel(ColorLabel label)
     {

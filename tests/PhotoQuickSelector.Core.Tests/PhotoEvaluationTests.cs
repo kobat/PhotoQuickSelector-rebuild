@@ -77,6 +77,19 @@ public class PhotoEvaluationTests
         Assert.Equal(0, e.FlagRating);
     }
 
+    [Theory]
+    [InlineData(1, 1)]    // 採用
+    [InlineData(0, 0)]    // 中立
+    [InlineData(-1, -1)]  // 拒否
+    [InlineData(3, 1)]    // 上限クランプ
+    [InlineData(-3, -1)]  // 下限クランプ
+    public void SetFlag_ClampsToTriState(int value, int expected)
+    {
+        var e = new PhotoEvaluation();
+        Assert.Equal(expected, e.SetFlag(value));
+        Assert.Equal(expected, e.FlagRating);
+    }
+
     [Fact]
     public void ToggleColorLabel_TogglesOnAndOff()
     {

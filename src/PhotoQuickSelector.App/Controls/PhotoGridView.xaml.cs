@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using PhotoQuickSelector_App.ViewModels;
@@ -72,6 +73,15 @@ public sealed partial class PhotoGridView : UserControl
     {
         // サムネイルのダブルクリックで大画面プレビューへ（SPEC §2）。
         _viewModel?.EnterPreview();
+    }
+
+    // サムネイルの右クリックで操作メニューを表示（対象確定はエクスプローラ流儀＝PhotoContextMenu）。
+    private void PhotoGrid_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (_viewModel == null) return;
+        var clicked = (e.OriginalSource as FrameworkElement)?.DataContext as PhotoItemViewModel;
+        PhotoContextMenu.Show(PhotoGrid, e.GetPosition(PhotoGrid), clicked, _viewModel, XamlRoot);
+        e.Handled = true;
     }
 
     // 可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。

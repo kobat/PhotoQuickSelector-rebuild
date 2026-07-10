@@ -279,6 +279,14 @@ public partial class PhotoItemViewModel : ObservableObject
         NotifyFlag();
     }
 
+    /// <summary>フラグを直接設定（拒否 -1 / 中立 0 / 採用 +1）。右クリックメニューからの一発指定用。</summary>
+    public void SetFlag(int value)
+    {
+        Eval.SetFlag(value);
+        _store.SaveFlagRating(FileName, Eval.PersistedFlagRating);
+        NotifyFlag();
+    }
+
     private void NotifyFlag()
     {
         OnPropertyChanged(nameof(PickVisibility));

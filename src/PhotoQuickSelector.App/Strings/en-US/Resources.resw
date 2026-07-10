@@ -512,6 +512,83 @@ Log: {1}</value>
     <value>The following names would be assigned to multiple photos ({0}). Add a sequence token ({{seq:000}}) or similar to the template: {1}</value>
   </data>
 
+  <!-- Right-click context menu (PhotoContextMenu) -->
+  <data name="Ctx_TargetCount" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="Ctx_AllFilesSuffix" xml:space="preserve">
+    <value>(all selected files)</value>
+  </data>
+  <data name="Ctx_Rating" xml:space="preserve">
+    <value>Rating</value>
+  </data>
+  <data name="Ctx_RatingClear" xml:space="preserve">
+    <value>None (0)</value>
+  </data>
+  <data name="Ctx_ColorLabel" xml:space="preserve">
+    <value>Color label</value>
+  </data>
+  <data name="Ctx_Color_Red" xml:space="preserve">
+    <value>Red</value>
+  </data>
+  <data name="Ctx_Color_Yellow" xml:space="preserve">
+    <value>Yellow</value>
+  </data>
+  <data name="Ctx_Color_Green" xml:space="preserve">
+    <value>Green</value>
+  </data>
+  <data name="Ctx_Color_Blue" xml:space="preserve">
+    <value>Blue</value>
+  </data>
+  <data name="Ctx_Color_Purple" xml:space="preserve">
+    <value>Purple</value>
+  </data>
+  <data name="Ctx_Flag" xml:space="preserve">
+    <value>Flag</value>
+  </data>
+  <data name="Ctx_Flag_Pick" xml:space="preserve">
+    <value>Pick</value>
+  </data>
+  <data name="Ctx_Flag_None" xml:space="preserve">
+    <value>No flag</value>
+  </data>
+  <data name="Ctx_Flag_Reject" xml:space="preserve">
+    <value>Reject</value>
+  </data>
+  <data name="Ctx_CopyFiles" xml:space="preserve">
+    <value>Copy files</value>
+  </data>
+  <data name="Ctx_CopyFiles_DisplayedOnly" xml:space="preserve">
+    <value>Displayed files only</value>
+  </data>
+  <data name="Ctx_CopyFiles_IncludeSiblings" xml:space="preserve">
+    <value>Include related files (RAW, etc.)</value>
+  </data>
+  <data name="Ctx_CopyPath" xml:space="preserve">
+    <value>Copy path</value>
+  </data>
+  <data name="Ctx_Explorer" xml:space="preserve">
+    <value>Show in Explorer</value>
+  </data>
+  <data name="Ctx_OpenDefault" xml:space="preserve">
+    <value>Open with default app</value>
+  </data>
+  <data name="Ctx_Share" xml:space="preserve">
+    <value>Share</value>
+  </data>
+  <data name="Ctx_Reject" xml:space="preserve">
+    <value>Move to Reject folder…</value>
+  </data>
+  <data name="Ctx_CopyRename" xml:space="preserve">
+    <value>Copy with rename…</value>
+  </data>
+  <data name="Ctx_SelectAll" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="Share_MultipleTitle" xml:space="preserve">
+    <value>{0} files</value>
+  </data>
+
   <!-- Keyboard shortcuts (F1 / ShortcutCheatSheet) -->
   <!-- LangCode: used to pick the language in shortcuts.json etc.; always matches the resolved resw language. -->
   <data name="LangCode" xml:space="preserve">

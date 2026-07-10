@@ -219,7 +219,8 @@
             ScrollViewer.VerticalScrollMode="Disabled"
             ScrollViewer.VerticalScrollBarVisibility="Disabled"
             ContainerContentChanging="FilmStrip_ContainerContentChanging"
-            DoubleTapped="FilmStrip_DoubleTapped">
+            DoubleTapped="FilmStrip_DoubleTapped"
+            RightTapped="FilmStrip_RightTapped">
             <ListView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsStackPanel Orientation="Horizontal" />

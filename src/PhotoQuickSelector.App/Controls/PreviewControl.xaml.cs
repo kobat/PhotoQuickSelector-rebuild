@@ -151,6 +151,15 @@ public sealed partial class PreviewControl : UserControl
         e.Handled = true;
     }
 
+    // フィルムストリップの右クリックで操作メニューを表示（グリッドと共通＝PhotoContextMenu）。
+    private void FilmStrip_RightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        if (_viewModel == null) return;
+        var clicked = (e.OriginalSource as FrameworkElement)?.DataContext as PhotoItemViewModel;
+        PhotoContextMenu.Show(FilmStrip, e.GetPosition(FilmStrip), clicked, _viewModel, XamlRoot);
+        e.Handled = true;
+    }
+
     // フィルムストリップの高さ変更（スプリッター/復元）に合わせてセル一辺を再計算し、現在高を設定へ控える。
     private void FilmStrip_SizeChanged(object sender, SizeChangedEventArgs e)
     {
