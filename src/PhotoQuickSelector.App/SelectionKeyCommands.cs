@@ -11,6 +11,7 @@ namespace PhotoQuickSelector_App;
 ///   <item><c>Shift+←/→</c>: レンジ起点から焦点までを連続選択（焦点も移動）</item>
 ///   <item><c>Ctrl+←/→</c>: 選択集合を変えずに焦点だけ移動（集合外へも可）</item>
 ///   <item><c>Ctrl+Space</c>: 焦点の写真を選択集合へ参加/解除</item>
+///   <item><c>Ctrl+A</c>: 絞込結果（<c>Photos</c>）の全件を選択集合にする（Windows 標準の全選択）</item>
 ///   <item><c>Esc</c>: 選択集合を解除（集合があるときのみ消費）</item>
 /// </list>
 /// </summary>
@@ -33,8 +34,9 @@ public static class SelectionKeyCommands
             }
         }
 
-        // Ctrl+←/→ : 焦点のみ移動（集合不変） / Ctrl+Space : 焦点をトグル参加
+        // Ctrl+←/→ : 焦点のみ移動（集合不変） / Ctrl+Space : 焦点をトグル参加 / Ctrl+A : 全選択
         // ※ Ctrl+↑/↓ はフラグ評価、Ctrl+L はフィルタなので衝突しない。
+        // Ctrl+A（Windows 標準の全選択）は絞込結果 Photos の全件を選択集合にする（右クリック「すべて選択」と同一）。
         if (ctrl && !shift && !alt)
         {
             switch (key)
@@ -42,6 +44,7 @@ public static class SelectionKeyCommands
                 case VirtualKey.Left: vm.MoveFocusKeepingSelection(-1); return true;
                 case VirtualKey.Right: vm.MoveFocusKeepingSelection(1); return true;
                 case VirtualKey.Space: vm.ToggleFocusInSelection(); return true;
+                case VirtualKey.A: vm.SelectAll(); return true;
             }
         }
 

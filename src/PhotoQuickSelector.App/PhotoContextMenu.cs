@@ -163,7 +163,8 @@ public static class PhotoContextMenu
 
     private static void AddSelectAll(MenuFlyout flyout, MainViewModel vm)
     {
-        flyout.Items.Add(Item(Loc.Get("Ctx_SelectAll"), vm.SelectAll, enabled: vm.Photos.Count > 0));
+        flyout.Items.Add(Item(Loc.Get("Ctx_SelectAll"), vm.SelectAll, enabled: vm.Photos.Count > 0,
+            accelText: "Ctrl+A"));
     }
 
     /// <summary>

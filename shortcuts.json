@@ -96,6 +96,8 @@
           "description": { "ja": "焦点のみ移動（選択集合は不変）", "en": "Move the focus only (selection set unchanged)" } },
         { "keys": "Ctrl+Space",
           "description": { "ja": "焦点を選択集合へ参加 / 解除", "en": "Add/remove the focused photo to/from the selection set" } },
+        { "keys": "Ctrl+A",
+          "description": { "ja": "すべて選択（絞込結果の全件を選択集合に）", "en": "Select all (add every filtered photo to the selection set)" } },
         { "keys": { "ja": "← / →（選択集合中）", "en": "← / → (with selection)" },
           "description": { "ja": "メンバー内で焦点を巡回", "en": "Cycle the focus among the selected members" } },
         { "keys": "Esc",

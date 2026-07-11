@@ -61,6 +61,7 @@
 | `Shift+← / →` | Range selection (from the pivot to the focus) |
 | `Ctrl+← / →` | Move the focus only (selection set unchanged) |
 | `Ctrl+Space` | Add/remove the focused photo to/from the selection set |
+| `Ctrl+A` | Select all (add every filtered photo to the selection set) |
 | `← / → (with selection)` | Cycle the focus among the selected members |
 | `Esc` | Clear the selection set |
 | `Alt+0 – 5` | Bulk rating (all members of the selection set) |
