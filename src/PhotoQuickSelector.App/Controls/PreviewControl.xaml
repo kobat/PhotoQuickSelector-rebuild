@@ -106,13 +106,13 @@
                 </StackPanel>
             </Border>
 
-            <!-- 評価バッジオーバーレイ（I キーで巡回選択時。詳細情報と排他表示・同じ左上位置）。
+            <!-- 評価バッジオーバーレイ（I キーで巡回選択時。詳細情報と排他表示。左上の角ほぼ密着＝Margin 小）。
                  レーティング/フラグ/カラーラベルのみを簡潔に表示。全部空の写真ではバッジごと隠す
                  （内側 Border の Visibility＝HasAnyEvalVisibility）。
                  横幅抑制のため縦積み（旗→★→カラーの3行）。空の要素は行ごと消え Spacing も詰まる。 -->
             <Border x:Name="RatingBadge" Grid.Column="0"
                     VerticalAlignment="Top" HorizontalAlignment="Left"
-                    Margin="12" IsHitTestVisible="False"
+                    Margin="3" IsHitTestVisible="False"
                     DataContext="{x:Bind ViewModel.FocusedPhoto, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.RatingBadgeVisibility, Mode=OneWay}">
                 <Border Padding="10,6" CornerRadius="8" Background="#A6000000"
