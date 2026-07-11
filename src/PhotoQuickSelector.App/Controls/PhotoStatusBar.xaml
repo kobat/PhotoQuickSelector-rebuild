@@ -164,6 +164,12 @@
                                           Text="フィルタ ON/OFF"
                                           KeyboardAcceleratorTextOverride="Ctrl+L"
                                           Click="MenuFilter_Click" />
+                    <!-- イマーシブはグリッド表示中でも押せる（プレビューへ入って ON にする。Shift+F と同じ流儀）ため
+                         プレビュー▶の外＝トップ項目に置く。写真が0枚の時だけ無効化（Menu_Opening）。 -->
+                    <ToggleMenuFlyoutItem x:Name="ImmersiveToggleItem" x:Uid="Menu_ImmersiveToggle"
+                                          Text="イマーシブ表示"
+                                          KeyboardAcceleratorTextOverride="F"
+                                          Click="MenuImmersive_Click" />
                     <ToggleMenuFlyoutItem x:Name="FullScreenToggleItem" x:Uid="Menu_FullScreenToggle"
                                           Text="全画面表示"
                                           KeyboardAcceleratorTextOverride="F11"
@@ -176,10 +182,10 @@
 
                     <!-- プレビュー専用群（Opening でプレビュー時のみ有効化） -->
                     <MenuFlyoutSubItem x:Name="PreviewSubItem" x:Uid="Menu_PreviewSub" Text="プレビュー">
-                        <ToggleMenuFlyoutItem x:Name="ImmersiveToggleItem" x:Uid="Menu_ImmersiveToggle"
-                                              Text="イマーシブ表示"
-                                              KeyboardAcceleratorTextOverride="F"
-                                              Click="MenuImmersive_Click" />
+                        <ToggleMenuFlyoutItem x:Name="ExifPanelToggleItem" x:Uid="Menu_ExifPanel"
+                                              Text="EXIF 詳細パネル"
+                                              KeyboardAcceleratorTextOverride="E"
+                                              Click="MenuExifPanel_Click" />
                         <MenuFlyoutSubItem x:Name="OverlaySubItem" x:Uid="Menu_OverlaySub" Text="情報オーバーレイ">
                             <RadioMenuFlyoutItem x:Name="OverlayKindBadgeItem" x:Uid="Menu_OverlayKindBadge"
                                                   Text="評価バッジ" GroupName="OverlayKind"
@@ -203,12 +209,35 @@
                                                   KeyboardAcceleratorTextOverride="Shift+I"
                                                   Click="MenuOverlayTimingTransient_Click" />
                         </MenuFlyoutSubItem>
-                        <MenuFlyoutItem x:Uid="Menu_GridKind" Text="構図グリッド: 種類を変更"
-                                        KeyboardAcceleratorTextOverride="G"
-                                        Click="MenuGridKind_Click" />
-                        <MenuFlyoutItem x:Uid="Menu_GridRef" Text="構図グリッド: 基準を切替"
-                                        KeyboardAcceleratorTextOverride="Shift+G"
-                                        Click="MenuGridRef_Click" />
+                        <!-- 構図グリッド（種類×基準の2軸）。メイン画像右クリックメニュー（PreviewControl.ContextMenu）と
+                             同じラジオ選択式に統一（旧・巡回式の2項目は廃止）。 -->
+                        <MenuFlyoutSubItem x:Name="GridSubItem" x:Uid="Menu_GridSub" Text="構図グリッド">
+                            <RadioMenuFlyoutItem x:Name="GridNoneItem" x:Uid="Menu_GridNone"
+                                                  Text="なし" GroupName="MenuGridKind"
+                                                  KeyboardAcceleratorTextOverride="G"
+                                                  Click="MenuGridNone_Click" />
+                            <RadioMenuFlyoutItem x:Name="GridCrossItem" x:Uid="Menu_GridCross"
+                                                  Text="中央十字" GroupName="MenuGridKind"
+                                                  KeyboardAcceleratorTextOverride="G"
+                                                  Click="MenuGridCross_Click" />
+                            <RadioMenuFlyoutItem x:Name="GridThirdsItem" x:Uid="Menu_GridThirds"
+                                                  Text="三分割" GroupName="MenuGridKind"
+                                                  KeyboardAcceleratorTextOverride="G"
+                                                  Click="MenuGridThirds_Click" />
+                            <RadioMenuFlyoutItem x:Name="GridSquareItem" x:Uid="Menu_GridSquare"
+                                                  Text="正方形" GroupName="MenuGridKind"
+                                                  KeyboardAcceleratorTextOverride="G"
+                                                  Click="MenuGridSquare_Click" />
+                            <MenuFlyoutSeparator />
+                            <RadioMenuFlyoutItem x:Name="GridRefImageItem" x:Uid="Menu_GridRefImage"
+                                                  Text="基準: 画像" GroupName="MenuGridRef"
+                                                  KeyboardAcceleratorTextOverride="Shift+G"
+                                                  Click="MenuGridRefImage_Click" />
+                            <RadioMenuFlyoutItem x:Name="GridRefCanvasItem" x:Uid="Menu_GridRefCanvas"
+                                                  Text="基準: Canvas" GroupName="MenuGridRef"
+                                                  KeyboardAcceleratorTextOverride="Shift+G"
+                                                  Click="MenuGridRefCanvas_Click" />
+                        </MenuFlyoutSubItem>
                     </MenuFlyoutSubItem>
 
                     <MenuFlyoutSeparator />

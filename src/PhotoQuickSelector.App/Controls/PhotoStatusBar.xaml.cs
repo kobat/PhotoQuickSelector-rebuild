@@ -44,11 +44,17 @@ public sealed partial class PhotoStatusBar : UserControl
     /// <summary>イマーシブ表示の切替要求（<see cref="MainPage"/> が <see cref="PreviewControl.SetImmersive"/> を呼ぶ）。</summary>
     public event EventHandler? ToggleImmersiveRequested;
 
+    /// <summary>EXIF 詳細パネルの切替要求（<see cref="MainPage"/> が <see cref="PreviewControl.ToggleExifPanel"/> を呼ぶ）。</summary>
+    public event EventHandler? ToggleExifPanelRequested;
+
     /// <summary>設定ダイアログが保存されたとき発火する（<see cref="MainPage"/> が <see cref="PreviewControl.ApplyPreviewSettings"/> を呼ぶ）。</summary>
     public event EventHandler? SettingsChanged;
 
     /// <summary>イマーシブ表示中かを返す（メニューのチェック表示用。<see cref="MainPage"/> が Preview から供給）。</summary>
     public Func<bool>? IsImmersiveProvider { get; set; }
+
+    /// <summary>EXIF 詳細パネル表示中かを返す（メニューのチェック表示用。<see cref="MainPage"/> が Preview から供給）。</summary>
+    public Func<bool>? IsExifPanelProvider { get; set; }
 
     /// <summary>全画面表示中かを返す（メニューのチェック表示用。<see cref="MainPage"/> が <see cref="MainWindow"/> から供給）。</summary>
     public Func<bool>? IsFullScreenProvider { get; set; }
@@ -80,13 +86,24 @@ public sealed partial class PhotoStatusBar : UserControl
 
         FilterToggleItem.IsChecked = _viewModel.Filter.Enabled;
         FullScreenToggleItem.IsChecked = IsFullScreenProvider?.Invoke() ?? false;
-        ImmersiveToggleItem.IsChecked = IsImmersiveProvider?.Invoke() ?? false;
+        // グリッド表示中はまだイマーシブ状態を持たない（プレビューに入って初めて意味を持つ）ためチェックなし。
+        // 有効/無効は写真の有無のみで決める（クリックで EnterPreview する分岐は MainPage 側が担う）。
+        ImmersiveToggleItem.IsChecked = _viewModel.IsPreviewMode && (IsImmersiveProvider?.Invoke() ?? false);
+        ImmersiveToggleItem.IsEnabled = _viewModel.Photos.Count > 0;
+        ExifPanelToggleItem.IsChecked = IsExifPanelProvider?.Invoke() ?? false;
 
         OverlayKindBadgeItem.IsChecked = _viewModel.OverlayKind == InfoOverlayKind.Badge;
         OverlayKindFullItem.IsChecked = _viewModel.OverlayKind == InfoOverlayKind.Full;
         OverlayKindOffItem.IsChecked = _viewModel.OverlayKind == InfoOverlayKind.Off;
         OverlayTimingAlwaysItem.IsChecked = !_viewModel.OverlayTransient;
         OverlayTimingTransientItem.IsChecked = _viewModel.OverlayTransient;
+
+        GridNoneItem.IsChecked = _viewModel.GridKind == GridOverlayKind.None;
+        GridCrossItem.IsChecked = _viewModel.GridKind == GridOverlayKind.CenterCross;
+        GridThirdsItem.IsChecked = _viewModel.GridKind == GridOverlayKind.RuleOfThirds;
+        GridSquareItem.IsChecked = _viewModel.GridKind == GridOverlayKind.Square;
+        GridRefImageItem.IsChecked = _viewModel.GridReference == GridOverlayReference.Image;
+        GridRefCanvasItem.IsChecked = _viewModel.GridReference == GridOverlayReference.Canvas;
 
         // プレビュー専用群はプレビュー時のみ有効。
         PreviewSubItem.IsEnabled = _viewModel.IsPreviewMode;
@@ -141,6 +158,9 @@ public sealed partial class PhotoStatusBar : UserControl
     private void MenuImmersive_Click(object sender, RoutedEventArgs e)
         => ToggleImmersiveRequested?.Invoke(this, EventArgs.Empty);
 
+    private void MenuExifPanel_Click(object sender, RoutedEventArgs e)
+        => ToggleExifPanelRequested?.Invoke(this, EventArgs.Empty);
+
     private void MenuOverlayKindBadge_Click(object sender, RoutedEventArgs e)
     {
         if (_viewModel is not null) _viewModel.OverlayKind = InfoOverlayKind.Badge;
@@ -166,11 +186,38 @@ public sealed partial class PhotoStatusBar : UserControl
         if (_viewModel is not null) _viewModel.OverlayTransient = true;
     }
 
-    private void MenuGridKind_Click(object sender, RoutedEventArgs e)
-        => _viewModel?.CycleGridKind();
+    // 構図グリッド（種類×基準）はラジオ選択式（PreviewControl の右クリックメニューと同じ流儀）。
+    // 旧・巡回式（MenuGridKind_Click/MenuGridRef_Click）は廃止。
 
-    private void MenuGridRef_Click(object sender, RoutedEventArgs e)
-        => _viewModel?.ToggleGridReference();
+    private void MenuGridNone_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.GridKind = GridOverlayKind.None;
+    }
+
+    private void MenuGridCross_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.GridKind = GridOverlayKind.CenterCross;
+    }
+
+    private void MenuGridThirds_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.GridKind = GridOverlayKind.RuleOfThirds;
+    }
+
+    private void MenuGridSquare_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.GridKind = GridOverlayKind.Square;
+    }
+
+    private void MenuGridRefImage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.GridReference = GridOverlayReference.Image;
+    }
+
+    private void MenuGridRefCanvas_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.GridReference = GridOverlayReference.Canvas;
+    }
 
     /// <summary>GPS 地図ボタン。撮影位置をブラウザの地図で開く（十進緯度経度がある場合）。</summary>
     private async void GpsButton_Click(object sender, RoutedEventArgs e)

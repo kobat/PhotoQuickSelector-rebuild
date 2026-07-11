@@ -18,8 +18,14 @@ public sealed partial class PreviewControl
     private bool _showExifPanel;   // true=EXIF 詳細 / false=ルーペ（既定）
     private int _exifLoadToken;    // 高速ナビでの追い越し対策（LoadCurrentAsync の _loadToken と同じ考え方）
 
-    /// <summary>右パネル上段をルーペ ⇄ EXIF 詳細で切り替える（E キー用）。</summary>
-    private void ToggleExifPanel() => SetExifPanelVisible(!_showExifPanel);
+    /// <summary>
+    /// 右パネル上段をルーペ ⇄ EXIF 詳細で切り替える（E キー・メイン画像右クリックメニュー・
+    /// ハンバーガーメニューの「EXIF 詳細パネル」から共通で呼ぶ）。
+    /// </summary>
+    public void ToggleExifPanel() => SetExifPanelVisible(!_showExifPanel);
+
+    /// <summary>現在 EXIF 詳細パネルを表示中か（ルーペ表示中なら false。メニューのチェック表示用）。</summary>
+    public bool IsExifPanelShown => _showExifPanel;
 
     private void LoupeTabButton_Click(object sender, RoutedEventArgs e) => SetExifPanelVisible(false);
 

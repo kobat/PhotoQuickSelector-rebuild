@@ -137,6 +137,9 @@
   <data name="Menu_ImmersiveToggle.Text" xml:space="preserve">
     <value>イマーシブ表示</value>
   </data>
+  <data name="Menu_ExifPanel.Text" xml:space="preserve">
+    <value>EXIF 詳細パネル</value>
+  </data>
   <data name="Menu_OverlaySub.Text" xml:space="preserve">
     <value>情報オーバーレイ</value>
   </data>
@@ -155,11 +158,26 @@
   <data name="Menu_OverlayTimingTransient.Text" xml:space="preserve">
     <value>切替時のみ</value>
   </data>
-  <data name="Menu_GridKind.Text" xml:space="preserve">
-    <value>構図グリッド: 種類を変更</value>
+  <data name="Menu_GridSub.Text" xml:space="preserve">
+    <value>構図グリッド</value>
   </data>
-  <data name="Menu_GridRef.Text" xml:space="preserve">
-    <value>構図グリッド: 基準を切替</value>
+  <data name="Menu_GridNone.Text" xml:space="preserve">
+    <value>なし</value>
+  </data>
+  <data name="Menu_GridCross.Text" xml:space="preserve">
+    <value>中央十字</value>
+  </data>
+  <data name="Menu_GridThirds.Text" xml:space="preserve">
+    <value>三分割</value>
+  </data>
+  <data name="Menu_GridSquare.Text" xml:space="preserve">
+    <value>正方形</value>
+  </data>
+  <data name="Menu_GridRefImage.Text" xml:space="preserve">
+    <value>基準: 画像</value>
+  </data>
+  <data name="Menu_GridRefCanvas.Text" xml:space="preserve">
+    <value>基準: Canvas</value>
   </data>
   <data name="Menu_FileSub.Text" xml:space="preserve">
     <value>ファイル</value>
@@ -551,6 +569,9 @@
   </data>
   <data name="Ctx_ColorLabel" xml:space="preserve">
     <value>カラーラベル</value>
+  </data>
+  <data name="Ctx_ColorClear" xml:space="preserve">
+    <value>クリア</value>
   </data>
   <data name="Ctx_Color_Red" xml:space="preserve">
     <value>赤</value>

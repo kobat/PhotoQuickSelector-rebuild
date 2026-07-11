@@ -52,15 +52,27 @@ public sealed partial class MainPage : Page
         StatusBar.ToggleFullScreenRequested += (_, _) => (App.Window as MainWindow)?.ToggleFullScreen();
         // メニュー「完全全画面」は複数要素にまたがるので MainPage のコーディネータへ（Shift+F と同じ経路）。
         StatusBar.ToggleFullImageRequested += (_, _) => ToggleFullImageMode();
-        // メニュー「イマーシブ表示」は Preview 内の操作。プレビュー時のみ有効（F キーと同じ）。
+        // メニュー「イマーシブ表示」はグリッド表示中でも押せる（Shift+F の ToggleFullImageMode と同じ流儀。
+        // EnterPreview は空フォルダなら no-op なので、実際に入れたときだけイマーシブを適用する）。
         StatusBar.ToggleImmersiveRequested += (_, _) =>
         {
-            if (ViewModel.IsPreviewMode) Preview.SetImmersive(!Preview.IsImmersive);
+            if (!ViewModel.IsPreviewMode)
+            {
+                ViewModel.EnterPreview();
+                if (ViewModel.IsPreviewMode) Preview.SetImmersive(true);
+            }
+            else
+            {
+                Preview.SetImmersive(!Preview.IsImmersive);
+            }
         };
+        // メニュー「EXIF 詳細パネル」は Preview 内の操作（E キーと同じ経路）。
+        StatusBar.ToggleExifPanelRequested += (_, _) => Preview.ToggleExifPanel();
         // 設定ダイアログ保存時、ズーム段・先読み・レート・キャッシュ予算をプレビューへ反映（同時デコード数のみ再起動後）。
         StatusBar.SettingsChanged += (_, _) => Preview.ApplyPreviewSettings(ViewModel.Settings);
         // メニューのチェック表示用の状態プロバイダ（Preview / MainWindow から供給）。
         StatusBar.IsImmersiveProvider = () => Preview.IsImmersive;
+        StatusBar.IsExifPanelProvider = () => Preview.IsExifPanelShown;
         StatusBar.IsFullScreenProvider = () => (App.Window as MainWindow)?.IsFullScreen ?? false;
         // メイン画像の右クリックメニュー（全画面表示/完全全画面はハンバーガーメニューと同じ経路で委譲）。
         Preview.ToggleFullScreenRequested += (_, _) => (App.Window as MainWindow)?.ToggleFullScreen();

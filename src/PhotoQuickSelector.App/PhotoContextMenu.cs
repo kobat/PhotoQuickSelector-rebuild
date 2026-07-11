@@ -55,16 +55,17 @@ public static class PhotoContextMenu
         // （エクスプローラで表示）と見分けられるようにする。単一対象では付けない。
         string suffix = targets.Count > 1 ? " " + Loc.Get("Ctx_AllFilesSuffix") : "";
 
-        // --- C: 評価（レーティング／カラーラベル／フラグ） ---
+        // --- C: 評価（フラグ／レーティング／カラーラベル。並びは全表示箇所で統一） ---
+        AddFlagSub(flyout.Items, vm, targets, suffix);
         AddRatingSub(flyout.Items, vm, targets, suffix);
         AddColorSub(flyout.Items, vm, targets, suffix);
-        AddFlagSub(flyout.Items, vm, targets, suffix);
 
         flyout.Items.Add(new MenuFlyoutSeparator());
 
         // --- A/B: ファイル関連（ファイルをコピー／パスをコピー／エクスプローラ表示／既定アプリ／共有） ---
-        // ハンバーガー「ファイル」（PhotoStatusBar）と実体を共有する。
-        AddFileItems(flyout.Items, vm, targets, primary, suffix, xamlRoot, withAcceleratorText: false);
+        // ハンバーガー「ファイル」（PhotoStatusBar）と実体を共有する。ショートカット表示はメイン画像メニューと
+        // 統一するため true（実キー処理は別経路なので表示専用）。
+        AddFileItems(flyout.Items, vm, targets, primary, suffix, xamlRoot, withAcceleratorText: true);
 
         flyout.Items.Add(new MenuFlyoutSeparator());
 
@@ -120,25 +121,47 @@ public static class PhotoContextMenu
     // （メイン画像・対象は焦点の1枚のみ）とも共有する。第1引数は挿入先のアイテムコレクション
     // （<see cref="MenuFlyout.Items"/> でも <see cref="MenuFlyoutSubItem.Items"/> でもよい）。
 
+    /// <summary>
+    /// レーティングのサブメニューを構築する。<paramref name="targets"/> が単一対象のときだけ現在値を
+    /// <see cref="RadioMenuFlyoutItem"/>（排他6値）のチェックで示す。複数対象時は従来どおりチェックなし
+    /// （どれが「現在値」か一意に定まらないため）。
+    /// </summary>
     internal static void AddRatingSub(
         IList<MenuFlyoutItemBase> items, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, string suffix)
     {
         var sub = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_Rating") + suffix };
-        sub.Items.Add(Item(Loc.Get("Ctx_RatingClear"),
-            () => Apply(vm, i => i.SetRating(0), targets)));
+        int? current = targets.Count == 1 ? targets[0].Eval.Rating : null;
+
+        if (current.HasValue)
+            sub.Items.Add(RadioItem(Loc.Get("Ctx_RatingClear"), "CtxRating", current.Value == 0,
+                () => Apply(vm, i => i.SetRating(0), targets)));
+        else
+            sub.Items.Add(Item(Loc.Get("Ctx_RatingClear"), () => Apply(vm, i => i.SetRating(0), targets)));
+
         for (int n = 1; n <= 5; n++)
         {
             int value = n; // クロージャ捕捉用
-            sub.Items.Add(Item(new string('★', value),
-                () => Apply(vm, i => i.SetRating(value), targets)));
+            if (current.HasValue)
+                sub.Items.Add(RadioItem(new string('★', value), "CtxRating", current.Value == value,
+                    () => Apply(vm, i => i.SetRating(value), targets)));
+            else
+                sub.Items.Add(Item(new string('★', value),
+                    () => Apply(vm, i => i.SetRating(value), targets)));
         }
         items.Add(sub);
     }
 
+    /// <summary>
+    /// カラーラベルのサブメニューを構築する。先頭に全色解除の「クリア」を置き、区切り線の下に5色を並べる。
+    /// <paramref name="targets"/> が単一対象のときだけ各色を <see cref="ToggleMenuFlyoutItem"/> にして
+    /// 現在の付与有無をチェックで示す（クリック時の動作はどちらもトグル維持で変わらない）。
+    /// </summary>
     internal static void AddColorSub(
         IList<MenuFlyoutItemBase> items, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, string suffix)
     {
         var sub = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_ColorLabel") + suffix };
+        sub.Items.Add(Item(Loc.Get("Ctx_ColorClear"), () => Apply(vm, i => i.ClearColorLabels(), targets)));
+        sub.Items.Add(new MenuFlyoutSeparator());
         AddColor(sub, vm, targets, ColorLabel.Red, "Ctx_Color_Red");
         AddColor(sub, vm, targets, ColorLabel.Yellow, "Ctx_Color_Yellow");
         AddColor(sub, vm, targets, ColorLabel.Green, "Ctx_Color_Green");
@@ -151,16 +174,37 @@ public static class PhotoContextMenu
         MenuFlyoutSubItem sub, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets,
         ColorLabel label, string locKey)
     {
-        sub.Items.Add(Item(Loc.Get(locKey), () => Apply(vm, i => i.ToggleColorLabel(label), targets)));
+        if (targets.Count == 1)
+            sub.Items.Add(ToggleItem(Loc.Get(locKey), targets[0].Eval.HasColorLabel(label),
+                () => Apply(vm, i => i.ToggleColorLabel(label), targets)));
+        else
+            sub.Items.Add(Item(Loc.Get(locKey), () => Apply(vm, i => i.ToggleColorLabel(label), targets)));
     }
 
+    /// <summary>
+    /// フラグのサブメニューを構築する。<paramref name="targets"/> が単一対象のときだけ現在値を
+    /// <see cref="RadioMenuFlyoutItem"/>（排他3値）のチェックで示す。
+    /// </summary>
     internal static void AddFlagSub(
         IList<MenuFlyoutItemBase> items, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, string suffix)
     {
         var sub = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_Flag") + suffix };
-        sub.Items.Add(Item(Loc.Get("Ctx_Flag_Pick"), () => Apply(vm, i => i.SetFlag(1), targets)));
-        sub.Items.Add(Item(Loc.Get("Ctx_Flag_None"), () => Apply(vm, i => i.SetFlag(0), targets)));
-        sub.Items.Add(Item(Loc.Get("Ctx_Flag_Reject"), () => Apply(vm, i => i.SetFlag(-1), targets)));
+        if (targets.Count == 1)
+        {
+            int flag = targets[0].Eval.FlagRating;
+            sub.Items.Add(RadioItem(Loc.Get("Ctx_Flag_Pick"), "CtxFlag", flag > 0,
+                () => Apply(vm, i => i.SetFlag(1), targets)));
+            sub.Items.Add(RadioItem(Loc.Get("Ctx_Flag_None"), "CtxFlag", flag == 0,
+                () => Apply(vm, i => i.SetFlag(0), targets)));
+            sub.Items.Add(RadioItem(Loc.Get("Ctx_Flag_Reject"), "CtxFlag", flag < 0,
+                () => Apply(vm, i => i.SetFlag(-1), targets)));
+        }
+        else
+        {
+            sub.Items.Add(Item(Loc.Get("Ctx_Flag_Pick"), () => Apply(vm, i => i.SetFlag(1), targets)));
+            sub.Items.Add(Item(Loc.Get("Ctx_Flag_None"), () => Apply(vm, i => i.SetFlag(0), targets)));
+            sub.Items.Add(Item(Loc.Get("Ctx_Flag_Reject"), () => Apply(vm, i => i.SetFlag(-1), targets)));
+        }
         items.Add(sub);
     }
 
@@ -232,6 +276,28 @@ public static class PhotoContextMenu
     {
         var item = new MenuFlyoutItem { Text = text, IsEnabled = enabled };
         if (accelText != null) item.KeyboardAcceleratorTextOverride = accelText;
+        item.Click += (_, _) => onClick();
+        return item;
+    }
+
+    /// <summary>
+    /// クリックで <paramref name="onClick"/> を実行する <see cref="RadioMenuFlyoutItem"/> を作る
+    /// （単一対象時の評価サブメニューの現在値表示用。排他グループは <paramref name="groupName"/>）。
+    /// </summary>
+    private static RadioMenuFlyoutItem RadioItem(string text, string groupName, bool isChecked, Action onClick)
+    {
+        var item = new RadioMenuFlyoutItem { Text = text, GroupName = groupName, IsChecked = isChecked };
+        item.Click += (_, _) => onClick();
+        return item;
+    }
+
+    /// <summary>
+    /// クリックで <paramref name="onClick"/> を実行する <see cref="ToggleMenuFlyoutItem"/> を作る
+    /// （単一対象時のカラーラベル表示用。複数同時保持があるため排他ではなくトグル）。
+    /// </summary>
+    private static ToggleMenuFlyoutItem ToggleItem(string text, bool isChecked, Action onClick)
+    {
+        var item = new ToggleMenuFlyoutItem { Text = text, IsChecked = isChecked };
         item.Click += (_, _) => onClick();
         return item;
     }

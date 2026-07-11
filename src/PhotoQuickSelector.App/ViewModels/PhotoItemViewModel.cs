@@ -315,6 +315,17 @@ public partial class PhotoItemViewModel : ObservableObject
     }
 
     /// <summary>
+    /// 付与されているカラーラベルをすべて解除する（右クリックメニュー「クリア」用）。
+    /// 保存・通知は既存の <see cref="ToggleColorLabel"/> を色ごとに呼んで委ねる（重複実装を避ける）。
+    /// </summary>
+    public void ClearColorLabels()
+    {
+        foreach (var label in ColorLabelOrder)
+            if (Eval.HasColorLabel(label))
+                ToggleColorLabel(label);
+    }
+
+    /// <summary>
     /// OS のシェルサムネイル（JPEG）を一度だけ取得し、圧縮バイトのまま常駐させる。
     /// デコード（BitmapImage 化）はしないので軽量。再呼び出しは何もしない。
     /// 同一写真への同時呼び出しは 1 本の取得タスクを共有する（in-flight 重複排除）。
