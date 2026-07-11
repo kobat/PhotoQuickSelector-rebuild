@@ -54,6 +54,10 @@ public sealed partial class MainWindow : Window
         // 常に最初に届くため、フォーカス位置によらず評価/ナビキーが効く。
         RootGrid.PreviewKeyDown += RootGrid_PreviewKeyDown;
 
+        // Alt+英数字（Alt+F / Alt+数字 …）押下時に鳴る Windows 標準のメニュー ビープを抑止する。
+        // XAML 側で Handled にしても Win32 のメニュー処理までは止められないため、HWND サブクラスで潰す。
+        SuppressAltKeyMenuBeep();
+
         // 終了時に左ペインの幅／折りたたみ状態を保存する。
         Closed += MainWindow_Closed;
     }
@@ -186,6 +190,52 @@ public sealed partial class MainWindow : Window
     private static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int pvAttribute, int cbAttribute);
 
     /// <summary>
+    /// Alt+英数字（Alt+F / Alt+数字 …）押下時に Windows のメニュー処理が鳴らすシステム標準ビープ
+    /// （いわゆる「ポーン」音）を抑止する。Alt を伴うキーは Win32 のメニュー活性化経路に入り、対応する
+    /// メニュー ニーモニックが無いと <c>WM_MENUCHAR</c> の既定処理（<c>MNC_IGNORE</c>）で MessageBeep が鳴る。
+    /// XAML 側で <c>KeyDown</c> を Handled にしてもこの下位経路までは止められないため、HWND をサブクラス化して
+    /// <c>WM_MENUCHAR</c> を横取りし、<c>MNC_CLOSE</c> を返してメニューモードを黙って閉じる。Alt+F4/Alt+Space
+    /// 等は別メッセージ経路（WM_SYSCOMMAND）なので影響しない。
+    /// </summary>
+    private void SuppressAltKeyMenuBeep()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _menuBeepSubclassProc = MenuBeepSubclassProc; // GC で回収されないようフィールドで保持する。
+        _ = SetWindowSubclass(hwnd, _menuBeepSubclassProc, MenuBeepSubclassId, UIntPtr.Zero);
+    }
+
+    private IntPtr MenuBeepSubclassProc(
+        IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData)
+    {
+        // WM_MENUCHAR: ニーモニックに一致しない Alt+英数字が押されたときに送られる。ここで MNC_CLOSE
+        // （HIWORD）を返すとメニューモードが無音で閉じ、既定処理のビープが鳴らない。
+        if (uMsg == WM_MENUCHAR)
+            return (IntPtr)(MNC_CLOSE << 16);
+        return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+    }
+
+    private const uint WM_MENUCHAR = 0x0120;
+    private const int MNC_CLOSE = 1;
+    private static readonly UIntPtr MenuBeepSubclassId = (UIntPtr)1;
+
+    // GC 対象にならないようインスタンスで保持する。サブクラスは HWND 生存中ずっと有効。
+    private SubclassProc? _menuBeepSubclassProc;
+
+    private delegate IntPtr SubclassProc(
+        IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData);
+
+    // comctl32 のサブクラス API は「名前ではなく序数」でのみエクスポートされる（410/412/413）。
+    // 名前指定の DllImport は EntryPointNotFoundException になるため EntryPoint に序数を指定する。
+    [DllImport("comctl32.dll", EntryPoint = "#410", SetLastError = true)]
+    private static extern bool SetWindowSubclass(IntPtr hWnd, SubclassProc pfnSubclass, UIntPtr uIdSubclass, UIntPtr dwRefData);
+
+    [DllImport("comctl32.dll", EntryPoint = "#412", SetLastError = true)]
+    private static extern bool RemoveWindowSubclass(IntPtr hWnd, SubclassProc pfnSubclass, UIntPtr uIdSubclass);
+
+    [DllImport("comctl32.dll", EntryPoint = "#413")]
+    private static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+
+    /// <summary>
     /// exe に埋め込まれたアイコンリソース（<c>&lt;ApplicationIcon&gt;</c> が埋めた RT_GROUP_ICON）を
     /// ディスクのファイルに依存せず HICON としてロードし、窓/タスクバーへ適用する。
     /// 単一ファイル発行で Assets\AppIcon.ico がディスクに存在しないケースに対応する。
@@ -245,6 +295,14 @@ public sealed partial class MainWindow : Window
             // セッション（フォルダ/選択/表示モード/フィルタ）を控えてから、左ペイン状態と一緒に保存。
             page.ViewModel.CaptureSession();
             page.SaveLeftPaneLayout(); // 末尾で Settings.Save() を1回呼ぶ
+        }
+
+        // Alt キー ビープ抑止のサブクラスを解除する（デリゲート参照も解放）。
+        if (_menuBeepSubclassProc != null)
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            _ = RemoveWindowSubclass(hwnd, _menuBeepSubclassProc, MenuBeepSubclassId);
+            _menuBeepSubclassProc = null;
         }
     }
 }
