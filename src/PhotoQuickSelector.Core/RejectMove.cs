@@ -5,7 +5,9 @@ namespace PhotoQuickSelector.Core;
 /// バッチ（<c>.bat</c>）の組み立て（UI 非依存の純ロジック）。実際のフォルダ作成・bat 保存・
 /// 実行は呼び出し側（App）が行う。「bat を移動先（Reject）フォルダ直下に置く」前提で
 /// <c>FROMDIR=..</c> / <c>TODIR=.</c> を使い、
-/// <c>move %FROMDIR%\&lt;拡張子なし名&gt;* %TODIR%</c> で RAW+JPEG をまとめて移動する。
+/// <c>move "%FROMDIR%\&lt;拡張子なし名&gt;*" "%TODIR%"</c> で RAW+JPEG をまとめて移動する。
+/// ファイル名に空白が入り得るため move の両引数は二重引用符で囲む
+/// （<c>set</c> 行自体は cmd の仕様上引用符不要）。
 /// </summary>
 public static class RejectMove
 {
@@ -22,7 +24,7 @@ public static class RejectMove
     /// <summary>
     /// Reject 移動バッチの本文を生成する。先頭に <c>chcp 65001</c>（UTF-8）と
     /// 生成日時・フォルダ・件数の <c>@rem</c> コメントを置き、本体は各ファイルの
-    /// <c>move %FROMDIR%\&lt;拡張子なし名&gt;* %TODIR%</c>。ログ出力は呼び出し側で
+    /// <c>move "%FROMDIR%\&lt;拡張子なし名&gt;*" "%TODIR%"</c>。ログ出力は呼び出し側で
     /// <c>cmd /c "bat" &gt; "log" 2&gt;&amp;1</c> のリダイレクトにより行う想定（bat 本文には含めない）。
     /// </summary>
     /// <param name="folderDescription">対象フォルダの表示名（パス）。</param>
@@ -48,7 +50,7 @@ public static class RejectMove
             "set TODIR=.",
         };
         foreach (var name in fileNames)
-            lines.Add($"move %FROMDIR%\\{Path.GetFileNameWithoutExtension(name)}* %TODIR%");
+            lines.Add($"move \"%FROMDIR%\\{Path.GetFileNameWithoutExtension(name)}*\" \"%TODIR%\"");
         lines.Add("");
 
         return string.Join("\r\n", lines);

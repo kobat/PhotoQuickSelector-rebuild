@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using PhotoQuickSelector.Core;
 using PhotoQuickSelector_App.Controls;
 using PhotoQuickSelector_App.ViewModels;
 
@@ -52,6 +53,12 @@ public static class BatchFlows
                 Loc.Get("RejectMove_Collisions", collisions.Count, shown));
             return;
         }
+
+        // bat に埋め込む名前・フォルダに危険文字（% & ^）が無いか検査（エスケープはせず一律拒否）。
+        if (!await EnsureBatchSafeAsync(
+                xamlRoot, Loc.Get("RejectMove_AbortedTitle"),
+                targets.Select(t => t.FileName).Append(vm.CurrentFolder)))
+            return;
 
         // 2) bat をメモリ生成 → 内容を確認ダイアログで表示。
         var now = DateTime.Now;
@@ -102,6 +109,16 @@ public static class BatchFlows
         // 指定したコピー先をセッション中だけ記憶（永続化しない）。
         vm.LastCopyDestination = dialog.DestinationPath;
 
+        // bat に埋め込む名前・フォルダ・テンプレートに危険文字（% & ^）が無いか検査
+        // （解決後の新名はこれらのみから合成されるため、入力側の検査で網羅される）。
+        if (!await EnsureBatchSafeAsync(
+                xamlRoot, Loc.Get("CopyRename_MsgTitle"),
+                targets.Select(t => t.FileName)
+                    .Append(vm.CurrentFolder)
+                    .Append(dialog.DestinationPath)
+                    .Append(dialog.RenameTemplate)))
+            return;
+
         // 2) bat をメモリ生成 → 内容を確認ダイアログで表示。
         var now = DateTime.Now;
         var timestamp = now.ToString("yyyyMMddHHmmss");
@@ -151,6 +168,14 @@ public static class BatchFlows
         // 指定した移動先をセッション中だけ記憶（永続化しない）。
         vm.LastMoveDestination = dialog.DestinationPath;
 
+        // bat に埋め込む名前・フォルダに危険文字（% & ^）が無いか検査（エスケープはせず一律拒否）。
+        if (!await EnsureBatchSafeAsync(
+                xamlRoot, Loc.Get("MoveFiles_AbortedTitle"),
+                targets.Select(t => t.FileName)
+                    .Append(vm.CurrentFolder)
+                    .Append(dialog.DestinationPath)))
+            return;
+
         // 2) 同名衝突チェック（移動先に同名ファイルが既にあれば中断）。
         var collisions = vm.FindCollisions(dialog.DestinationPath, targets);
         if (collisions.Count > 0)
@@ -182,6 +207,24 @@ public static class BatchFlows
             ? Loc.Get("MoveFiles_Done", result.TargetCount, result.LogPath)
             : Loc.Get("MoveFiles_DoneWithError", result.ExitCode, result.LogPath);
         await ShowMessageAsync(xamlRoot, Loc.Get("MoveFiles_DoneTitle"), message);
+    }
+
+    /// <summary>
+    /// bat に埋め込む文字列（ファイル名・パス・テンプレート）に cmd で誤動作する文字
+    /// （% &amp; ^）が含まれていれば通知ダイアログを出して false（実行不可）。
+    /// エッジケースのためエスケープ対応はせず一律拒否する方針。
+    /// </summary>
+    private static async Task<bool> EnsureBatchSafeAsync(
+        XamlRoot xamlRoot, string title, IEnumerable<string?> values)
+    {
+        var unsafeValues = BatchSafety.FindUnsafe(values);
+        if (unsafeValues.Count == 0)
+            return true;
+
+        var shown = string.Join("\n", unsafeValues.Take(20));
+        if (unsafeValues.Count > 20) shown += "\n" + Loc.Get("Msg_MoreItemsSuffix", unsafeValues.Count - 20);
+        await ShowMessageAsync(xamlRoot, title, Loc.Get("Msg_UnsafeBatchChars", shown));
+        return false;
     }
 
     /// <summary>単純な通知ダイアログ（OK のみ）。</summary>

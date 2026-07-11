@@ -457,6 +457,10 @@
   <data name="Msg_MoreItemsSuffix" xml:space="preserve">
     <value>…他 {0} 件</value>
   </data>
+  <data name="Msg_UnsafeBatchChars" xml:space="preserve">
+    <value>ファイル名またはフォルダ名に、バッチ実行時に誤動作を起こす文字（% &amp; ^）が含まれているため実行できません:
+{0}</value>
+  </data>
 
   <!-- 評価データ作成の確認（MainPage） -->
   <data name="Msg_ConfirmCreateStoreTitle" xml:space="preserve">

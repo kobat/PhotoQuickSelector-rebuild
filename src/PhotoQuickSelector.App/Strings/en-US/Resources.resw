@@ -457,6 +457,10 @@
   <data name="Msg_MoreItemsSuffix" xml:space="preserve">
     <value>… and {0} more</value>
   </data>
+  <data name="Msg_UnsafeBatchChars" xml:space="preserve">
+    <value>Cannot run the batch because a file or folder name contains characters that break cmd batch execution (% &amp; ^):
+{0}</value>
+  </data>
 
   <!-- Rating data creation confirmation (MainPage) -->
   <data name="Msg_ConfirmCreateStoreTitle" xml:space="preserve">

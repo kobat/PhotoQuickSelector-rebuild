@@ -52,8 +52,8 @@ public class RejectMoveTests
         Assert.Equal("@rem Count: 2/71 (no pick flag, no rating)", lines[3]);
         Assert.Equal("set FROMDIR=..", lines[4]);
         Assert.Equal("set TODIR=.", lines[5]);
-        Assert.Equal(@"move %FROMDIR%\DSC001* %TODIR%", lines[6]);
-        Assert.Equal(@"move %FROMDIR%\DSC002* %TODIR%", lines[7]);
+        Assert.Equal(@"move ""%FROMDIR%\DSC001*"" ""%TODIR%""", lines[6]);
+        Assert.Equal(@"move ""%FROMDIR%\DSC002*"" ""%TODIR%""", lines[7]);
         Assert.Equal("", lines[8]);
     }
 
@@ -62,6 +62,14 @@ public class RejectMoveTests
     {
         var text = RejectMove.BuildBatch(
             "f", "t", 1, 1, new[] { "P2230001.JPG" });
-        Assert.Contains(@"move %FROMDIR%\P2230001* %TODIR%", text);
+        Assert.Contains(@"move ""%FROMDIR%\P2230001*"" ""%TODIR%""", text);
+    }
+
+    [Fact]
+    public void BuildBatch_QuotesMoveArguments_ForNamesWithSpaces()
+    {
+        var text = RejectMove.BuildBatch(
+            "f", "t", 1, 1, new[] { "DSC001 - コピー.JPG" });
+        Assert.Contains(@"move ""%FROMDIR%\DSC001 - コピー*"" ""%TODIR%""", text);
     }
 }
