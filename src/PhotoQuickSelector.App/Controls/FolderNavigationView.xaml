@@ -8,26 +8,17 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <!-- 左ペイン: ピンボタン / お気に入り / 最近 / フォルダツリー。DataContext ではなく ViewModel プロパティに x:Bind。 -->
+    <!-- 左ペイン: お気に入り / 最近 / フォルダツリー / 下部の読み込み＋ピン。DataContext ではなく ViewModel プロパティに x:Bind。 -->
     <Grid x:Name="LeftPane" Padding="8">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- ピン留め切替（オン=サイドバー常駐 / オフ=ステータスバーの開閉ボタンでフライアウト表示）。
-             状態管理と実際の切替（ドッキング⇄フライアウト）は MainPage が TogglePinRequested を受けて担う。 -->
-        <Button Grid.Row="0" x:Name="PinButton" Click="PinButton_Click"
-                HorizontalAlignment="Right" Height="28" Width="28" Padding="0"
-                Background="Transparent" BorderThickness="0" Margin="0,0,0,4">
-            <FontIcon x:Name="PinIcon" Glyph="&#xE77A;" FontSize="12" />
-        </Button>
-
         <!-- お気に入り -->
-        <Expander Grid.Row="1" x:Name="FavoritesExpander"
+        <Expander Grid.Row="0" x:Name="FavoritesExpander"
                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                   Margin="0,0,0,4" IsExpanded="True">
             <Expander.Header>
@@ -83,7 +74,7 @@
         </Expander>
 
         <!-- 最近開いたフォルダ -->
-        <Expander Grid.Row="2" x:Name="RecentExpander"
+        <Expander Grid.Row="1" x:Name="RecentExpander"
                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                   Margin="0,0,0,4" IsExpanded="True">
             <Expander.Header>
@@ -127,7 +118,7 @@
 
         <TreeView
             x:Name="FolderTree"
-            Grid.Row="3"
+            Grid.Row="2"
             SelectionMode="Single"
             Expanding="FolderTree_Expanding"
             DoubleTapped="FolderTree_DoubleTapped"
@@ -181,13 +172,23 @@
             </TreeView.ItemTemplate>
         </TreeView>
 
-        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-            <Button x:Name="LoadButton" Click="LoadButton_Click">
+        <!-- 下部: 左=読み込み / 右=ピン留め切替。ピンは専用行を廃してこの行の余白に同居させ、高さの無駄を無くす。 -->
+        <Grid Grid.Row="3" Margin="0,8,0,0">
+            <Button x:Name="LoadButton" Click="LoadButton_Click" HorizontalAlignment="Left">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <FontIcon Glyph="&#xE8B7;" FontSize="14" />
                     <TextBlock x:Uid="FolderNav_LoadButtonText" Text="読み込み" />
                 </StackPanel>
             </Button>
-        </StackPanel>
+
+            <!-- ピン留め切替（オン=サイドバー常駐 / オフ=ステータスバーの開閉ボタンでフライアウト表示）。
+                 状態管理と実際の切替（ドッキング⇄フライアウト）は MainPage が TogglePinRequested を受けて担う。 -->
+            <Button x:Name="PinButton" Click="PinButton_Click"
+                    HorizontalAlignment="Right" VerticalAlignment="Center"
+                    Height="28" Width="28" Padding="0"
+                    Background="Transparent" BorderThickness="0">
+                <FontIcon x:Name="PinIcon" Glyph="&#xE77A;" FontSize="12" />
+            </Button>
+        </Grid>
     </Grid>
 </UserControl>
