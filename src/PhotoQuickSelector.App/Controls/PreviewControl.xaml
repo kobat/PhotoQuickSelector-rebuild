@@ -90,14 +90,14 @@
                                Foreground="#9AFFFFFF" FontSize="11"
                                TextTrimming="CharacterEllipsis" />
 
-                    <!-- 4行目: 評価（★/旗/カラー） ＋ 撮影日時 -->
+                    <!-- 4行目: 評価（旗/★/カラー） ＋ 撮影日時。並びは全表示箇所で 旗→★→カラー に統一 -->
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <ctl:FlagGlyph GlyphSize="12" VerticalAlignment="Center"
+                                       Visibility="{Binding FlagVisibility}" />
                         <TextBlock Text="{Binding RatingStars}"
                                    Foreground="{Binding RatingForeground}"
                                    FontSize="12" VerticalAlignment="Center"
                                    Visibility="{Binding RatingVisibility}" />
-                        <ctl:FlagGlyph GlyphSize="12" VerticalAlignment="Center"
-                                       Visibility="{Binding FlagVisibility}" />
                         <ctl:ColorLabelDots DotSize="9" Spacing="3" VerticalAlignment="Center"
                                             Visibility="{Binding ColorDotsVisibility}" />
                         <TextBlock Text="{Binding TakenDateTimeText}"
@@ -108,7 +108,8 @@
 
             <!-- 評価バッジオーバーレイ（I キーで巡回選択時。詳細情報と排他表示・同じ左上位置）。
                  レーティング/フラグ/カラーラベルのみを簡潔に表示。全部空の写真ではバッジごと隠す
-                 （内側 Border の Visibility＝HasAnyEvalVisibility）。 -->
+                 （内側 Border の Visibility＝HasAnyEvalVisibility）。
+                 横幅抑制のため縦積み（旗→★→カラーの3行）。空の要素は行ごと消え Spacing も詰まる。 -->
             <Border x:Name="RatingBadge" Grid.Column="0"
                     VerticalAlignment="Top" HorizontalAlignment="Left"
                     Margin="12" IsHitTestVisible="False"
@@ -116,14 +117,14 @@
                     Visibility="{x:Bind ViewModel.RatingBadgeVisibility, Mode=OneWay}">
                 <Border Padding="10,6" CornerRadius="8" Background="#A6000000"
                         Visibility="{Binding HasAnyEvalVisibility}">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
+                    <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Left">
+                        <ctl:FlagGlyph GlyphSize="14" HorizontalAlignment="Left"
+                                       Visibility="{Binding FlagVisibility}" />
                         <TextBlock Text="{Binding RatingStars}"
                                    Foreground="{Binding RatingForeground}"
-                                   FontSize="16" VerticalAlignment="Center"
+                                   FontSize="16" HorizontalAlignment="Left"
                                    Visibility="{Binding RatingVisibility}" />
-                        <ctl:FlagGlyph GlyphSize="14" VerticalAlignment="Center"
-                                       Visibility="{Binding FlagVisibility}" />
-                        <ctl:ColorLabelDots DotSize="11" Spacing="3" VerticalAlignment="Center"
+                        <ctl:ColorLabelDots DotSize="11" Spacing="3" HorizontalAlignment="Left"
                                             Visibility="{Binding ColorDotsVisibility}" />
                     </StackPanel>
                 </Border>

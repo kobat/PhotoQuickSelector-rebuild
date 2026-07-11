@@ -104,12 +104,13 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
                             HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <!-- 評価の並びは 旗→★→カラー（全表示箇所で統一） -->
                     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <ctl:FlagGlyph GlyphSize="12" VerticalAlignment="Center"
+                                       Visibility="{Binding FlagVisibility}" />
                         <TextBlock Text="{Binding RatingStars}" VerticalAlignment="Center"
                                    Foreground="{Binding RatingForeground}"
                                    Visibility="{Binding RatingVisibility}" />
-                        <ctl:FlagGlyph GlyphSize="12" VerticalAlignment="Center"
-                                       Visibility="{Binding FlagVisibility}" />
                         <ctl:ColorLabelDots DotSize="10" Spacing="3" VerticalAlignment="Center"
                                             Visibility="{Binding ColorDotsVisibility}" />
                     </StackPanel>
