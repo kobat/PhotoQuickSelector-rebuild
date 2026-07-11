@@ -22,6 +22,12 @@
   <data name="FolderNav_LoadButtonText.Text" xml:space="preserve">
     <value>Load</value>
   </data>
+  <data name="FolderNav_PinTooltip" xml:space="preserve">
+    <value>Pin as sidebar</value>
+  </data>
+  <data name="FolderNav_UnpinTooltip" xml:space="preserve">
+    <value>Unpin (show as flyout)</value>
+  </data>
   <data name="FolderNav_FavoritesHeader.Text" xml:space="preserve">
     <value>Favorites</value>
   </data>

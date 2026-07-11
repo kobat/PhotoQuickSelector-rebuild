@@ -26,6 +26,9 @@ public sealed class AppSettings
     /// <summary>左ペインが折りたたまれているか。</summary>
     public bool LeftPaneCollapsed { get; set; }
 
+    /// <summary>左ペインをサイドバーとしてピン留めするか（false=フライアウト表示モード）。</summary>
+    public bool LeftPanePinned { get; set; } = true;
+
     /// <summary>フィルムストリップ（プレビュー下部）の高さ(px)。</summary>
     public double FilmStripHeight { get; set; } = 118;
 

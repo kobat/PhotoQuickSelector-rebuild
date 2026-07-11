@@ -18,6 +18,13 @@ public sealed partial class MainPage : Page
 
     private double _lastLeftWidth = 300;
 
+    // --- 左ペインのピン留め/フライアウト表示 ---
+    private bool _pinned = true;
+    private bool _flyoutOpen;
+
+    /// <summary>左ペインがフライアウト表示中か（MainWindow の Esc 分岐から参照）。</summary>
+    public bool IsLeftPaneFlyoutOpen => _flyoutOpen;
+
     // --- 完全全画面モード（Shift+F）。入る前の状態を退避して解除時に正確復元する ---
     private bool _fullImageMode;
     private GridLength _savedLeftWidth;
@@ -58,6 +65,10 @@ public sealed partial class MainPage : Page
         // 左ペインの幅変化（ボタン/スプリッター/完全全画面/復元のいずれでも）を唯一の起点に開閉ボタンの
         // グリフ／ツールチップを追従させる。LeftNav は左カラムの子なので幅0で ActualWidth=0 になる。
         LeftNav.SizeChanged += (_, _) => StatusBar.UpdateLeftPaneGlyph(LeftNav.ActualWidth > 0);
+        // ピン留め切替（左ペイン内のボタン）。ドッキング⇄フライアウトの遷移は MainPage が一元管理する。
+        LeftNav.TogglePinRequested += (_, _) => TogglePin();
+        // フォルダ読み込みでフライアウトを自動クローズする（ピン留め時は _flyoutOpen=false なので no-op）。
+        LeftNav.FolderLoaded += (_, _) => CloseLeftPaneFlyout();
         // 評価データファイル（sqlite）の初回作成確認ダイアログ。VM は XamlRoot を持たないので View が出す。
         ViewModel.ConfirmCreateAsync = ConfirmCreateStoreAsync;
     }
@@ -95,6 +106,7 @@ public sealed partial class MainPage : Page
     {
         RestoreLeftPaneLayout();
         StatusBar.UpdateLeftPaneGlyph(LeftColumn.ActualWidth > 0); // 復元直後の初期同期（以後は SizeChanged が追従）
+        LeftNav.UpdatePinGlyph(_pinned); // ピンボタンの初期グリフ同期
         _ = RestoreSessionAsync();
     }
 
@@ -132,12 +144,21 @@ public sealed partial class MainPage : Page
     {
         var s = ViewModel.Settings;
         _lastLeftWidth = s.LeftPaneWidth > 0 ? s.LeftPaneWidth : 300;
+        _pinned = s.LeftPanePinned;
+        if (!_pinned)
+        {
+            // フライアウトモード: 左カラムは常に幅0・スプリッター非表示（LeftPaneCollapsed は無視）。
+            // フライアウト自体の開閉状態は永続化しない＝起動時は常に閉。
+            LeftColumn.Width = new GridLength(0);
+            LeftSplitter.Visibility = Visibility.Collapsed;
+            return;
+        }
         LeftColumn.Width = s.LeftPaneCollapsed
             ? new GridLength(0)
             : new GridLength(_lastLeftWidth);
     }
 
-    /// <summary>左ペインの現在の幅／折りたたみ状態を設定へ書き戻して保存する（ウィンドウ終了時）。</summary>
+    /// <summary>左ペインの現在の幅／折りたたみ／ピン状態を設定へ書き戻して保存する（ウィンドウ終了時）。</summary>
     public void SaveLeftPaneLayout()
     {
         var s = ViewModel.Settings;
@@ -151,6 +172,7 @@ public sealed partial class MainPage : Page
             s.LeftPaneCollapsed = true;
             s.LeftPaneWidth = _lastLeftWidth > 0 ? _lastLeftWidth : 300;
         }
+        s.LeftPanePinned = _pinned;
         s.Save();
     }
 
@@ -158,6 +180,14 @@ public sealed partial class MainPage : Page
 
     private void ToggleLeftPane()
     {
+        if (!_pinned)
+        {
+            // ピン解除時は常にフライアウトの開閉のみ（左カラム幅は常に0・GridSplitter は使わない）。
+            if (_flyoutOpen) CloseLeftPaneFlyout();
+            else OpenLeftPaneFlyout();
+            return;
+        }
+
         if (LeftColumn.ActualWidth > 0)
         {
             _lastLeftWidth = LeftColumn.ActualWidth;
@@ -167,6 +197,80 @@ public sealed partial class MainPage : Page
         {
             LeftColumn.Width = new GridLength(_lastLeftWidth <= 0 ? 300 : _lastLeftWidth);
         }
+    }
+
+    // --- 左ペインのピン留め/フライアウト表示（左ペイン内のピンボタン・LeftNav.TogglePinRequested から） ---
+
+    /// <summary>
+    /// 左ペインをオーバーレイとして右ペインの上に表示する（ピン解除時、ステータスバーの開閉ボタンから）。
+    /// <see cref="LeftNav"/> は再ペアレントせず、ColumnSpan/Width/ZIndex の切替だけでフライアウト化する
+    /// （WinUI TreeView は再ペアレントで内部状態が壊れるリスクがあるため）。
+    /// </summary>
+    private void OpenLeftPaneFlyout()
+    {
+        if (_flyoutOpen) return;
+
+        var width = _lastLeftWidth <= 0 ? 300 : _lastLeftWidth;
+        FlyoutBackdrop.Width = width;
+        FlyoutBackdrop.Visibility = Visibility.Visible;
+        FlyoutDismissLayer.Visibility = Visibility.Visible;
+        Grid.SetColumnSpan(LeftNav, 3);
+        LeftNav.HorizontalAlignment = HorizontalAlignment.Left;
+        LeftNav.Width = width;
+        Canvas.SetZIndex(LeftNav, 12);
+        _flyoutOpen = true;
+        StatusBar.UpdateLeftPaneGlyph(true);
+    }
+
+    /// <summary>
+    /// フライアウト表示中の左ペインを閉じる（再トグル／外側クリック／Esc／フォルダ読み込みのいずれからも）。
+    /// LeftNav のレイアウトプロパティを開く前の状態へ戻す。<c>Width</c> の明示指定を <c>NaN</c> で
+    /// 解除し忘れると、幅0のカラムに置かれていても直前に設定した px 幅のまま描画され続けてしまう。
+    /// </summary>
+    public void CloseLeftPaneFlyout()
+    {
+        if (!_flyoutOpen) return;
+
+        Grid.SetColumnSpan(LeftNav, 1);
+        LeftNav.HorizontalAlignment = HorizontalAlignment.Stretch;
+        LeftNav.Width = double.NaN;
+        Canvas.SetZIndex(LeftNav, 0);
+        FlyoutBackdrop.Visibility = Visibility.Collapsed;
+        FlyoutDismissLayer.Visibility = Visibility.Collapsed;
+        _flyoutOpen = false;
+        StatusBar.UpdateLeftPaneGlyph(false);
+    }
+
+    /// <summary>ライトディスミス層のクリックで閉じる。下の写真が誤選択されないようイベントを消費する。</summary>
+    private void FlyoutDismissLayer_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        CloseLeftPaneFlyout();
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// 左ペインのピン留め状態を切り替える（左ペイン内のピンボタンから）。ピン解除の瞬間はドッキング表示から
+    /// フライアウト表示へシームレスに引き継ぐ（消えない）。ピン留めの瞬間はフライアウトを閉じてドッキング
+    /// 幅（<see cref="_lastLeftWidth"/>）へ戻す。
+    /// </summary>
+    private void TogglePin()
+    {
+        if (_pinned)
+        {
+            if (LeftColumn.ActualWidth > 0) _lastLeftWidth = LeftColumn.ActualWidth;
+            LeftColumn.Width = new GridLength(0);
+            LeftSplitter.Visibility = Visibility.Collapsed;
+            _pinned = false;
+            OpenLeftPaneFlyout();
+        }
+        else
+        {
+            CloseLeftPaneFlyout();
+            _pinned = true;
+            LeftSplitter.Visibility = Visibility.Visible;
+            LeftColumn.Width = new GridLength(_lastLeftWidth <= 0 ? 300 : _lastLeftWidth);
+        }
+        LeftNav.UpdatePinGlyph(_pinned);
     }
 
     // --- 完全全画面モード（Shift+F / Esc で解除） ---
@@ -183,6 +287,10 @@ public sealed partial class MainPage : Page
 
         if (!_fullImageMode)
         {
+            // フライアウト表示中なら閉じてから入る（フライアウトの開閉状態はスナップショットに含めない
+            // ＝完全全画面を解除しても閉じた状態で復帰する）。
+            CloseLeftPaneFlyout();
+
             // 入る: 現在状態を退避。
             _savedLeftWidth = LeftColumn.Width;
             _savedLeftMinWidth = LeftColumn.MinWidth;
@@ -212,7 +320,8 @@ public sealed partial class MainPage : Page
             Preview.SetImmersive(false);
             RightPaneRoot.Padding = _savedRightPanePadding;
             StatusBar.Visibility = _savedStatusBarVisibility;
-            LeftSplitter.Visibility = Visibility.Visible;
+            // ピン解除中はスプリッターを復活させない（フライアウトモードでは使わないため）。
+            LeftSplitter.Visibility = _pinned ? Visibility.Visible : Visibility.Collapsed;
             LeftColumn.MinWidth = _savedLeftMinWidth;
             LeftColumn.Width = _savedLeftWidth;
             // 元がグリッド表示だったらグリッドへ戻す。

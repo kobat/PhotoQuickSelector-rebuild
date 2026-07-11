@@ -97,6 +97,15 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        // Esc: 左ペインフライアウト表示中なら閉じるのを最優先（段階的 Esc の最上段）。
+        if (e.Key == Windows.System.VirtualKey.Escape &&
+            RootFrame.Content is MainPage fp && fp.IsLeftPaneFlyoutOpen)
+        {
+            fp.CloseLeftPaneFlyout();
+            e.Handled = true;
+            return;
+        }
+
         // Esc: 完全全画面モード中ならそれを解除（左ペイン/ステータスバー/余白も復元）。そうでなく素の
         // フルスクリーン中なら通常表示へ戻す。Esc は SPEC §3-7 で本来「選択リセット」用途なので、いずれでも
         // ないときは未処理のまま通す（将来用途を潰さない）。PreviewKeyDown(tunneling) はフォーカス管理の

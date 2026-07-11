@@ -51,5 +51,23 @@
                 Grid.Row="1"
                 Visibility="{x:Bind ViewModel.PreviewVisibility, Mode=OneWay}" />
         </Grid>
+
+        <!-- 左ペインのフライアウト表示（ピン解除時）: LeftNav 自体は再ペアレントせず、ColumnSpan/Width/
+             ZIndex の切替だけでオーバーレイ化する（MainPage.xaml.cs の OpenLeftPaneFlyout/CloseLeftPaneFlyout）。 -->
+        <!-- ライトディスミス層。クリックで閉じる（Transparent 背景がヒットテストに必須）。 -->
+        <Grid x:Name="FlyoutDismissLayer" Grid.Column="0" Grid.ColumnSpan="3"
+              Background="Transparent" Visibility="Collapsed" Canvas.ZIndex="10"
+              PointerPressed="FlyoutDismissLayer_PointerPressed" />
+        <!-- フライアウトの背景板。LeftNav 自体は背景を持たないため下に敷いて不透明化＋右端 1px の境界線。 -->
+        <Border x:Name="FlyoutBackdrop" Grid.Column="0" Grid.ColumnSpan="3"
+                HorizontalAlignment="Left" Visibility="Collapsed" Canvas.ZIndex="11"
+                Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,0,1,0"
+                Translation="0,0,32">
+            <Border.Shadow>
+                <ThemeShadow />
+            </Border.Shadow>
+        </Border>
     </Grid>
 </Page>

@@ -19,6 +19,12 @@ public sealed partial class FolderNavigationView : UserControl
 
     private MainViewModel? _viewModel;
 
+    /// <summary>ピン留め切替ボタンが押されたとき発火する（状態管理と切替は MainPage が担う）。</summary>
+    public event EventHandler? TogglePinRequested;
+
+    /// <summary>フォルダの読み込みが実行されたとき発火する（フライアウト自動クローズ用。MainPage が購読）。</summary>
+    public event EventHandler? FolderLoaded;
+
     public FolderNavigationView()
     {
         InitializeComponent();
@@ -128,7 +134,10 @@ public sealed partial class FolderNavigationView : UserControl
     private async Task LoadSelectedFolderAsync()
     {
         if (_viewModel != null && FolderTree.SelectedItem is FolderNode folder)
+        {
             await _viewModel.LoadFolderAsync(folder.Path);
+            FolderLoaded?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     // --- 最近 / お気に入りショートカット ---
@@ -142,7 +151,25 @@ public sealed partial class FolderNavigationView : UserControl
             return;
         }
         await _viewModel.LoadFolderAsync(shortcut.Path);
+        FolderLoaded?.Invoke(this, EventArgs.Empty);
         await ExpandAndSelectFolderAsync(shortcut.Path); // ツリーも同パスへ展開＆選択
+    }
+
+    // --- ピン留め ---
+
+    private void PinButton_Click(object sender, RoutedEventArgs e)
+        => TogglePinRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// ピンボタンのグリフ／ツールチップを現在のピン状態へ同期する（MainPage が状態変化のたびに呼ぶ）。
+    /// ピン留め時は「解除」アイコン、解除時は「ピン留め」アイコンを表示する（次に起きる操作を示す。
+    /// <see cref="PhotoStatusBar.UpdateLeftPaneGlyph"/> と同じパターン）。
+    /// </summary>
+    public void UpdatePinGlyph(bool pinned)
+    {
+        PinIcon.Glyph = pinned ? "" : ""; // pinned=UnPin(E77A) / unpinned=Pin(E718)
+        ToolTipService.SetToolTip(PinButton,
+            Loc.Get(pinned ? "FolderNav_UnpinTooltip" : "FolderNav_PinTooltip"));
     }
 
     /// <summary>
