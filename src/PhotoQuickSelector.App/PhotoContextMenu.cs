@@ -215,14 +215,17 @@ public static class PhotoContextMenu
     }
 
     /// <summary>
-    /// ファイル関連項目（ファイルをコピー▶／パスをコピー／エクスプローラーで表示／既定のアプリで開く／共有）を
+    /// ファイル関連項目（パスをコピー▶／ファイルをコピー▶／エクスプローラーで表示／既定のアプリで開く／共有）を
     /// <paramref name="items"/> へ追加する。右クリックメニュー（<see cref="Show"/>）とハンバーガー「ファイル」
-    /// （<see cref="Controls.PhotoStatusBar"/>）の共通実体。大量対象（<see cref="BatchFlows.BulkWarnThreshold"/> 枚以上）の
-    /// 「既定のアプリで開く」「共有」「ファイルをコピー」には確認ダイアログを挟む（パスをコピーは軽微なので挟まない）。
+    /// （<see cref="Controls.PhotoStatusBar"/>）の共通実体。パスをコピー／ファイルをコピーはともに
+    /// 「表示中のファイルのみ／関連ファイルも含める（同名別拡張子）」の2択サブメニュー。
+    /// 大量対象（<see cref="BatchFlows.BulkWarnThreshold"/> 枚以上）の「既定のアプリで開く」「共有」「ファイルをコピー」には
+    /// 確認ダイアログを挟む（パスをコピーは軽微なので挟まない）。
     /// </summary>
     /// <param name="withAcceleratorText">
-    /// true でパスをコピー/エクスプローラーで表示/既定のアプリで開く/共有へ <c>KeyboardAcceleratorTextOverride</c>
-    /// を付ける（ハンバーガーメニュー用。表示専用＝実キー処理は <see cref="PhotoFileCommands.TryHandle"/> 側）。
+    /// true でパスをコピー（表示中のみ）/エクスプローラーで表示/既定のアプリで開く/共有へ
+    /// <c>KeyboardAcceleratorTextOverride</c> を付ける（ハンバーガーメニュー用。表示専用＝実キー処理は
+    /// <see cref="PhotoFileCommands.TryHandle"/> 側）。
     /// </param>
     internal static void AddFileItems(
         IList<MenuFlyoutItemBase> items, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets,
@@ -230,7 +233,18 @@ public static class PhotoContextMenu
     {
         string? Accel(string text) => withAcceleratorText ? text : null;
 
-        // --- B: ファイルをコピー（表示中のみ／関連ファイルも／リネームしてコピー）＋パスをコピー ---
+        // --- B: パスをコピー（表示中のみ／関連ファイルも。ファイルをコピーの上に置く） ---
+        // ファイルをコピーと同じ2択（表示中のみ／同名別拡張子も）。パスのみコピーは軽微なので大量対象でも警告は挟まない。
+        // ラベルはファイルをコピーの子と同一キーを再利用（Ctx_CopyFiles_DisplayedOnly / _IncludeSiblings）。
+        var copyPath = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_CopyPath") + suffix };
+        // Ctrl+Alt+E は「表示中のみ」に対応（PhotoFileCommands.TryHandle）。表示専用でここに移す。
+        copyPath.Items.Add(Item(Loc.Get("Ctx_CopyFiles_DisplayedOnly"),
+            () => PhotoFileCommands.CopyPaths(targets), accelText: Accel("Ctrl+Alt+E")));
+        copyPath.Items.Add(Item(Loc.Get("Ctx_CopyFiles_IncludeSiblings"),
+            () => _ = PhotoFileCommands.CopyPathsWithSiblingsAsync(targets)));
+        items.Add(copyPath);
+
+        // --- B: ファイルをコピー（表示中のみ／関連ファイルも／リネームしてコピー） ---
         var copyFiles = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_CopyFiles") + suffix };
         copyFiles.Items.Add(Item(Loc.Get("Ctx_CopyFiles_DisplayedOnly"),
             () => _ = BatchFlows.RunWithBulkWarningAsync(xamlRoot, targets.Count, "BulkWarn_CopyMessage",
@@ -243,9 +257,6 @@ public static class PhotoContextMenu
         copyFiles.Items.Add(Item(Loc.Get("Ctx_CopyRename"),
             () => _ = BatchFlows.RunCopyRenameAsync(vm, targets, xamlRoot)));
         items.Add(copyFiles);
-
-        items.Add(Item(Loc.Get("Ctx_CopyPath") + suffix, () => PhotoFileCommands.CopyPaths(targets),
-            accelText: Accel("Ctrl+Alt+E")));
 
         items.Add(new MenuFlyoutSeparator());
 

@@ -56,8 +56,11 @@ public static class PhotoFileClipboard
     /// 各パスについて、同一フォルダ内の「拡張子を除いた名前が一致する」ファイルを集めて重複なく返す。
     /// 元の並び順を保ちつつ、各ベースファイルの直後に同名の別拡張子（RAW 等）を差し込む。
     /// 前方一致の誤検出（<c>DSC0001</c> が <c>DSC00010</c> を拾う）を避けるため、名前は完全一致で判定する。
+    /// ファイル実体コピー（本クラス）とパスのみコピー（<see cref="PhotoFileCommands.CopyPathsWithSiblingsAsync"/>）で
+    /// 「関連ファイルを含める」の対象展開を共有するため internal 公開。ディスク列挙なので呼び出し側で
+    /// バックグラウンド実行すること。
     /// </summary>
-    private static List<string> ExpandSiblings(IReadOnlyList<string> basePaths)
+    internal static List<string> ExpandSiblings(IReadOnlyList<string> basePaths)
     {
         var result = new List<string>();
         var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);

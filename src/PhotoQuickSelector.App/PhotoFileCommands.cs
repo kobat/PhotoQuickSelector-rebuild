@@ -78,10 +78,32 @@ public static class PhotoFileCommands
             if (item is not null) OpenWithDefault(item.Meta.Path);
     }
 
-    /// <summary>選択集合の全メンバーのフルパスを 1 行 1 パスでクリップボードへコピーする。</summary>
+    /// <summary>
+    /// 選択集合の全メンバーのフルパスを 1 行 1 パスでクリップボードへコピーする（表示中のファイルのみ）。
+    /// 同名別拡張子（RAW 等）も含めたい場合は <see cref="CopyPathsWithSiblingsAsync"/>。
+    /// </summary>
     public static void CopyPaths(IEnumerable<PhotoItemViewModel> items)
     {
         var paths = items.Where(i => i is not null).Select(i => i.Meta.Path).ToList();
+        SetClipboardText(paths);
+    }
+
+    /// <summary>
+    /// 選択集合の全メンバーに加え、同一フォルダの同名別拡張子（RAW 等）も含めたフルパスを
+    /// クリップボードへコピーする。ファイル実体コピーの「関連ファイルも含める」と同じ展開
+    /// （<see cref="PhotoFileClipboard.ExpandSiblings"/>）を共有する。ディスク列挙はバックグラウンドで回す。
+    /// </summary>
+    public static async System.Threading.Tasks.Task CopyPathsWithSiblingsAsync(IEnumerable<PhotoItemViewModel> items)
+    {
+        var basePaths = items.Where(i => i is not null).Select(i => i.Meta.Path).ToList();
+        if (basePaths.Count == 0) return;
+        var paths = await System.Threading.Tasks.Task.Run(() => PhotoFileClipboard.ExpandSiblings(basePaths));
+        SetClipboardText(paths);
+    }
+
+    /// <summary>パス一覧（1 行 1 パス）をクリップボードのテキストとして載せる。空なら何もしない。</summary>
+    private static void SetClipboardText(IReadOnlyList<string> paths)
+    {
         if (paths.Count == 0) return;
         try
         {
