@@ -143,18 +143,6 @@
   <data name="Menu_FileSub.Text" xml:space="preserve">
     <value>ファイル</value>
   </data>
-  <data name="Menu_Explorer.Text" xml:space="preserve">
-    <value>エクスプローラーで表示</value>
-  </data>
-  <data name="Menu_OpenDefault.Text" xml:space="preserve">
-    <value>既定のアプリで開く</value>
-  </data>
-  <data name="Menu_CopyPath.Text" xml:space="preserve">
-    <value>パスをコピー</value>
-  </data>
-  <data name="Menu_Share.Text" xml:space="preserve">
-    <value>共有</value>
-  </data>
   <data name="Menu_Settings.Text" xml:space="preserve">
     <value>設定…</value>
   </data>

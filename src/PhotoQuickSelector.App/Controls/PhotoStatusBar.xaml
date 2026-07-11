@@ -193,21 +193,10 @@
 
                     <MenuFlyoutSeparator />
 
-                    <!-- ファイル連携（Opening で写真選択時のみ有効化。対象＝FocusedPhoto） -->
-                    <MenuFlyoutSubItem x:Name="FileSubItem" x:Uid="Menu_FileSub" Text="ファイル">
-                        <MenuFlyoutItem x:Uid="Menu_Explorer" Text="エクスプローラーで表示"
-                                        KeyboardAcceleratorTextOverride="Ctrl+E"
-                                        Click="MenuExplorer_Click" />
-                        <MenuFlyoutItem x:Uid="Menu_OpenDefault" Text="既定のアプリで開く"
-                                        KeyboardAcceleratorTextOverride="Alt+E"
-                                        Click="MenuOpenDefault_Click" />
-                        <MenuFlyoutItem x:Uid="Menu_CopyPath" Text="パスをコピー"
-                                        KeyboardAcceleratorTextOverride="Ctrl+Alt+E"
-                                        Click="MenuCopyPath_Click" />
-                        <MenuFlyoutItem x:Uid="Menu_Share" Text="共有"
-                                        KeyboardAcceleratorTextOverride="Alt+S"
-                                        Click="MenuShare_Click" />
-                    </MenuFlyoutSubItem>
+                    <!-- ファイル連携（Opening で対象確定・有効/無効・項目そのものを動的構築。
+                         対象＝選択集合があれば集合全体／無ければ焦点の1枚。右クリックメニュー（PhotoContextMenu）と
+                         同じ PhotoContextMenu.AddFileItems で項目を組み立て、挙動を一本化している。） -->
+                    <MenuFlyoutSubItem x:Name="FileSubItem" x:Uid="Menu_FileSub" Text="ファイル" />
 
                     <MenuFlyoutSeparator />
 

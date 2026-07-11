@@ -18,6 +18,10 @@ namespace PhotoQuickSelector_App;
 /// </summary>
 public static class BatchFlows
 {
+    // 大量選択時の一括操作（既定アプリで開く／共有／ファイルコピー）に確認を挟むしきい値。
+    // エクスプローラの同種警告（15）より写真は重い（1件あたりデコード・IPC・プロセス起動コストが大きい）ため低めにしている。
+    internal const int BulkWarnThreshold = 10;
+
     /// <summary>
     /// <paramref name="targets"/> を Reject サブフォルダへ移動する。
     /// 同名衝突があれば中断し、確認ダイアログで bat 内容を見せてから実行する。
@@ -145,6 +149,19 @@ public static class BatchFlows
             XamlRoot = xamlRoot,
         };
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
+    /// <summary>
+    /// 対象が <see cref="BulkWarnThreshold"/> 枚以上なら確認ダイアログを挟んでから <paramref name="run"/> を実行する。
+    /// キャンセル時は何もしない。少数なら即実行。右クリックメニュー・ハンバーガーメニュー・キー操作（Alt+E/Alt+S）の
+    /// 大量対象操作（既定アプリで開く／共有／ファイルコピー）で共通に使う単一ソース。
+    /// </summary>
+    internal static async Task RunWithBulkWarningAsync(XamlRoot xamlRoot, int count, string messageKey, Action run)
+    {
+        if (count >= BulkWarnThreshold &&
+            !await ConfirmAsync(xamlRoot, Loc.Get("BulkWarn_Title"), Loc.Get(messageKey, count)))
+            return;
+        run();
     }
 
     /// <summary>bat 内容を読み取り専用で見せ、実行/キャンセルを問う確認ダイアログ。実行なら true。</summary>

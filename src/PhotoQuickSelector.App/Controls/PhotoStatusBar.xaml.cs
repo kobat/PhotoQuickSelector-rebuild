@@ -83,9 +83,43 @@ public sealed partial class PhotoStatusBar : UserControl
         ImmersiveToggleItem.IsChecked = IsImmersiveProvider?.Invoke() ?? false;
         InfoToggleItem.IsChecked = _viewModel.ShowInfoOverlay;
 
-        // プレビュー専用群はプレビュー時のみ、ファイル連携は写真選択時のみ有効。
+        // プレビュー専用群はプレビュー時のみ有効。
         PreviewSubItem.IsEnabled = _viewModel.IsPreviewMode;
-        FileSubItem.IsEnabled = _viewModel.FocusedPhoto is not null;
+
+        BuildFileMenu();
+    }
+
+    /// <summary>
+    /// ハンバーガー「ファイル」サブメニューを、右クリックメニュー（<see cref="PhotoContextMenu"/>）と共通の
+    /// <see cref="PhotoContextMenu.AddFileItems"/> で毎回組み立て直す。<see cref="MenuFlyoutSubItem.Items"/> は
+    /// メニュー表示のたび Clear→再追加しても問題ない（メニューは開くたびに使い捨て）。
+    /// 対象は選択集合があれば集合全体、無ければ焦点の1枚（<see cref="PhotoContextMenu.ResolveCurrentTargets"/>）。
+    /// </summary>
+    private void BuildFileMenu()
+    {
+        FileSubItem.Items.Clear();
+        if (_viewModel is null) return;
+
+        var targets = PhotoContextMenu.ResolveCurrentTargets(_viewModel, out var primary);
+        FileSubItem.IsEnabled = targets.Count > 0;
+        if (targets.Count == 0) return;
+
+        // 複数対象のときは先頭に「N 枚が対象」の見出し（無効項目）＋接尾辞「(全選択ファイル)」を付す
+        // （右クリックメニューと同じ見分け方）。
+        string suffix = "";
+        if (targets.Count > 1)
+        {
+            FileSubItem.Items.Add(new MenuFlyoutItem
+            {
+                Text = Loc.Get("Ctx_TargetCount", targets.Count),
+                IsEnabled = false,
+            });
+            FileSubItem.Items.Add(new MenuFlyoutSeparator());
+            suffix = " " + Loc.Get("Ctx_AllFilesSuffix");
+        }
+
+        PhotoContextMenu.AddFileItems(
+            FileSubItem.Items, _viewModel, targets, primary, suffix, XamlRoot, withAcceleratorText: true);
     }
 
     private void MenuFilter_Click(object sender, RoutedEventArgs e)
@@ -112,26 +146,6 @@ public sealed partial class PhotoStatusBar : UserControl
 
     private void MenuGridRef_Click(object sender, RoutedEventArgs e)
         => _viewModel?.ToggleGridReference();
-
-    private void MenuExplorer_Click(object sender, RoutedEventArgs e)
-    {
-        if (_viewModel?.FocusedPhoto is { } item) PhotoFileCommands.OpenInExplorer(item);
-    }
-
-    private void MenuOpenDefault_Click(object sender, RoutedEventArgs e)
-    {
-        if (_viewModel?.FocusedPhoto is { } item) PhotoFileCommands.OpenWithDefault(item);
-    }
-
-    private void MenuCopyPath_Click(object sender, RoutedEventArgs e)
-    {
-        if (_viewModel?.FocusedPhoto is { } item) PhotoFileCommands.CopyPath(item);
-    }
-
-    private void MenuShare_Click(object sender, RoutedEventArgs e)
-    {
-        if (_viewModel?.FocusedPhoto is { } item) PhotoFileCommands.Share(item, _viewModel.Settings);
-    }
 
     /// <summary>GPS 地図ボタン。撮影位置をブラウザの地図で開く（十進緯度経度がある場合）。</summary>
     private async void GpsButton_Click(object sender, RoutedEventArgs e)

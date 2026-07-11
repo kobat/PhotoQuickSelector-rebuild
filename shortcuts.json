@@ -116,13 +116,13 @@
       "title": { "ja": "ファイル連携", "en": "File actions" },
       "items": [
         { "keys": "Ctrl+E",
-          "description": { "ja": "エクスプローラーで表示", "en": "Show in Explorer" } },
+          "description": { "ja": "エクスプローラーで表示（焦点の1枚）", "en": "Show in Explorer (the focused photo)" } },
         { "keys": "Alt+E",
-          "description": { "ja": "既定のアプリで開く", "en": "Open with the default app" } },
+          "description": { "ja": "既定のアプリで開く（複数選択時は全選択ファイル）", "en": "Open with the default app (all selected files when multiple are selected)" } },
         { "keys": "Ctrl+Alt+E",
-          "description": { "ja": "パスをコピー", "en": "Copy the path" } },
+          "description": { "ja": "パスをコピー（複数選択時は全選択ファイル・1行1パス）", "en": "Copy the path (all selected files, one per line, when multiple are selected)" } },
         { "keys": "Alt+S",
-          "description": { "ja": "共有（設定の共有先 exe、未設定なら標準の共有シート）", "en": "Share (the exe set in Settings, or the standard share sheet if unset)" } }
+          "description": { "ja": "共有（設定の共有先 exe、未設定なら標準の共有シート。複数選択時は全選択ファイル）", "en": "Share (the exe set in Settings, or the standard share sheet if unset; all selected files when multiple are selected)" } }
       ]
     }
   ]

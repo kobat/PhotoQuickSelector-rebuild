@@ -12,7 +12,7 @@ namespace PhotoQuickSelector_App;
 /// 写真ファイルの実体をクリップボードへ「コピー」として載せる（エクスプローラの Ctrl+C 相当）。
 /// 貼り付け先（エクスプローラ等）ではファイルコピーになる（<see cref="DataPackageOperation.Copy"/>）。
 /// テキスト（1 行 1 パス）も併載するので、テキスト欄へも貼り付けられる。
-/// パスのみのコピー（<see cref="PhotoFileCommands.CopyPath(PhotoItemViewModel)"/>）とは別物。
+/// パスのみのコピー（<see cref="PhotoFileCommands.CopyPaths(IEnumerable{PhotoItemViewModel})"/>）とは別物。
 /// </summary>
 public static class PhotoFileClipboard
 {

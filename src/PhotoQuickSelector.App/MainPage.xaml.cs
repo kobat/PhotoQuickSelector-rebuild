@@ -276,7 +276,8 @@ public sealed partial class MainPage : Page
         if (ViewModel.FocusedPhoto is { } item)
         {
             // 外部連携（Ctrl+E / Alt+E / Ctrl+Alt+E / Alt+S）を評価キーより先に判定（SPEC §3-8）。
-            if (PhotoFileCommands.TryHandle(e.Key, item, ViewModel.Settings))
+            // 対象は選択集合があれば全メンバー（Ctrl+E のみ焦点1枚。TryHandle 内で解決）。
+            if (PhotoFileCommands.TryHandle(e.Key, ViewModel, XamlRoot))
             {
                 e.Handled = true;
             }

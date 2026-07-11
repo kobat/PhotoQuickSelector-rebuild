@@ -73,8 +73,8 @@
 
 | Keys | Description |
 |---|---|
-| `Ctrl+E` | Show in Explorer |
-| `Alt+E` | Open with the default app |
-| `Ctrl+Alt+E` | Copy the path |
-| `Alt+S` | Share (the exe set in Settings, or the standard share sheet if unset) |
+| `Ctrl+E` | Show in Explorer (the focused photo) |
+| `Alt+E` | Open with the default app (all selected files when multiple are selected) |
+| `Ctrl+Alt+E` | Copy the path (all selected files, one per line, when multiple are selected) |
+| `Alt+S` | Share (the exe set in Settings, or the standard share sheet if unset; all selected files when multiple are selected) |
 

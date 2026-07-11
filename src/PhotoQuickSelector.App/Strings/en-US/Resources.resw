@@ -143,18 +143,6 @@
   <data name="Menu_FileSub.Text" xml:space="preserve">
     <value>File</value>
   </data>
-  <data name="Menu_Explorer.Text" xml:space="preserve">
-    <value>Show in Explorer</value>
-  </data>
-  <data name="Menu_OpenDefault.Text" xml:space="preserve">
-    <value>Open with default app</value>
-  </data>
-  <data name="Menu_CopyPath.Text" xml:space="preserve">
-    <value>Copy path</value>
-  </data>
-  <data name="Menu_Share.Text" xml:space="preserve">
-    <value>Share</value>
-  </data>
   <data name="Menu_Settings.Text" xml:space="preserve">
     <value>Settings…</value>
   </data>

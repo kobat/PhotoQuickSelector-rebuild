@@ -174,10 +174,11 @@ public sealed partial class PreviewControl
         }
 
         // 外部連携（Ctrl+E / Alt+E / Ctrl+Alt+E / Alt+S）／単一評価（焦点1枚。rating / flag / colorlabel）は
-        // サムネイル一覧と共通化（SPEC §3-7 / §3-8）。
+        // サムネイル一覧と共通化（SPEC §3-7 / §3-8）。外部連携の対象は選択集合があれば全メンバー
+        // （Ctrl+E のみ焦点1枚。TryHandle 内で解決）。
         if (_viewModel.FocusedPhoto is { } photo)
         {
-            if (PhotoFileCommands.TryHandle(key, photo, _viewModel.Settings))
+            if (PhotoFileCommands.TryHandle(key, _viewModel, XamlRoot))
                 return true;
             if (PhotoKeyCommands.ResolveEvaluation(key) is { } op)
             {
