@@ -105,8 +105,8 @@ public sealed class PhotoFilter
     }
 
     /// <summary>
-    /// 現在の条件を人間可読の行（"Rating: ≧3" 等）に整形する。クリップボードの
-    /// <c>@rem</c> コメント（<see cref="ClipboardExport"/>）で使う。無効時・条件なし時は空。
+    /// 現在の条件を人間可読の行（"Rating: ≧3" 等）に整形する。移動バッチ（<see cref="FileMove"/> 等）の
+    /// <c>@rem</c> コメントで使う。無効時・条件なし時は空。
     /// </summary>
     public IReadOnlyList<string> DescribeConditions()
     {

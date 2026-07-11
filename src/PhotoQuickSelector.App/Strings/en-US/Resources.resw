@@ -90,26 +90,29 @@
   <data name="Filter_ColorHeader.Text" xml:space="preserve">
     <value>Color labels</value>
   </data>
-  <data name="Filter_CopyDropDown.Content" xml:space="preserve">
-    <value>Copy to clipboard</value>
+  <data name="Filter_CopyNamesDropDown.Content" xml:space="preserve">
+    <value>Copy file names</value>
   </data>
-  <data name="Filter_CopyFileNamesMenu.Text" xml:space="preserve">
-    <value>Copy file name list</value>
+  <data name="Filter_CopyNamesDropDown.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Copies the file names or full paths of the filtered images to the clipboard</value>
   </data>
-  <data name="Filter_CopyMoveBatchMenu.Text" xml:space="preserve">
-    <value>Create and copy move .bat</value>
+  <data name="Filter_CopyFilesDropDown.Content" xml:space="preserve">
+    <value>Copy files</value>
+  </data>
+  <data name="Filter_CopyFilesDropDown.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Copies the filtered files to the clipboard (paste in Explorer to copy them)</value>
+  </data>
+  <data name="Filter_MoveFilesButton.Content" xml:space="preserve">
+    <value>Move files…</value>
+  </data>
+  <data name="Filter_MoveFilesButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Moves the filtered images to a folder you specify (RAW+JPEG are moved together)</value>
   </data>
   <data name="Filter_RejectMoveButton.Content" xml:space="preserve">
     <value>Move unrated to Reject folder…</value>
   </data>
   <data name="Filter_RejectMoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
     <value>Moves images without an accept flag or rating to the Reject subfolder of this folder</value>
-  </data>
-  <data name="Filter_CopyRenameButton.Content" xml:space="preserve">
-    <value>Copy with rename…</value>
-  </data>
-  <data name="Filter_CopyRenameButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
-    <value>Copies the filtered images to another folder while renaming them (RAW+JPEG are copied together)</value>
   </data>
 
   <!-- ============ PhotoStatusBar (status bar / menu) ============ -->
@@ -255,6 +258,35 @@
   </data>
   <data name="CopyRename_PreviewHeader.Text" xml:space="preserve">
     <value>Preview</value>
+  </data>
+
+  <!-- ============ MoveFilesDialog (Move Files) ============ -->
+  <data name="MoveFilesDialog.Title" xml:space="preserve">
+    <value>Move Files</value>
+  </data>
+  <data name="MoveFilesDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Generate Batch</value>
+  </data>
+  <data name="MoveFilesDialog.CloseButtonText" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="MoveFiles_DestHeader.Text" xml:space="preserve">
+    <value>Destination folder</value>
+  </data>
+  <data name="MoveFiles_DestinationBox.PlaceholderText" xml:space="preserve">
+    <value>e.g. E:\Selected\20260228</value>
+  </data>
+  <data name="MoveFiles_ValidationWarning.Title" xml:space="preserve">
+    <value>Enter a destination folder</value>
+  </data>
+  <data name="MoveFiles_TargetCount" xml:space="preserve">
+    <value>{0} files to move</value>
+  </data>
+  <data name="MoveFiles_WarnDestEmpty" xml:space="preserve">
+    <value>Enter a destination folder</value>
+  </data>
+  <data name="MoveFiles_WarnSameFolder" xml:space="preserve">
+    <value>Cannot move to the same folder as the source. Please specify a different folder.</value>
   </data>
 
   <!-- ============ AboutDialog ============ -->
@@ -554,6 +586,41 @@ Log: {1}</value>
     <value>The following names would be assigned to multiple photos ({0}). Add a sequence token ({{seq:000}}) or similar to the template: {1}</value>
   </data>
 
+  <!-- Move Files (FilterBar) -->
+  <data name="MoveFiles_Title" xml:space="preserve">
+    <value>Move Files</value>
+  </data>
+  <data name="MoveFiles_NoTargets" xml:space="preserve">
+    <value>There are no images to move (filtered results).</value>
+  </data>
+  <data name="MoveFiles_AbortedTitle" xml:space="preserve">
+    <value>File move aborted</value>
+  </data>
+  <data name="MoveFiles_Collisions" xml:space="preserve">
+    <value>Files with the same name already exist at the destination ({0}).
+
+{1}</value>
+  </data>
+  <data name="MoveFiles_ConfirmTitle" xml:space="preserve">
+    <value>Confirm file move</value>
+  </data>
+  <data name="MoveFiles_ConfirmIntro" xml:space="preserve">
+    <value>{0} file(s) will be moved to "{1}". The following batch will be saved to the destination and run.</value>
+  </data>
+  <data name="MoveFiles_DoneTitle" xml:space="preserve">
+    <value>File move complete</value>
+  </data>
+  <data name="MoveFiles_Done" xml:space="preserve">
+    <value>Moved {0} file(s).
+
+Log: {1}</value>
+  </data>
+  <data name="MoveFiles_DoneWithError" xml:space="preserve">
+    <value>The move ran, but there may have been an error (exit code {0}).
+
+Log: {1}</value>
+  </data>
+
   <!-- Right-click context menu (PhotoContextMenu) -->
   <data name="Ctx_TargetCount" xml:space="preserve">
     <value>{0} selected</value>
@@ -609,8 +676,20 @@ Log: {1}</value>
   <data name="Ctx_CopyFiles_IncludeSiblings" xml:space="preserve">
     <value>Include related files (RAW, etc.)</value>
   </data>
-  <data name="Ctx_CopyPath" xml:space="preserve">
-    <value>Copy path</value>
+  <data name="Ctx_CopyNames" xml:space="preserve">
+    <value>Copy file names</value>
+  </data>
+  <data name="Ctx_CopyNames_NamesDisplayed" xml:space="preserve">
+    <value>File name only: displayed files</value>
+  </data>
+  <data name="Ctx_CopyNames_NamesSiblings" xml:space="preserve">
+    <value>File name only: include related files (RAW, etc.)</value>
+  </data>
+  <data name="Ctx_CopyNames_PathsDisplayed" xml:space="preserve">
+    <value>Full path: displayed files</value>
+  </data>
+  <data name="Ctx_CopyNames_PathsSiblings" xml:space="preserve">
+    <value>Full path: include related files (RAW, etc.)</value>
   </data>
   <data name="Ctx_Explorer" xml:space="preserve">
     <value>Show in Explorer</value>

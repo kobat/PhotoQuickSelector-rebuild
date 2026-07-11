@@ -62,7 +62,7 @@ public static class PhotoContextMenu
 
         flyout.Items.Add(new MenuFlyoutSeparator());
 
-        // --- A/B: ファイル関連（ファイルをコピー／パスをコピー／エクスプローラ表示／既定アプリ／共有） ---
+        // --- A/B: ファイル関連（ファイル名をコピー／ファイルをコピー／エクスプローラ表示／既定アプリ／共有） ---
         // ハンバーガー「ファイル」（PhotoStatusBar）と実体を共有する。ショートカット表示はメイン画像メニューと
         // 統一するため true（実キー処理は別経路なので表示専用）。
         AddFileItems(flyout.Items, vm, targets, primary, suffix, xamlRoot, withAcceleratorText: true);
@@ -215,15 +215,16 @@ public static class PhotoContextMenu
     }
 
     /// <summary>
-    /// ファイル関連項目（パスをコピー▶／ファイルをコピー▶／エクスプローラーで表示／既定のアプリで開く／共有）を
+    /// ファイル関連項目（ファイル名をコピー▶／ファイルをコピー▶／エクスプローラーで表示／既定のアプリで開く／共有）を
     /// <paramref name="items"/> へ追加する。右クリックメニュー（<see cref="Show"/>）とハンバーガー「ファイル」
-    /// （<see cref="Controls.PhotoStatusBar"/>）の共通実体。パスをコピー／ファイルをコピーはともに
-    /// 「表示中のファイルのみ／関連ファイルも含める（同名別拡張子）」の2択サブメニュー。
+    /// （<see cref="Controls.PhotoStatusBar"/>）の共通実体。ファイル名をコピーは「ファイル名のみ／フルパス」×
+    /// 「表示中のみ／関連ファイルも」の4択（<see cref="AddCopyNameItems"/>）、ファイルをコピーは
+    /// 「表示中のみ／関連ファイルも／リネームしてコピー」（<see cref="AddCopyFileItems"/>）のサブメニュー。
     /// 大量対象（<see cref="BatchFlows.BulkWarnThreshold"/> 枚以上）の「既定のアプリで開く」「共有」「ファイルをコピー」には
-    /// 確認ダイアログを挟む（パスをコピーは軽微なので挟まない）。
+    /// 確認ダイアログを挟む（ファイル名をコピーは軽微なので挟まない）。
     /// </summary>
     /// <param name="withAcceleratorText">
-    /// true でパスをコピー（表示中のみ）/エクスプローラーで表示/既定のアプリで開く/共有へ
+    /// true でファイル名をコピー（フルパス：表示中のみ）/エクスプローラーで表示/既定のアプリで開く/共有へ
     /// <c>KeyboardAcceleratorTextOverride</c> を付ける（ハンバーガーメニュー用。表示専用＝実キー処理は
     /// <see cref="PhotoFileCommands.TryHandle"/> 側）。
     /// </param>
@@ -233,29 +234,14 @@ public static class PhotoContextMenu
     {
         string? Accel(string text) => withAcceleratorText ? text : null;
 
-        // --- B: パスをコピー（表示中のみ／関連ファイルも。ファイルをコピーの上に置く） ---
-        // ファイルをコピーと同じ2択（表示中のみ／同名別拡張子も）。パスのみコピーは軽微なので大量対象でも警告は挟まない。
-        // ラベルはファイルをコピーの子と同一キーを再利用（Ctx_CopyFiles_DisplayedOnly / _IncludeSiblings）。
-        var copyPath = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_CopyPath") + suffix };
-        // Ctrl+Alt+E は「表示中のみ」に対応（PhotoFileCommands.TryHandle）。表示専用でここに移す。
-        copyPath.Items.Add(Item(Loc.Get("Ctx_CopyFiles_DisplayedOnly"),
-            () => PhotoFileCommands.CopyPaths(targets), accelText: Accel("Ctrl+Alt+E")));
-        copyPath.Items.Add(Item(Loc.Get("Ctx_CopyFiles_IncludeSiblings"),
-            () => _ = PhotoFileCommands.CopyPathsWithSiblingsAsync(targets)));
-        items.Add(copyPath);
+        // --- B: ファイル名をコピー（ファイル名のみ／フルパス × 表示中のみ／関連ファイルも。ファイルをコピーの上に置く） ---
+        var copyNames = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_CopyNames") + suffix };
+        AddCopyNameItems(copyNames.Items, targets, withAcceleratorText);
+        items.Add(copyNames);
 
         // --- B: ファイルをコピー（表示中のみ／関連ファイルも／リネームしてコピー） ---
         var copyFiles = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_CopyFiles") + suffix };
-        copyFiles.Items.Add(Item(Loc.Get("Ctx_CopyFiles_DisplayedOnly"),
-            () => _ = BatchFlows.RunWithBulkWarningAsync(xamlRoot, targets.Count, "BulkWarn_CopyMessage",
-                () => _ = PhotoFileClipboard.CopyFilesAsync(targets, includeSiblings: false))));
-        copyFiles.Items.Add(Item(Loc.Get("Ctx_CopyFiles_IncludeSiblings"),
-            () => _ = BatchFlows.RunWithBulkWarningAsync(xamlRoot, targets.Count, "BulkWarn_CopyMessage",
-                () => _ = PhotoFileClipboard.CopyFilesAsync(targets, includeSiblings: true))));
-        // 関連ファイルの下に区切り線を挟み、その下へ「リネームしてコピー」を配置する。
-        copyFiles.Items.Add(new MenuFlyoutSeparator());
-        copyFiles.Items.Add(Item(Loc.Get("Ctx_CopyRename"),
-            () => _ = BatchFlows.RunCopyRenameAsync(vm, targets, xamlRoot)));
+        AddCopyFileItems(copyFiles.Items, vm, targets, xamlRoot);
         items.Add(copyFiles);
 
         items.Add(new MenuFlyoutSeparator());
@@ -273,6 +259,54 @@ public static class PhotoContextMenu
             () => _ = BatchFlows.RunWithBulkWarningAsync(xamlRoot, targets.Count, "BulkWarn_ShareMessage",
                 () => PhotoFileCommands.Share(targets, vm.Settings)),
             accelText: Accel("Alt+S")));
+    }
+
+    /// <summary>
+    /// 「ファイル名をコピー」の中身（ファイル名のみ：表示中／関連ファイルも → 区切り → フルパス：表示中／
+    /// 関連ファイルも）を <paramref name="items"/> へ追加する。右クリック系（<see cref="AddFileItems"/>）と
+    /// フィルタバーの DropDownButton（<see cref="Controls.FilterBar"/>）で共有する。
+    /// テキストコピーのみの軽微な操作のため、大量対象でも確認ダイアログは挟まない。
+    /// </summary>
+    /// <param name="withAcceleratorText">
+    /// true で「フルパス：表示中のファイル」へ Ctrl+Alt+E を併記する（実キー処理＝
+    /// <see cref="PhotoFileCommands.TryHandle"/> は選択集合対象の <see cref="PhotoFileCommands.CopyPaths"/> のため、
+    /// 対象が異なる文脈（フィルタバー）では false にして誤解を避ける）。
+    /// </param>
+    internal static void AddCopyNameItems(
+        IList<MenuFlyoutItemBase> items, IReadOnlyList<PhotoItemViewModel> targets, bool withAcceleratorText)
+    {
+        items.Add(Item(Loc.Get("Ctx_CopyNames_NamesDisplayed"),
+            () => PhotoFileCommands.CopyNames(targets)));
+        items.Add(Item(Loc.Get("Ctx_CopyNames_NamesSiblings"),
+            () => _ = PhotoFileCommands.CopyNamesWithSiblingsAsync(targets)));
+        items.Add(new MenuFlyoutSeparator());
+        items.Add(Item(Loc.Get("Ctx_CopyNames_PathsDisplayed"),
+            () => PhotoFileCommands.CopyPaths(targets),
+            accelText: withAcceleratorText ? "Ctrl+Alt+E" : null));
+        items.Add(Item(Loc.Get("Ctx_CopyNames_PathsSiblings"),
+            () => _ = PhotoFileCommands.CopyPathsWithSiblingsAsync(targets)));
+    }
+
+    /// <summary>
+    /// 「ファイルをコピー」の中身（表示中のみ／関連ファイルも → 区切り → リネームしてコピー）を
+    /// <paramref name="items"/> へ追加する。右クリック系（<see cref="AddFileItems"/>）と
+    /// フィルタバーの DropDownButton（<see cref="Controls.FilterBar"/>）で共有する。
+    /// 大量対象（<see cref="BatchFlows.BulkWarnThreshold"/> 枚以上）には確認ダイアログを挟む。
+    /// </summary>
+    internal static void AddCopyFileItems(
+        IList<MenuFlyoutItemBase> items, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets,
+        XamlRoot xamlRoot)
+    {
+        items.Add(Item(Loc.Get("Ctx_CopyFiles_DisplayedOnly"),
+            () => _ = BatchFlows.RunWithBulkWarningAsync(xamlRoot, targets.Count, "BulkWarn_CopyMessage",
+                () => _ = PhotoFileClipboard.CopyFilesAsync(targets, includeSiblings: false))));
+        items.Add(Item(Loc.Get("Ctx_CopyFiles_IncludeSiblings"),
+            () => _ = BatchFlows.RunWithBulkWarningAsync(xamlRoot, targets.Count, "BulkWarn_CopyMessage",
+                () => _ = PhotoFileClipboard.CopyFilesAsync(targets, includeSiblings: true))));
+        // 関連ファイルの下に区切り線を挟み、その下へ「リネームしてコピー」を配置する。
+        items.Add(new MenuFlyoutSeparator());
+        items.Add(Item(Loc.Get("Ctx_CopyRename"),
+            () => _ = BatchFlows.RunCopyRenameAsync(vm, targets, xamlRoot)));
     }
 
     // === 共通ヘルパ ===

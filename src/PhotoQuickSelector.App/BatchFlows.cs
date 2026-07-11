@@ -11,8 +11,8 @@ using PhotoQuickSelector_App.ViewModels;
 namespace PhotoQuickSelector_App;
 
 /// <summary>
-/// Reject 移動・リネームコピーの一連のフロー（対象抽出は呼び出し側／衝突チェック → 確認ダイアログ →
-/// フォルダ作成＋bat 保存＋実行 → 完了通知）を、対象リストを引数に取る形で集約する。
+/// Reject 移動・リネームコピー・ファイル移動の一連のフロー（対象抽出は呼び出し側／衝突チェック →
+/// 確認ダイアログ → フォルダ作成＋bat 保存＋実行 → 完了通知）を、対象リストを引数に取る形で集約する。
 /// フィルタバー（絞込結果／未評価全件が対象）と右クリックメニュー（選択集合が対象）の双方から呼ぶ。
 /// ダイアログ表示のため <see cref="XamlRoot"/> を受け取る（VM は XamlRoot を持たない）。
 /// </summary>
@@ -121,6 +121,67 @@ public static class BatchFlows
             ? Loc.Get("CopyRename_Done", result.TargetCount, result.LogPath)
             : Loc.Get("CopyRename_DoneWithError", result.ExitCode, result.LogPath);
         await ShowMessageAsync(xamlRoot, Loc.Get("CopyRename_DoneTitle"), message);
+    }
+
+    /// <summary>
+    /// <paramref name="targets"/>（絞込結果）を任意の宛先フォルダへ移動する。
+    /// 入力ダイアログ（宛先）→ 同名衝突チェック → bat 確認 → 実行、の順で
+    /// <see cref="RunRejectAsync"/> と <see cref="RunCopyRenameAsync"/> を合成した流れ。
+    /// </summary>
+    public static async Task RunMoveAsync(
+        MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, XamlRoot xamlRoot)
+    {
+        if (string.IsNullOrEmpty(vm.CurrentFolder))
+        {
+            await ShowMessageAsync(xamlRoot, Loc.Get("MoveFiles_Title"), Loc.Get("Msg_NoFolderLoaded"));
+            return;
+        }
+        if (targets.Count == 0)
+        {
+            await ShowMessageAsync(xamlRoot, Loc.Get("MoveFiles_Title"), Loc.Get("MoveFiles_NoTargets"));
+            return;
+        }
+
+        // 1) 入力ダイアログ（移動先）。
+        var dialog = new MoveFilesDialog { XamlRoot = xamlRoot };
+        dialog.Configure(vm, targets);
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+            return;
+
+        // 指定した移動先をセッション中だけ記憶（永続化しない）。
+        vm.LastMoveDestination = dialog.DestinationPath;
+
+        // 2) 同名衝突チェック（移動先に同名ファイルが既にあれば中断）。
+        var collisions = vm.FindCollisions(dialog.DestinationPath, targets);
+        if (collisions.Count > 0)
+        {
+            var shown = string.Join("\n", collisions.Take(20));
+            if (collisions.Count > 20) shown += "\n" + Loc.Get("Msg_MoreItemsSuffix", collisions.Count - 20);
+            await ShowMessageAsync(
+                xamlRoot,
+                Loc.Get("MoveFiles_AbortedTitle"),
+                Loc.Get("MoveFiles_Collisions", collisions.Count, shown));
+            return;
+        }
+
+        // 3) bat をメモリ生成 → 内容を確認ダイアログで表示。
+        var now = DateTime.Now;
+        var timestamp = now.ToString("yyyyMMddHHmmss");
+        var batText = vm.BuildFileMoveBatchText(
+            dialog.DestinationPath, targets, now.ToString("yyyy-MM-dd HH:mm:ss"));
+
+        var intro = Loc.Get("MoveFiles_ConfirmIntro", targets.Count, dialog.DestinationPath);
+        if (!await ConfirmBatchAsync(xamlRoot, Loc.Get("MoveFiles_ConfirmTitle"), intro, batText))
+            return;
+
+        // 4) 宛先作成（既存は再利用）＋bat 保存＋実行（ログ出力）。
+        var result = await vm.RunFileMoveBatchAsync(
+            batText, dialog.DestinationPath, timestamp, targets.Count);
+
+        var message = result.Success
+            ? Loc.Get("MoveFiles_Done", result.TargetCount, result.LogPath)
+            : Loc.Get("MoveFiles_DoneWithError", result.ExitCode, result.LogPath);
+        await ShowMessageAsync(xamlRoot, Loc.Get("MoveFiles_DoneTitle"), message);
     }
 
     /// <summary>単純な通知ダイアログ（OK のみ）。</summary>

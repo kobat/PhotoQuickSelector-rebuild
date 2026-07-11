@@ -106,19 +106,6 @@ public partial class MainViewModel : ObservableObject
         finally { _managingSelection = false; }
     }
 
-    /// <summary>絞込結果のファイル名一覧テキスト（クリップボード用、SPEC §3-5）。</summary>
-    public string BuildFileNameListText() =>
-        ClipboardExport.BuildFileNameList(Photos.Select(p => p.FileName));
-
-    /// <summary>採用（絞込結果）写真を移動する .bat スクリプト（クリップボード用、SPEC §3-5）。</summary>
-    public string BuildMoveBatchText() =>
-        ClipboardExport.BuildMoveBatch(
-            CurrentFolder ?? "",
-            Photos.Count,
-            AllPhotos.Count,
-            Filter.Model.DescribeConditions(),
-            Photos.Select(p => p.FileName));
-
     // === Reject 移動（採用フラグなし＆未評価をフォルダ配下の Reject サブフォルダへ） ===
 
     /// <summary>Reject 移動の対象（採用フラグなし＆未評価）。UI フィルタ非依存で全件から抽出する。</summary>
@@ -134,12 +121,18 @@ public partial class MainViewModel : ObservableObject
     /// Reject フォルダ未作成なら衝突なし。
     /// </summary>
     public IReadOnlyList<string> FindRejectCollisions(IEnumerable<PhotoItemViewModel> targets)
+        => FindCollisions(RejectFolderPath, targets);
+
+    /// <summary>
+    /// 移動対象のうち、<paramref name="destDir"/> に既に同名（拡張子込み）ファイルが存在するものを
+    /// 列挙する。<paramref name="destDir"/> 未作成なら衝突なし。Reject 移動／ファイル移動の双方から使う。
+    /// </summary>
+    public IReadOnlyList<string> FindCollisions(string destDir, IEnumerable<PhotoItemViewModel> targets)
     {
-        var dir = RejectFolderPath;
-        if (!Directory.Exists(dir)) return Array.Empty<string>();
+        if (!Directory.Exists(destDir)) return Array.Empty<string>();
         return targets
             .Select(t => t.FileName)
-            .Where(name => File.Exists(Path.Combine(dir, name)))
+            .Where(name => File.Exists(Path.Combine(destDir, name)))
             .ToList();
     }
 
@@ -164,11 +157,32 @@ public partial class MainViewModel : ObservableObject
     public async Task<RejectRunResult> RunRejectBatchAsync(
         string batText, string timestamp, int targetCount)
     {
-        var dir = RejectFolderPath;
-        Directory.CreateDirectory(dir);   // 冪等（既存フォルダはそのまま利用）
+        var (success, exitCode, batPath, logPath) =
+            await SaveAndRunBatchAsync(RejectFolderPath, batText, $"Reject_{timestamp}");
 
-        var batPath = Path.Combine(dir, $"Reject_{timestamp}.bat");
-        var logPath = Path.Combine(dir, $"Reject_{timestamp}.log");
+        // 移動でフォルダ内容が変わったので再読込（移動済みは一覧から消える）。
+        var folder = CurrentFolder;
+        if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+            await LoadFolderAsync(folder);
+
+        return new RejectRunResult(success, exitCode, batPath, logPath, targetCount);
+    }
+
+    /// <summary>
+    /// bat をファイルへ保存（UTF-8・BOM なし）して <c>cmd /c</c> で実行し、標準出力/エラーを
+    /// <c>{batBaseName}.log</c> へリダイレクトする。Reject 移動／リネームコピー／ファイル移動の
+    /// 3 系統で共通の下位処理（bat・ログの保存先・作業ディレクトリの意味づけは呼び出し側の責務）。
+    /// </summary>
+    /// <param name="destDir">bat・ログの保存先兼作業ディレクトリ（存在しなければ作成）。</param>
+    /// <param name="batText">bat 本文。</param>
+    /// <param name="batBaseName">拡張子を除いた bat/ログのファイル名（例: <c>Reject_20260621120000</c>）。</param>
+    private static async Task<(bool Success, int ExitCode, string BatPath, string LogPath)> SaveAndRunBatchAsync(
+        string destDir, string batText, string batBaseName)
+    {
+        Directory.CreateDirectory(destDir);   // 冪等（既存フォルダはそのまま利用）
+
+        var batPath = Path.Combine(destDir, $"{batBaseName}.bat");
+        var logPath = Path.Combine(destDir, $"{batBaseName}.log");
 
         // UTF-8（BOM なし）で保存。bat 先頭の chcp 65001 と整合し、日本語ファイル名にも対応。
         await File.WriteAllTextAsync(batPath, batText, new UTF8Encoding(false));
@@ -178,7 +192,7 @@ public partial class MainViewModel : ObservableObject
             FileName = "cmd.exe",
             // bat の実行とログ出力。最初の引用符で外側の囲みを剥がす cmd の作法に合わせる。
             Arguments = $"/c \"\"{batPath}\" > \"{logPath}\" 2>&1\"",
-            WorkingDirectory = dir,   // bat 内の FROMDIR=.. / TODIR=. の基準
+            WorkingDirectory = destDir,   // bat 内の相対パス（FROMDIR=.. / TODIR=. 等）の基準
             UseShellExecute = false,
             CreateNoWindow = true,
         };
@@ -193,12 +207,7 @@ public partial class MainViewModel : ObservableObject
             }
         }
 
-        // 移動でフォルダ内容が変わったので再読込（移動済みは一覧から消える）。
-        var folder = CurrentFolder;
-        if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
-            await LoadFolderAsync(folder);
-
-        return new RejectRunResult(exitCode == 0, exitCode, batPath, logPath, targetCount);
+        return (exitCode == 0, exitCode, batPath, logPath);
     }
 
     // === リネームコピー（絞込結果を任意の宛先へリネームしながらコピー） ===
@@ -249,34 +258,51 @@ public partial class MainViewModel : ObservableObject
     public async Task<CopyRunResult> RunCopyRenameBatchAsync(
         string batText, string destDir, string timestamp, int targetCount)
     {
-        Directory.CreateDirectory(destDir);   // 冪等（既存フォルダはそのまま利用）
+        var (success, exitCode, batPath, logPath) =
+            await SaveAndRunBatchAsync(destDir, batText, $"CopyRename_{timestamp}");
+        return new CopyRunResult(success, exitCode, batPath, logPath, targetCount);
+    }
 
-        var batPath = Path.Combine(destDir, $"CopyRename_{timestamp}.bat");
-        var logPath = Path.Combine(destDir, $"CopyRename_{timestamp}.log");
+    // === ファイル移動（絞込結果を任意の宛先へ） ===
 
-        // UTF-8（BOM なし）で保存。bat 先頭の chcp 65001 と整合し、日本語名にも対応。
-        await File.WriteAllTextAsync(batPath, batText, new UTF8Encoding(false));
+    /// <summary>
+    /// 「ファイルを移動」で最後に指定した移動先。アプリ起動中だけ保持する（永続化しない＝
+    /// 再起動後の初期値は表示中フォルダに戻る）。<see cref="LastCopyDestination"/> とは別枠
+    /// （コピー先と移動先は別の操作なので混同しない）。OK（バッチ生成）時にのみ更新する。
+    /// </summary>
+    public string? LastMoveDestination { get; set; }
 
-        var psi = new ProcessStartInfo
-        {
-            FileName = "cmd.exe",
-            Arguments = $"/c \"\"{batPath}\" > \"{logPath}\" 2>&1\"",
-            WorkingDirectory = destDir,   // bat 内の TODIR=. の基準
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
+    /// <summary>ファイル移動の対象（絞込結果＝現在表示中の写真）。</summary>
+    public IReadOnlyList<PhotoItemViewModel> GetMoveTargets() => Photos.ToList();
 
-        int exitCode = -1;
-        using (var process = Process.Start(psi))
-        {
-            if (process != null)
-            {
-                await process.WaitForExitAsync();
-                exitCode = process.ExitCode;
-            }
-        }
+    /// <summary>移動対象からファイル移動バッチ本文を生成する。</summary>
+    public string BuildFileMoveBatchText(
+        string destDir, IReadOnlyList<PhotoItemViewModel> targets, string generatedAt)
+        => FileMove.BuildBatch(
+            CurrentFolder ?? "", destDir, generatedAt, targets.Count, AllPhotos.Count,
+            Filter.Model.DescribeConditions(), targets.Select(p => p.FileName));
 
-        return new CopyRunResult(exitCode == 0, exitCode, batPath, logPath, targetCount);
+    /// <summary>ファイル移動の実行結果。</summary>
+    public sealed record MoveRunResult(
+        bool Success, int ExitCode, string BatPath, string LogPath, int TargetCount);
+
+    /// <summary>
+    /// 移動先フォルダを作成（既存なら再利用）して bat を保存し、cmd 経由で実行する。
+    /// bat・ログともに移動先フォルダ直下（<c>Move_yyyyMMddHHmmss.bat/.log</c>）。
+    /// 移動元フォルダの内容が変わるため、実行後は表示中フォルダを再読込する
+    /// （<see cref="RunRejectBatchAsync"/> と同じく移動済みの写真は一覧から消える）。
+    /// </summary>
+    public async Task<MoveRunResult> RunFileMoveBatchAsync(
+        string batText, string destDir, string timestamp, int targetCount)
+    {
+        var (success, exitCode, batPath, logPath) =
+            await SaveAndRunBatchAsync(destDir, batText, $"Move_{timestamp}");
+
+        var folder = CurrentFolder;
+        if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+            await LoadFolderAsync(folder);
+
+        return new MoveRunResult(success, exitCode, batPath, logPath, targetCount);
     }
 
     /// <summary>設定の最近/お気に入りから表示用コレクションを作り直す。</summary>

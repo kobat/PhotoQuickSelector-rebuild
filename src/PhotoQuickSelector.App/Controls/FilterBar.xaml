@@ -7,9 +7,9 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <!-- フィルタボタン（SPEC §3-4 / §3-5）。クリックで条件＋クリップボード出力のフライアウトを開く。
-         フライアウト内の入力は DataContext=ViewModel.Filter に対するクラシック Binding（null セーフ）、
-         件数・コピー操作は x:Bind / コードビハインドで処理する。 -->
+    <!-- フィルタボタン（SPEC §3-4 / §3-5）。クリックで条件＋ファイル操作（名前/実体のコピー・移動）の
+         フライアウトを開く。フライアウト内の入力は DataContext=ViewModel.Filter に対するクラシック
+         Binding（null セーフ）、件数・コピー/移動操作は x:Bind / コードビハインドで処理する。 -->
     <Button x:Name="FilterButton" x:Uid="Filter_Button" Height="32" VerticalAlignment="Center"
             ToolTipService.ToolTip="フィルタ (Ctrl+L)">
         <StackPanel Orientation="Horizontal" Spacing="6">
@@ -86,35 +86,37 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- 件数＋クリップボード出力（明示メニュー） -->
+                    <!-- 件数＋ファイル操作（対象＝絞込結果。メニューの中身は右クリックメニューと共有
+                         ＝PhotoContextMenu.AddCopyNameItems / AddCopyFileItems。Opening で毎回再構築する）。 -->
                     <StackPanel Spacing="8">
                         <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    Text="{x:Bind ViewModel.FilteredCountText, Mode=OneWay}" />
-                        <DropDownButton x:Uid="Filter_CopyDropDown" Content="クリップボードへコピー"
+                        <DropDownButton x:Uid="Filter_CopyNamesDropDown" Content="ファイル名をコピー"
                                         HorizontalAlignment="Stretch">
                             <DropDownButton.Flyout>
-                                <MenuFlyout>
-                                    <MenuFlyoutItem x:Uid="Filter_CopyFileNamesMenu"
-                                                    Text="ファイル名一覧をコピー"
-                                                    Click="CopyFileNames_Click" />
-                                    <MenuFlyoutItem x:Uid="Filter_CopyMoveBatchMenu"
-                                                    Text="移動batを生成してコピー"
-                                                    Click="CopyMoveBatch_Click" />
-                                </MenuFlyout>
+                                <MenuFlyout x:Name="CopyNamesFlyout" Opening="CopyNamesFlyout_Opening" />
                             </DropDownButton.Flyout>
                         </DropDownButton>
+                        <DropDownButton x:Uid="Filter_CopyFilesDropDown" Content="ファイルをコピー"
+                                        HorizontalAlignment="Stretch">
+                            <DropDownButton.Flyout>
+                                <MenuFlyout x:Name="CopyFilesFlyout" Opening="CopyFilesFlyout_Opening" />
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+
+                        <!-- 絞込結果を任意の宛先フォルダへ移動（bat 確認あり）。 -->
+                        <Button x:Uid="Filter_MoveFilesButton"
+                                Content="ファイルを移動…" HorizontalAlignment="Stretch"
+                                Click="MoveFiles_Click"
+                                ToolTipService.ToolTip="絞込結果の画像を指定フォルダへ移動します（RAW+JPEG はまとめて移動）" />
+
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
                         <!-- 採用フラグなし・未評価の画像を Reject サブフォルダへ移動（フィルタ非依存・全件対象）。 -->
                         <Button x:Uid="Filter_RejectMoveButton"
                                 Content="未評価をRejectフォルダへ移動…" HorizontalAlignment="Stretch"
                                 Click="RejectUnrated_Click"
                                 ToolTipService.ToolTip="採用フラグなし・未評価の画像をフォルダ配下の Reject サブフォルダへ移動します" />
-
-                        <!-- 絞込結果をリネームしながら任意の宛先へコピー。 -->
-                        <Button x:Uid="Filter_CopyRenameButton"
-                                Content="リネームしてコピー…" HorizontalAlignment="Stretch"
-                                Click="CopyRename_Click"
-                                ToolTipService.ToolTip="絞込結果の画像をリネームしながら別フォルダへコピーします（RAW+JPEG はまとめてコピー）" />
                     </StackPanel>
                 </StackPanel>
             </Flyout>

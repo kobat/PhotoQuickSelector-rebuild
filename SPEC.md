@@ -136,13 +136,17 @@ CREATE TABLE image_file_metadata (
 - 件数表示 `絞込件数/全件数`。
 - フィルタ後もフォーカス中の写真位置を可能な限り維持。
 
-### 3-5. クリップボード出力
-- 通常: 絞込結果のファイル名一覧をコピー。
-- 採用写真を移動する **`.bat` スクリプトの生成**（旧実装の「Ctrl 押下で切替」の隠し挙動は廃止し、
-  コピーメニューの明示項目「移動 bat を生成してコピー」にする）。
-  - フォルダ名・件数・フィルタ条件を `@rem` コメントで埋め込む。
-  - 本体は `set FROMDIR=..` / `set TODIR=.` ＋ 各ファイルの
-    `move %FROMDIR%\<名前(拡張子なし)>* %TODIR%`（RAW+JPEG をまとめて移動する意図）。
+### 3-5. ファイル操作（フィルタフライアウト下部。対象＝絞込結果）
+- **ファイル名をコピー**（DropDown）: 「ファイル名のみ／フルパス」×「表示中のみ／関連ファイルも（RAW 等）」の
+  4 択で 1 行 1 件のテキストをコピー（右クリックメニューの同名サブメニューと実体共有）。
+- **ファイルをコピー**（DropDown）: 実体コピー（表示中のみ／関連ファイルも）＋リネームしてコピー
+  （右クリックメニューと実体共有）。
+- **ファイルを移動…**: 移動先フォルダを入力（セッション中は前回値を記憶）し、**`.bat` を生成して確認後に実行**
+  （旧「移動 bat を生成してコピー」の後継。旧実装の「Ctrl 押下で切替」の隠し挙動も廃止済み）。
+  - 生成日時・移動元/先・件数・フィルタ条件を `@rem` コメントで埋め込む。
+  - 本体は `set FROMDIR=<移動元絶対パス>` / `set TODIR=.` ＋ 各ファイルの
+    `move "%FROMDIR%\<名前(拡張子なし)>*" "%TODIR%"`（RAW+JPEG をまとめて移動する意図）。
+  - 移動先の同名衝突チェック → bat 内容の確認ダイアログ → 移動先へ bat/ログ保存＋実行 → 一覧再読込。
 
 ### 3-6. プレビュー表示（描画の中核）
 - 縮小表示 / ズーム表示の切替、ドラッグでパン、ズーム倍率変更（フィット / 100% / DPI 考慮）。
@@ -204,7 +208,7 @@ PhotoQuickSelector.slnx
 │   │     ├── MetadataReader            … MetadataExtractor を用いた抽出
 │   │     ├── PhotoEvaluation           … rating/flag/colorlabel のドメインモデル
 │   │     ├── MetadataStore             … SQLite 永続化（スキーマ移行込み・初回書き込みまで遅延作成）
-│   │     └── PhotoFilter / ClipboardExport / RejectMove / CopyRename … 絞込・bat 出力の純ロジック
+│   │     └── PhotoFilter / RejectMove / CopyRename / FileMove … 絞込・bat 出力の純ロジック
 │   └── PhotoQuickSelector.App/         … WinUI 3 アプリ（画面・描画・入力）
 │         ├── MainWindow / MainPage     … キー入力の集約と 3 カラム骨組み（GridSplitter + 折りたたみ）
 │         ├── Controls/FolderNavigationView … 左ペイン: フォルダツリー＋最近/お気に入り

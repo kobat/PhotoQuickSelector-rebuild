@@ -90,26 +90,29 @@
   <data name="Filter_ColorHeader.Text" xml:space="preserve">
     <value>カラーラベル</value>
   </data>
-  <data name="Filter_CopyDropDown.Content" xml:space="preserve">
-    <value>クリップボードへコピー</value>
+  <data name="Filter_CopyNamesDropDown.Content" xml:space="preserve">
+    <value>ファイル名をコピー</value>
   </data>
-  <data name="Filter_CopyFileNamesMenu.Text" xml:space="preserve">
-    <value>ファイル名一覧をコピー</value>
+  <data name="Filter_CopyNamesDropDown.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>絞込結果のファイル名またはフルパスをクリップボードへコピーします</value>
   </data>
-  <data name="Filter_CopyMoveBatchMenu.Text" xml:space="preserve">
-    <value>移動batを生成してコピー</value>
+  <data name="Filter_CopyFilesDropDown.Content" xml:space="preserve">
+    <value>ファイルをコピー</value>
+  </data>
+  <data name="Filter_CopyFilesDropDown.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>絞込結果のファイルをクリップボードへコピーします（エクスプローラで貼り付け可）</value>
+  </data>
+  <data name="Filter_MoveFilesButton.Content" xml:space="preserve">
+    <value>ファイルを移動…</value>
+  </data>
+  <data name="Filter_MoveFilesButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>絞込結果の画像を指定フォルダへ移動します（RAW+JPEG はまとめて移動）</value>
   </data>
   <data name="Filter_RejectMoveButton.Content" xml:space="preserve">
     <value>未評価をRejectフォルダへ移動…</value>
   </data>
   <data name="Filter_RejectMoveButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
     <value>採用フラグなし・未評価の画像をフォルダ配下の Reject サブフォルダへ移動します</value>
-  </data>
-  <data name="Filter_CopyRenameButton.Content" xml:space="preserve">
-    <value>リネームしてコピー…</value>
-  </data>
-  <data name="Filter_CopyRenameButton.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
-    <value>絞込結果の画像をリネームしながら別フォルダへコピーします（RAW+JPEG はまとめてコピー）</value>
   </data>
 
   <!-- ============ PhotoStatusBar（ステータスバー・メニュー） ============ -->
@@ -255,6 +258,35 @@
   </data>
   <data name="CopyRename_PreviewHeader.Text" xml:space="preserve">
     <value>プレビュー</value>
+  </data>
+
+  <!-- ============ MoveFilesDialog（ファイルを移動） ============ -->
+  <data name="MoveFilesDialog.Title" xml:space="preserve">
+    <value>ファイルを移動</value>
+  </data>
+  <data name="MoveFilesDialog.PrimaryButtonText" xml:space="preserve">
+    <value>バッチを生成</value>
+  </data>
+  <data name="MoveFilesDialog.CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="MoveFiles_DestHeader.Text" xml:space="preserve">
+    <value>移動先フォルダ</value>
+  </data>
+  <data name="MoveFiles_DestinationBox.PlaceholderText" xml:space="preserve">
+    <value>例: E:\Selected\20260228</value>
+  </data>
+  <data name="MoveFiles_ValidationWarning.Title" xml:space="preserve">
+    <value>移動先フォルダを入力してください</value>
+  </data>
+  <data name="MoveFiles_TargetCount" xml:space="preserve">
+    <value>移動対象 {0} 件</value>
+  </data>
+  <data name="MoveFiles_WarnDestEmpty" xml:space="preserve">
+    <value>移動先フォルダを入力してください</value>
+  </data>
+  <data name="MoveFiles_WarnSameFolder" xml:space="preserve">
+    <value>移動元と同じフォルダへは移動できません。別のフォルダを指定してください。</value>
   </data>
 
   <!-- ============ AboutDialog（バージョン情報） ============ -->
@@ -554,6 +586,41 @@
     <value>次の名前が複数の写真に割り当たります（{0} 件）。テンプレートに連番（{{seq:000}}）等を加えてください: {1}</value>
   </data>
 
+  <!-- ファイルを移動（FilterBar） -->
+  <data name="MoveFiles_Title" xml:space="preserve">
+    <value>ファイルを移動</value>
+  </data>
+  <data name="MoveFiles_NoTargets" xml:space="preserve">
+    <value>移動対象の画像（絞込結果）がありません。</value>
+  </data>
+  <data name="MoveFiles_AbortedTitle" xml:space="preserve">
+    <value>ファイルの移動を中断しました</value>
+  </data>
+  <data name="MoveFiles_Collisions" xml:space="preserve">
+    <value>移動先に同名のファイルが既に存在します（{0} 件）。
+
+{1}</value>
+  </data>
+  <data name="MoveFiles_ConfirmTitle" xml:space="preserve">
+    <value>ファイル移動の確認</value>
+  </data>
+  <data name="MoveFiles_ConfirmIntro" xml:space="preserve">
+    <value>{0} 件を「{1}」へ移動します。移動先に次のバッチを保存して実行します。</value>
+  </data>
+  <data name="MoveFiles_DoneTitle" xml:space="preserve">
+    <value>ファイルの移動が完了しました</value>
+  </data>
+  <data name="MoveFiles_Done" xml:space="preserve">
+    <value>{0} 件の移動を実行しました。
+
+ログ: {1}</value>
+  </data>
+  <data name="MoveFiles_DoneWithError" xml:space="preserve">
+    <value>移動を実行しましたが、エラーの可能性があります（終了コード {0}）。
+
+ログ: {1}</value>
+  </data>
+
   <!-- 右クリックメニュー（PhotoContextMenu） -->
   <data name="Ctx_TargetCount" xml:space="preserve">
     <value>{0} 枚が対象</value>
@@ -609,8 +676,20 @@
   <data name="Ctx_CopyFiles_IncludeSiblings" xml:space="preserve">
     <value>関連ファイルも含める（RAW 等）</value>
   </data>
-  <data name="Ctx_CopyPath" xml:space="preserve">
-    <value>パスをコピー</value>
+  <data name="Ctx_CopyNames" xml:space="preserve">
+    <value>ファイル名をコピー</value>
+  </data>
+  <data name="Ctx_CopyNames_NamesDisplayed" xml:space="preserve">
+    <value>ファイル名のみ：表示中のファイル</value>
+  </data>
+  <data name="Ctx_CopyNames_NamesSiblings" xml:space="preserve">
+    <value>ファイル名のみ：関連ファイルを含める（RAW 等）</value>
+  </data>
+  <data name="Ctx_CopyNames_PathsDisplayed" xml:space="preserve">
+    <value>フルパス：表示中のファイル</value>
+  </data>
+  <data name="Ctx_CopyNames_PathsSiblings" xml:space="preserve">
+    <value>フルパス：関連ファイルを含める（RAW 等）</value>
   </data>
   <data name="Ctx_Explorer" xml:space="preserve">
     <value>エクスプローラーで表示</value>

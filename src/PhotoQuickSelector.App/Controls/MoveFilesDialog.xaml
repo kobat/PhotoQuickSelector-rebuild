@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentDialog
+    x:Class="PhotoQuickSelector_App.Controls.MoveFilesDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    x:Uid="MoveFilesDialog"
+    Title="ファイルを移動"
+    PrimaryButtonText="バッチを生成"
+    CloseButtonText="キャンセル"
+    DefaultButton="Primary">
+
+    <StackPanel Width="480" Spacing="14">
+
+        <TextBlock x:Name="TargetCountText" Text="移動対象 0 件" />
+
+        <!-- 移動先フォルダ -->
+        <StackPanel Spacing="6">
+            <TextBlock x:Uid="MoveFiles_DestHeader" Text="移動先フォルダ" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="DestinationBox" x:Uid="MoveFiles_DestinationBox"
+                         AutomationProperties.AutomationId="MoveFilesDialog_DestinationBox"
+                         PlaceholderText="例: E:\Selected\20260228"
+                         TextChanged="Input_Changed" />
+                <Button Grid.Column="1" x:Uid="Common_BrowseButton"
+                        AutomationProperties.AutomationId="MoveFilesDialog_BrowseButton"
+                        Content="参照…" Click="Browse_Click" />
+            </Grid>
+        </StackPanel>
+
+        <!-- 検証（未入力／移動元と同じ） -->
+        <InfoBar x:Name="ValidationWarning" x:Uid="MoveFiles_ValidationWarning"
+                 Severity="Informational" IsOpen="False"
+                 IsClosable="False" Title="移動先フォルダを入力してください" />
+    </StackPanel>
+</ContentDialog>

@@ -3,8 +3,8 @@ namespace PhotoQuickSelector.Core;
 /// <summary>
 /// 「採用フラグなし＆未評価」の写真をフォルダ配下の <c>Reject</c> サブフォルダへ移動する
 /// バッチ（<c>.bat</c>）の組み立て（UI 非依存の純ロジック）。実際のフォルダ作成・bat 保存・
-/// 実行は呼び出し側（App）が行う。<see cref="ClipboardExport.BuildMoveBatch"/> と同じく
-/// 「bat を移動先（Reject）フォルダ直下に置く」前提で <c>FROMDIR=..</c> / <c>TODIR=.</c> を使い、
+/// 実行は呼び出し側（App）が行う。「bat を移動先（Reject）フォルダ直下に置く」前提で
+/// <c>FROMDIR=..</c> / <c>TODIR=.</c> を使い、
 /// <c>move %FROMDIR%\&lt;拡張子なし名&gt;* %TODIR%</c> で RAW+JPEG をまとめて移動する。
 /// </summary>
 public static class RejectMove
