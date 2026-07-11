@@ -249,6 +249,17 @@ public sealed class PreviewViewport
         Clamp();
     }
 
+    /// <summary>
+    /// 表示倍率（<see cref="DeviceScale"/>＝物理px/画像px、100%=1.0）を指定し、キャンバス座標 (cx,cy) を
+    /// 基準にズームする（右クリックメニューの「倍率を指定」用。<see cref="ZoomToStop"/> と同じ
+    /// DeviceScale→Scale 変換＝DpiScale で割ってから <see cref="SetScaleAround"/> に渡す）。
+    /// </summary>
+    public void SetDeviceScaleAround(double deviceScale, double cx, double cy)
+    {
+        SetScaleAround(Math.Clamp(deviceScale / DpiScale, MinScale, MaxScale), cx, cy);
+        Mode = ZoomMode.Custom;
+    }
+
     /// <summary>指定キャンバス座標を中心に倍率を factor 倍する（連続ズーム。ルーペで使用）。</summary>
     public void ZoomBy(double factor, double centerX, double centerY)
     {

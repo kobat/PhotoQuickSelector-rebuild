@@ -56,9 +56,9 @@ public static class PhotoContextMenu
         string suffix = targets.Count > 1 ? " " + Loc.Get("Ctx_AllFilesSuffix") : "";
 
         // --- C: 評価（レーティング／カラーラベル／フラグ） ---
-        AddRatingSub(flyout, vm, targets, suffix);
-        AddColorSub(flyout, vm, targets, suffix);
-        AddFlagSub(flyout, vm, targets, suffix);
+        AddRatingSub(flyout.Items, vm, targets, suffix);
+        AddColorSub(flyout.Items, vm, targets, suffix);
+        AddFlagSub(flyout.Items, vm, targets, suffix);
 
         flyout.Items.Add(new MenuFlyoutSeparator());
 
@@ -116,9 +116,12 @@ public static class PhotoContextMenu
         => ResolveTargets(vm, clicked: null, out primary);
 
     // === 各サブメニュー ===
+    // 以下 3 メソッドは internal 化して <see cref="Controls.PreviewControl"/> の右クリックメニュー
+    // （メイン画像・対象は焦点の1枚のみ）とも共有する。第1引数は挿入先のアイテムコレクション
+    // （<see cref="MenuFlyout.Items"/> でも <see cref="MenuFlyoutSubItem.Items"/> でもよい）。
 
-    private static void AddRatingSub(
-        MenuFlyout flyout, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, string suffix)
+    internal static void AddRatingSub(
+        IList<MenuFlyoutItemBase> items, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, string suffix)
     {
         var sub = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_Rating") + suffix };
         sub.Items.Add(Item(Loc.Get("Ctx_RatingClear"),
@@ -129,11 +132,11 @@ public static class PhotoContextMenu
             sub.Items.Add(Item(new string('★', value),
                 () => Apply(vm, i => i.SetRating(value), targets)));
         }
-        flyout.Items.Add(sub);
+        items.Add(sub);
     }
 
-    private static void AddColorSub(
-        MenuFlyout flyout, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, string suffix)
+    internal static void AddColorSub(
+        IList<MenuFlyoutItemBase> items, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, string suffix)
     {
         var sub = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_ColorLabel") + suffix };
         AddColor(sub, vm, targets, ColorLabel.Red, "Ctx_Color_Red");
@@ -141,7 +144,7 @@ public static class PhotoContextMenu
         AddColor(sub, vm, targets, ColorLabel.Green, "Ctx_Color_Green");
         AddColor(sub, vm, targets, ColorLabel.Blue, "Ctx_Color_Blue");
         AddColor(sub, vm, targets, ColorLabel.Purple, "Ctx_Color_Purple");
-        flyout.Items.Add(sub);
+        items.Add(sub);
     }
 
     private static void AddColor(
@@ -151,14 +154,14 @@ public static class PhotoContextMenu
         sub.Items.Add(Item(Loc.Get(locKey), () => Apply(vm, i => i.ToggleColorLabel(label), targets)));
     }
 
-    private static void AddFlagSub(
-        MenuFlyout flyout, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, string suffix)
+    internal static void AddFlagSub(
+        IList<MenuFlyoutItemBase> items, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets, string suffix)
     {
         var sub = new MenuFlyoutSubItem { Text = Loc.Get("Ctx_Flag") + suffix };
         sub.Items.Add(Item(Loc.Get("Ctx_Flag_Pick"), () => Apply(vm, i => i.SetFlag(1), targets)));
         sub.Items.Add(Item(Loc.Get("Ctx_Flag_None"), () => Apply(vm, i => i.SetFlag(0), targets)));
         sub.Items.Add(Item(Loc.Get("Ctx_Flag_Reject"), () => Apply(vm, i => i.SetFlag(-1), targets)));
-        flyout.Items.Add(sub);
+        items.Add(sub);
     }
 
     private static void AddSelectAll(MenuFlyout flyout, MainViewModel vm)
@@ -225,7 +228,7 @@ public static class PhotoContextMenu
         => _ = vm.ApplyEvaluationAsync(op, targets);
 
     /// <summary>クリックで <paramref name="onClick"/> を実行する <see cref="MenuFlyoutItem"/> を作る。</summary>
-    private static MenuFlyoutItem Item(string text, Action onClick, bool enabled = true, string? accelText = null)
+    internal static MenuFlyoutItem Item(string text, Action onClick, bool enabled = true, string? accelText = null)
     {
         var item = new MenuFlyoutItem { Text = text, IsEnabled = enabled };
         if (accelText != null) item.KeyboardAcceleratorTextOverride = accelText;

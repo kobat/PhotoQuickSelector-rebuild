@@ -609,6 +609,75 @@ Log: {1}</value>
   <data name="Ctx_SelectAll" xml:space="preserve">
     <value>Select all</value>
   </data>
+
+  <!-- Preview right-click menu (PreviewControl.ContextMenu.cs. Target is always the single focused photo) -->
+  <data name="PvCtx_Zoom" xml:space="preserve">
+    <value>Zoom</value>
+  </data>
+  <data name="PvCtx_ZoomFit" xml:space="preserve">
+    <value>Fit</value>
+  </data>
+  <data name="PvCtx_ZoomOut" xml:space="preserve">
+    <value>Zoom out</value>
+  </data>
+  <data name="PvCtx_ZoomIn" xml:space="preserve">
+    <value>Zoom in</value>
+  </data>
+  <data name="PvCtx_ZoomStops" xml:space="preserve">
+    <value>Set magnification</value>
+  </data>
+  <data name="PvCtx_Immersive" xml:space="preserve">
+    <value>Immersive view</value>
+  </data>
+  <data name="PvCtx_FullScreen" xml:space="preserve">
+    <value>Full screen</value>
+  </data>
+  <data name="PvCtx_FullImage" xml:space="preserve">
+    <value>Full screen (image only)</value>
+  </data>
+  <data name="PvCtx_ExifPanel" xml:space="preserve">
+    <value>EXIF detail panel</value>
+  </data>
+  <data name="PvCtx_Overlay" xml:space="preserve">
+    <value>Info overlay</value>
+  </data>
+  <data name="PvCtx_OverlayBadge" xml:space="preserve">
+    <value>Rating badge</value>
+  </data>
+  <data name="PvCtx_OverlayFull" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="PvCtx_OverlayOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="PvCtx_OverlayAlways" xml:space="preserve">
+    <value>Always visible</value>
+  </data>
+  <data name="PvCtx_OverlayTransient" xml:space="preserve">
+    <value>On change only</value>
+  </data>
+  <data name="PvCtx_Grid" xml:space="preserve">
+    <value>Composition grid</value>
+  </data>
+  <data name="PvCtx_GridNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="PvCtx_GridCross" xml:space="preserve">
+    <value>Center cross</value>
+  </data>
+  <data name="PvCtx_GridThirds" xml:space="preserve">
+    <value>Rule of thirds</value>
+  </data>
+  <data name="PvCtx_GridSquare" xml:space="preserve">
+    <value>Square</value>
+  </data>
+  <data name="PvCtx_GridRefImage" xml:space="preserve">
+    <value>Reference: Image</value>
+  </data>
+  <data name="PvCtx_GridRefCanvas" xml:space="preserve">
+    <value>Reference: Canvas</value>
+  </data>
+
   <data name="BulkWarn_Title" xml:space="preserve">
     <value>Operation on Many Files</value>
   </data>

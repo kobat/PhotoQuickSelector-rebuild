@@ -609,6 +609,75 @@
   <data name="Ctx_SelectAll" xml:space="preserve">
     <value>すべて選択</value>
   </data>
+
+  <!-- プレビュー右クリックメニュー（PreviewControl.ContextMenu.cs。対象は常に焦点の1枚） -->
+  <data name="PvCtx_Zoom" xml:space="preserve">
+    <value>ズーム</value>
+  </data>
+  <data name="PvCtx_ZoomFit" xml:space="preserve">
+    <value>フィット</value>
+  </data>
+  <data name="PvCtx_ZoomOut" xml:space="preserve">
+    <value>縮小</value>
+  </data>
+  <data name="PvCtx_ZoomIn" xml:space="preserve">
+    <value>拡大</value>
+  </data>
+  <data name="PvCtx_ZoomStops" xml:space="preserve">
+    <value>倍率を指定</value>
+  </data>
+  <data name="PvCtx_Immersive" xml:space="preserve">
+    <value>イマーシブ表示</value>
+  </data>
+  <data name="PvCtx_FullScreen" xml:space="preserve">
+    <value>全画面表示</value>
+  </data>
+  <data name="PvCtx_FullImage" xml:space="preserve">
+    <value>完全全画面</value>
+  </data>
+  <data name="PvCtx_ExifPanel" xml:space="preserve">
+    <value>EXIF 詳細パネル</value>
+  </data>
+  <data name="PvCtx_Overlay" xml:space="preserve">
+    <value>情報オーバーレイ</value>
+  </data>
+  <data name="PvCtx_OverlayBadge" xml:space="preserve">
+    <value>評価バッジ</value>
+  </data>
+  <data name="PvCtx_OverlayFull" xml:space="preserve">
+    <value>詳細情報</value>
+  </data>
+  <data name="PvCtx_OverlayOff" xml:space="preserve">
+    <value>オフ</value>
+  </data>
+  <data name="PvCtx_OverlayAlways" xml:space="preserve">
+    <value>常時表示</value>
+  </data>
+  <data name="PvCtx_OverlayTransient" xml:space="preserve">
+    <value>切替時のみ</value>
+  </data>
+  <data name="PvCtx_Grid" xml:space="preserve">
+    <value>構図グリッド</value>
+  </data>
+  <data name="PvCtx_GridNone" xml:space="preserve">
+    <value>なし</value>
+  </data>
+  <data name="PvCtx_GridCross" xml:space="preserve">
+    <value>中央十字</value>
+  </data>
+  <data name="PvCtx_GridThirds" xml:space="preserve">
+    <value>三分割</value>
+  </data>
+  <data name="PvCtx_GridSquare" xml:space="preserve">
+    <value>正方形</value>
+  </data>
+  <data name="PvCtx_GridRefImage" xml:space="preserve">
+    <value>基準: 画像</value>
+  </data>
+  <data name="PvCtx_GridRefCanvas" xml:space="preserve">
+    <value>基準: Canvas</value>
+  </data>
+
   <data name="BulkWarn_Title" xml:space="preserve">
     <value>多数のファイルへの操作</value>
   </data>

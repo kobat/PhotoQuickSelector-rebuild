@@ -62,6 +62,10 @@ public sealed partial class MainPage : Page
         // メニューのチェック表示用の状態プロバイダ（Preview / MainWindow から供給）。
         StatusBar.IsImmersiveProvider = () => Preview.IsImmersive;
         StatusBar.IsFullScreenProvider = () => (App.Window as MainWindow)?.IsFullScreen ?? false;
+        // メイン画像の右クリックメニュー（全画面表示/完全全画面はハンバーガーメニューと同じ経路で委譲）。
+        Preview.ToggleFullScreenRequested += (_, _) => (App.Window as MainWindow)?.ToggleFullScreen();
+        Preview.ToggleFullImageRequested += (_, _) => ToggleFullImageMode();
+        Preview.IsFullScreenProvider = () => (App.Window as MainWindow)?.IsFullScreen ?? false;
         // 左ペインの幅変化（ボタン/スプリッター/完全全画面/復元のいずれでも）を唯一の起点に開閉ボタンの
         // グリフ／ツールチップを追従させる。LeftNav は左カラムの子なので幅0で ActualWidth=0 になる。
         LeftNav.SizeChanged += (_, _) => StatusBar.UpdateLeftPaneGlyph(LeftNav.ActualWidth > 0);

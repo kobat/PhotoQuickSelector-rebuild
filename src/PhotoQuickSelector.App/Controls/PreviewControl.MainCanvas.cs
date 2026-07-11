@@ -72,9 +72,14 @@ public sealed partial class PreviewControl
 
     private void MainCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        _isPanning = true;
-        _lastPointer = e.GetCurrentPoint(MainCanvas).Position;
-        MainCanvas.CapturePointer(e.Pointer);
+        var point = e.GetCurrentPoint(MainCanvas);
+        // 右クリックはコンテキストメニュー用（RightTapped）なのでパンを開始しない。左ボタンのみ対象。
+        if (point.Properties.IsLeftButtonPressed)
+        {
+            _isPanning = true;
+            _lastPointer = point.Position;
+            MainCanvas.CapturePointer(e.Pointer);
+        }
         MainCanvas.Focus(FocusState.Programmatic);
     }
 
