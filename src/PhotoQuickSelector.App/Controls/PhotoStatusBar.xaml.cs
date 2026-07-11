@@ -81,7 +81,12 @@ public sealed partial class PhotoStatusBar : UserControl
         FilterToggleItem.IsChecked = _viewModel.Filter.Enabled;
         FullScreenToggleItem.IsChecked = IsFullScreenProvider?.Invoke() ?? false;
         ImmersiveToggleItem.IsChecked = IsImmersiveProvider?.Invoke() ?? false;
-        InfoToggleItem.IsChecked = _viewModel.ShowInfoOverlay;
+
+        OverlayKindBadgeItem.IsChecked = _viewModel.OverlayKind == InfoOverlayKind.Badge;
+        OverlayKindFullItem.IsChecked = _viewModel.OverlayKind == InfoOverlayKind.Full;
+        OverlayKindOffItem.IsChecked = _viewModel.OverlayKind == InfoOverlayKind.Off;
+        OverlayTimingAlwaysItem.IsChecked = !_viewModel.OverlayTransient;
+        OverlayTimingTransientItem.IsChecked = _viewModel.OverlayTransient;
 
         // プレビュー専用群はプレビュー時のみ有効。
         PreviewSubItem.IsEnabled = _viewModel.IsPreviewMode;
@@ -136,9 +141,29 @@ public sealed partial class PhotoStatusBar : UserControl
     private void MenuImmersive_Click(object sender, RoutedEventArgs e)
         => ToggleImmersiveRequested?.Invoke(this, EventArgs.Empty);
 
-    private void MenuInfo_Click(object sender, RoutedEventArgs e)
+    private void MenuOverlayKindBadge_Click(object sender, RoutedEventArgs e)
     {
-        if (_viewModel is not null) _viewModel.ShowInfoOverlay = InfoToggleItem.IsChecked;
+        if (_viewModel is not null) _viewModel.OverlayKind = InfoOverlayKind.Badge;
+    }
+
+    private void MenuOverlayKindFull_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.OverlayKind = InfoOverlayKind.Full;
+    }
+
+    private void MenuOverlayKindOff_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.OverlayKind = InfoOverlayKind.Off;
+    }
+
+    private void MenuOverlayTimingAlways_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.OverlayTransient = false;
+    }
+
+    private void MenuOverlayTimingTransient_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.OverlayTransient = true;
     }
 
     private void MenuGridKind_Click(object sender, RoutedEventArgs e)

@@ -179,10 +179,29 @@
                                               Text="イマーシブ表示"
                                               KeyboardAcceleratorTextOverride="F"
                                               Click="MenuImmersive_Click" />
-                        <ToggleMenuFlyoutItem x:Name="InfoToggleItem" x:Uid="Menu_InfoToggle"
-                                              Text="メタ情報オーバーレイ"
-                                              KeyboardAcceleratorTextOverride="I"
-                                              Click="MenuInfo_Click" />
+                        <MenuFlyoutSubItem x:Name="OverlaySubItem" x:Uid="Menu_OverlaySub" Text="情報オーバーレイ">
+                            <RadioMenuFlyoutItem x:Name="OverlayKindBadgeItem" x:Uid="Menu_OverlayKindBadge"
+                                                  Text="評価バッジ" GroupName="OverlayKind"
+                                                  KeyboardAcceleratorTextOverride="I"
+                                                  Click="MenuOverlayKindBadge_Click" />
+                            <RadioMenuFlyoutItem x:Name="OverlayKindFullItem" x:Uid="Menu_OverlayKindFull"
+                                                  Text="詳細情報" GroupName="OverlayKind"
+                                                  KeyboardAcceleratorTextOverride="I"
+                                                  Click="MenuOverlayKindFull_Click" />
+                            <RadioMenuFlyoutItem x:Name="OverlayKindOffItem" x:Uid="Menu_OverlayKindOff"
+                                                  Text="オフ" GroupName="OverlayKind"
+                                                  KeyboardAcceleratorTextOverride="I"
+                                                  Click="MenuOverlayKindOff_Click" />
+                            <MenuFlyoutSeparator />
+                            <RadioMenuFlyoutItem x:Name="OverlayTimingAlwaysItem" x:Uid="Menu_OverlayTimingAlways"
+                                                  Text="常時表示" GroupName="OverlayTiming"
+                                                  KeyboardAcceleratorTextOverride="Shift+I"
+                                                  Click="MenuOverlayTimingAlways_Click" />
+                            <RadioMenuFlyoutItem x:Name="OverlayTimingTransientItem" x:Uid="Menu_OverlayTimingTransient"
+                                                  Text="切替時のみ" GroupName="OverlayTiming"
+                                                  KeyboardAcceleratorTextOverride="Shift+I"
+                                                  Click="MenuOverlayTimingTransient_Click" />
+                        </MenuFlyoutSubItem>
                         <MenuFlyoutItem x:Uid="Menu_GridKind" Text="構図グリッド: 種類を変更"
                                         KeyboardAcceleratorTextOverride="G"
                                         Click="MenuGridKind_Click" />

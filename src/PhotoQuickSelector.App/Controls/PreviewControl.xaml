@@ -51,7 +51,7 @@
             <!-- メタ情報オーバーレイ（案B / I キーでトグル）。画像領域を狭めず左上に半透明で重畳。
                  ポインタは透過させてズーム/パン操作を妨げない。
                  DataContext=選択写真。内部はクラシック Binding（null セーフ＝WUI2010 回避、評価のライブ更新も追従）。 -->
-            <Border Grid.Column="0"
+            <Border x:Name="InfoOverlay" Grid.Column="0"
                     VerticalAlignment="Top" HorizontalAlignment="Left"
                     Margin="12" Padding="12,9" CornerRadius="8"
                     Background="#A6000000" IsHitTestVisible="False"
@@ -104,6 +104,29 @@
                                    Foreground="#8AFFFFFF" FontSize="11" VerticalAlignment="Center" />
                     </StackPanel>
                 </StackPanel>
+            </Border>
+
+            <!-- 評価バッジオーバーレイ（I キーで巡回選択時。詳細情報と排他表示・同じ左上位置）。
+                 レーティング/フラグ/カラーラベルのみを簡潔に表示。全部空の写真ではバッジごと隠す
+                 （内側 Border の Visibility＝HasAnyEvalVisibility）。 -->
+            <Border x:Name="RatingBadge" Grid.Column="0"
+                    VerticalAlignment="Top" HorizontalAlignment="Left"
+                    Margin="12" IsHitTestVisible="False"
+                    DataContext="{x:Bind ViewModel.FocusedPhoto, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.RatingBadgeVisibility, Mode=OneWay}">
+                <Border Padding="10,6" CornerRadius="8" Background="#A6000000"
+                        Visibility="{Binding HasAnyEvalVisibility}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding RatingStars}"
+                                   Foreground="{Binding RatingForeground}"
+                                   FontSize="16" VerticalAlignment="Center"
+                                   Visibility="{Binding RatingVisibility}" />
+                        <ctl:FlagGlyph GlyphSize="14" VerticalAlignment="Center"
+                                       Visibility="{Binding FlagVisibility}" />
+                        <ctl:ColorLabelDots DotSize="11" Spacing="3" VerticalAlignment="Center"
+                                            Visibility="{Binding ColorDotsVisibility}" />
+                    </StackPanel>
+                </Border>
             </Border>
 
             <!-- 先読みキャッシュ内容のデバッグオーバーレイ（C キーでトグル / 初期非表示）。

@@ -63,7 +63,9 @@ public partial class MainViewModel : ObservableObject
     {
         RebuildShortcuts();
         Filter.Changed += (_, _) => ApplyFilter();
-        ShowInfoOverlay = Settings.ShowInfoOverlay;
+        // 旧設定（ShowInfoOverlay・bool）からの移行: OverlayKind が未設定（null）なら旧値を引き継ぐ。
+        OverlayKind = Settings.OverlayKind ?? (Settings.ShowInfoOverlay ? InfoOverlayKind.Full : InfoOverlayKind.Off);
+        OverlayTransient = Settings.OverlayTransient;
         GridKind = Settings.GridKind;
         GridReference = Settings.GridReference;
     }
@@ -467,18 +469,43 @@ public partial class MainViewModel : ObservableObject
     /// <summary>正方形グリッドの短辺分割数 N（設定値。Core/UI 非依存ロジックから参照）。</summary>
     public int GridSquareDivisions => Settings.GridSquareDivisions;
 
-    /// <summary>プレビュー左上のメタ情報オーバーレイ（案B / I キーでトグル）。</summary>
+    /// <summary>プレビュー情報オーバーレイの種類（評価バッジ／詳細情報／オフ。I キーで巡回）。</summary>
     [ObservableProperty]
-    public partial bool ShowInfoOverlay { get; set; }
+    public partial InfoOverlayKind OverlayKind { get; set; }
 
+    /// <summary>オーバーレイの表示タイミング（false=常時表示 / true=切替時のみ。Shift+I でトグル）。</summary>
+    [ObservableProperty]
+    public partial bool OverlayTransient { get; set; }
+
+    /// <summary>詳細情報オーバーレイ（<see cref="Controls.PreviewControl"/> の InfoOverlay）の表示可否。</summary>
     public Visibility InfoOverlayVisibility =>
-        ShowInfoOverlay ? Visibility.Visible : Visibility.Collapsed;
+        OverlayKind == InfoOverlayKind.Full ? Visibility.Visible : Visibility.Collapsed;
 
-    partial void OnShowInfoOverlayChanged(bool value)
+    /// <summary>評価バッジオーバーレイ（<see cref="Controls.PreviewControl"/> の RatingBadge）の表示可否。</summary>
+    public Visibility RatingBadgeVisibility =>
+        OverlayKind == InfoOverlayKind.Badge ? Visibility.Visible : Visibility.Collapsed;
+
+    partial void OnOverlayKindChanged(InfoOverlayKind value)
     {
-        Settings.ShowInfoOverlay = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
+        Settings.OverlayKind = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
         OnPropertyChanged(nameof(InfoOverlayVisibility));
+        OnPropertyChanged(nameof(RatingBadgeVisibility));
     }
+
+    partial void OnOverlayTransientChanged(bool value) =>
+        Settings.OverlayTransient = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
+
+    /// <summary>情報オーバーレイの種類を巡回する（評価バッジ→詳細情報→オフ→評価バッジ…）。I キーとメニューから共用。</summary>
+    public void CycleOverlayKind() =>
+        OverlayKind = OverlayKind switch
+        {
+            InfoOverlayKind.Badge => InfoOverlayKind.Full,
+            InfoOverlayKind.Full => InfoOverlayKind.Off,
+            _ => InfoOverlayKind.Badge,
+        };
+
+    /// <summary>オーバーレイの表示タイミングを切替える（常時表示 ⇄ 切替時のみ）。Shift+I キーとメニューから共用。</summary>
+    public void ToggleOverlayTiming() => OverlayTransient = !OverlayTransient;
 
     public Visibility ThumbnailVisibility => IsPreviewMode ? Visibility.Collapsed : Visibility.Visible;
     public Visibility PreviewVisibility => IsPreviewMode ? Visibility.Visible : Visibility.Collapsed;

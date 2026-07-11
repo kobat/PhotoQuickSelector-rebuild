@@ -286,6 +286,7 @@ public sealed partial class PreviewControl : UserControl
                 RestoreFilmStripHeight();
                 RestoreRightPanelLayout();
                 SetExifPanelVisible(_viewModel.Settings.PreviewExifPanel);
+                SubscribeOverlayWatchedPhoto(_viewModel.FocusedPhoto);
             }
             Bindings.Update();
         }
@@ -308,6 +309,9 @@ public sealed partial class PreviewControl : UserControl
                 ScrollSelectedIntoView();
                 // 連打経路。ここでは placeholder のみ即表示し、実描画は settle 後の RenderExifForFocus に委ねる。
                 OnFocusChangedForExif();
+                // 情報オーバーレイの「切替時のみ」表示: 焦点の写真切替は毎回トリガ。評価変更の監視対象も付け替える。
+                SubscribeOverlayWatchedPhoto(_viewModel?.FocusedPhoto);
+                RestartOverlayFade();
                 break;
             case nameof(MainViewModel.IsPreviewMode):
                 if (_viewModel?.IsPreviewMode == true)
@@ -319,11 +323,16 @@ public sealed partial class PreviewControl : UserControl
                     FocusForKeys();
                     ScrollSelectedIntoView();
                     RenderExifForFocus(); // 入場は連打経路ではないので即描画
+                    RestartOverlayFade(); // プレビュー入場も「切替時のみ」表示のトリガ
                 }
                 break;
             case nameof(MainViewModel.GridKind):
             case nameof(MainViewModel.GridReference):
                 MainCanvas.Invalidate();
+                break;
+            case nameof(MainViewModel.OverlayKind):
+            case nameof(MainViewModel.OverlayTransient):
+                ApplyOverlayTiming();
                 break;
         }
     }

@@ -181,6 +181,14 @@ public partial class PhotoItemViewModel : ObservableObject
     private bool HasAnyColorLabel =>
         ColorLabelOrder.Any(Eval.HasColorLabel);
 
+    /// <summary>
+    /// 評価バッジオーバーレイ（<see cref="Controls.PreviewControl"/> の RatingBadge）の表示可否。
+    /// レーティング・フラグ・カラーラベルのいずれも無ければバッジごと隠す。
+    /// </summary>
+    public Visibility HasAnyEvalVisibility =>
+        (Eval.Rating > 0 || Eval.FlagRating != 0 || HasAnyColorLabel)
+            ? Visibility.Visible : Visibility.Collapsed;
+
     // カラーラベルの色（XAML の楕円 Fill と一致）。枠線色の決定にも使う。
     private static readonly ColorLabel[] ColorLabelOrder =
         { ColorLabel.Red, ColorLabel.Yellow, ColorLabel.Green, ColorLabel.Blue, ColorLabel.Purple };
@@ -260,6 +268,7 @@ public partial class PhotoItemViewModel : ObservableObject
         OnPropertyChanged(nameof(RatingStars));
         OnPropertyChanged(nameof(RatingForeground)); // EXIF由来→ユーザー変更で色が変わる
         OnPropertyChanged(nameof(RatingVisibility));
+        OnPropertyChanged(nameof(HasAnyEvalVisibility));
     }
 
     public void RatingUp() => SetRating(Eval.Rating + 1);
@@ -292,6 +301,7 @@ public partial class PhotoItemViewModel : ObservableObject
         OnPropertyChanged(nameof(PickVisibility));
         OnPropertyChanged(nameof(RejectVisibility));
         OnPropertyChanged(nameof(FlagVisibility));
+        OnPropertyChanged(nameof(HasAnyEvalVisibility));
     }
 
     public void ToggleColorLabel(ColorLabel label)
@@ -301,6 +311,7 @@ public partial class PhotoItemViewModel : ObservableObject
         OnPropertyChanged($"{label}Visibility");
         OnPropertyChanged(nameof(ColorLabelBorderBrush));
         OnPropertyChanged(nameof(ColorDotsVisibility));
+        OnPropertyChanged(nameof(HasAnyEvalVisibility));
     }
 
     /// <summary>

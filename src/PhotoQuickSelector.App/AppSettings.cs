@@ -38,8 +38,18 @@ public sealed class AppSettings
     /// <summary>右パネル内ナビゲーターの高さ(px)。ズームルーペはこの残り(*)。</summary>
     public double NavigatorHeight { get; set; } = 220;
 
-    /// <summary>プレビューのメタ情報オーバーレイ（案B / I キー）を表示するか。</summary>
+    /// <summary>
+    /// 旧: プレビューのメタ情報オーバーレイ（案B / I キー）を表示するか。<see cref="OverlayKind"/> 移行用に残す
+    /// （<see cref="ViewModels.MainViewModel"/> のコンストラクタが <see cref="OverlayKind"/> が null のときだけ参照する）。
+    /// </summary>
     public bool ShowInfoOverlay { get; set; } = true;
+
+    /// <summary>プレビュー情報オーバーレイの種類（評価バッジ／詳細情報／オフ。I キーで巡回）。
+    /// null＝旧設定 <see cref="ShowInfoOverlay"/> からの移行前（初回起動含む）。</summary>
+    public InfoOverlayKind? OverlayKind { get; set; }
+
+    /// <summary>情報オーバーレイの表示タイミング（false=常時表示 / true=切替時のみ＝約1秒保持後フェードアウト。Shift+I）。</summary>
+    public bool OverlayTransient { get; set; }
 
     /// <summary>プレビュー右パネル上段の表示（false=ルーペ / true=EXIF 詳細。E キーで切替）。</summary>
     public bool PreviewExifPanel { get; set; }

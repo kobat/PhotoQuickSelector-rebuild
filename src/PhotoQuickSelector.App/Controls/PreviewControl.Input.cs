@@ -142,10 +142,18 @@ public sealed partial class PreviewControl
             return true;
         }
 
-        // I : メタ情報オーバーレイ（案B）トグル
+        // Shift+I : オーバーレイの表示タイミングを切替（常時 ⇄ 切替時のみ）。None 分岐より前に判定する
+        // （Shift+G と同じ並び方＝修飾子ありを先に見る）。
+        if (KeyboardModifiers.Shift && key == VirtualKey.I)
+        {
+            _viewModel.ToggleOverlayTiming();
+            return true;
+        }
+
+        // I : 情報オーバーレイの種類を巡回（評価バッジ→詳細情報→オフ→評価バッジ…）
         if (KeyboardModifiers.None && key == VirtualKey.I)
         {
-            _viewModel.ShowInfoOverlay = !_viewModel.ShowInfoOverlay;
+            _viewModel.CycleOverlayKind();
             return true;
         }
 
