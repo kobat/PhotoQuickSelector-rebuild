@@ -18,8 +18,10 @@ namespace PhotoQuickSelector_App.Controls;
 /// </summary>
 public sealed partial class PreviewControl
 {
-    private static readonly TimeSpan OverlayHold = TimeSpan.FromSeconds(1.0);
-    private static readonly TimeSpan OverlayFade = TimeSpan.FromSeconds(0.4);
+    // 保持時間・フェード時間は設定で可変（AppSettings.OverlayTransientHoldMs/FadeMs）。
+    // 既定値は設定の初期値と一致させる（設定注入前にトリガされても不自然にならないよう）。
+    private TimeSpan _overlayHold = TimeSpan.FromMilliseconds(500);
+    private TimeSpan _overlayFade = TimeSpan.FromMilliseconds(400);
 
     /// <summary>評価変更で「切替時のみ」表示を再トリガすべきプロパティ名。</summary>
     private static readonly HashSet<string> OverlayEvalTriggerProperties = new(StringComparer.Ordinal)
@@ -107,16 +109,37 @@ public sealed partial class PreviewControl
         _overlayFadeStoryboard.Begin();
     }
 
+    /// <summary>
+    /// 「切替時のみ」表示の保持時間／フェード時間を設定から反映する（<see cref="ApplyPreviewSettings"/> から呼ぶ）。
+    /// キーフレームは <see cref="EnsureOverlayFadeStoryboard"/> で焼き込むためキャッシュ済み Storyboard を破棄し、
+    /// 次回トリガで新しい時間で作り直させる。切替時のみ表示中なら即座に再トリガして体感変化を確認できるようにする。
+    /// </summary>
+    private void ApplyOverlayFadeTimings(AppSettings s)
+    {
+        // 過大値でも UI が固まらないよう常識的な範囲にクランプ（保持は 0＝即フェード開始も許す）。
+        var hold = TimeSpan.FromMilliseconds(Math.Clamp(s.OverlayTransientHoldMs, 0, 60000));
+        // フェードは最低 1ms（0 だと Discrete/Easing の KeyTime が重なり消えないため）。
+        var fade = TimeSpan.FromMilliseconds(Math.Clamp(s.OverlayTransientFadeMs, 1, 60000));
+        if (hold == _overlayHold && fade == _overlayFade) return;
+
+        _overlayHold = hold;
+        _overlayFade = fade;
+        _overlayFadeStoryboard?.Stop();
+        _overlayFadeStoryboard = null; // 次回 EnsureOverlayFadeStoryboard で新しい時間で再構築
+        _overlayFadeAnimation = null;
+        if (_viewModel?.OverlayTransient == true) RestartOverlayFade();
+    }
+
     private void EnsureOverlayFadeStoryboard()
     {
         if (_overlayFadeStoryboard != null) return;
 
         var animation = new DoubleAnimationUsingKeyFrames();
         animation.KeyFrames.Add(new DiscreteDoubleKeyFrame { KeyTime = TimeSpan.Zero, Value = 1.0 });
-        animation.KeyFrames.Add(new DiscreteDoubleKeyFrame { KeyTime = OverlayHold, Value = 1.0 });
+        animation.KeyFrames.Add(new DiscreteDoubleKeyFrame { KeyTime = _overlayHold, Value = 1.0 });
         animation.KeyFrames.Add(new EasingDoubleKeyFrame
         {
-            KeyTime = OverlayHold + OverlayFade,
+            KeyTime = _overlayHold + _overlayFade,
             Value = 0.0,
             // 線形だと消え際が唐突。EaseIn（出だしゆっくり）で「ふわっと」消す。
             EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn },

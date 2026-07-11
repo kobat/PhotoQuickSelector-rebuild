@@ -48,8 +48,14 @@ public sealed class AppSettings
     /// null＝旧設定 <see cref="ShowInfoOverlay"/> からの移行前（初回起動含む）。</summary>
     public InfoOverlayKind? OverlayKind { get; set; }
 
-    /// <summary>情報オーバーレイの表示タイミング（false=常時表示 / true=切替時のみ＝約1秒保持後フェードアウト。Shift+I）。</summary>
+    /// <summary>情報オーバーレイの表示タイミング（false=常時表示 / true=切替時のみ＝保持後フェードアウト。Shift+I）。</summary>
     public bool OverlayTransient { get; set; }
+
+    /// <summary>「切替時のみ」オーバーレイの保持時間（ミリ秒）。この後 <see cref="OverlayTransientFadeMs"/> かけてフェードアウトする。</summary>
+    public int OverlayTransientHoldMs { get; set; } = 500;
+
+    /// <summary>「切替時のみ」オーバーレイのフェードアウト時間（ミリ秒）。保持時間の経過後にこの時間で消える。</summary>
+    public int OverlayTransientFadeMs { get; set; } = 400;
 
     /// <summary>プレビュー右パネル上段の表示（false=ルーペ / true=EXIF 詳細。E キーで切替）。</summary>
     public bool PreviewExifPanel { get; set; }

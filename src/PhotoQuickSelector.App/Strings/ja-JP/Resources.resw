@@ -324,6 +324,18 @@
   <data name="Settings_ZoomStopsBox.PlaceholderText" xml:space="preserve">
     <value>例: 25, 50, 100, 200, 400</value>
   </data>
+  <data name="Settings_OverlayTransientHeader.Text" xml:space="preserve">
+    <value>情報オーバーレイの表示時間（切替時のみ）</value>
+  </data>
+  <data name="Settings_OverlayTransientNote.Text" xml:space="preserve">
+    <value>情報オーバーレイを「切替時のみ」表示にしたとき、写真の切替や評価変更のたびに保持時間だけ表示し、その後フェード時間をかけて消えます（Shift+I で切替）。</value>
+  </data>
+  <data name="Settings_OverlayHoldLabel.Text" xml:space="preserve">
+    <value>保持時間 (ms)</value>
+  </data>
+  <data name="Settings_OverlayFadeLabel.Text" xml:space="preserve">
+    <value>フェード時間 (ms)</value>
+  </data>
   <data name="Settings_AdvancedIntro.Text" xml:space="preserve">
     <value>プレビューの先読みキャッシュの動作を調整します。通常は既定のままで問題ありません。</value>
   </data>

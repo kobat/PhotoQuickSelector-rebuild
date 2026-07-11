@@ -45,6 +45,9 @@ public sealed partial class SettingsDialog : ContentDialog
         }
     }
 
+    public int OverlayTransientHoldMs => (int)System.Math.Round(Val(OverlayHoldBox, Defaults.OverlayTransientHoldMs));
+    public int OverlayTransientFadeMs => (int)System.Math.Round(Val(OverlayFadeBox, Defaults.OverlayTransientFadeMs));
+
     public double CacheBudgetGB => Val(CacheBudgetBox, Defaults.CacheBudgetGB);
     public int PrefetchForward => (int)System.Math.Round(Val(PrefetchForwardBox, Defaults.PrefetchForward));
     public int PrefetchBackward => (int)System.Math.Round(Val(PrefetchBackwardBox, Defaults.PrefetchBackward));
@@ -64,6 +67,8 @@ public sealed partial class SettingsDialog : ContentDialog
         LanguageCombo.SelectedIndex = lang switch { "ja" => 1, "en" => 2, _ => 0 };
 
         ZoomStopsBox.Text = FormatZoomStops(settings.ZoomStops);
+        OverlayHoldBox.Value = settings.OverlayTransientHoldMs;
+        OverlayFadeBox.Value = settings.OverlayTransientFadeMs;
         CacheBudgetBox.Value = settings.CacheBudgetGB;
         PrefetchForwardBox.Value = settings.PrefetchForward;
         PrefetchBackwardBox.Value = settings.PrefetchBackward;
@@ -124,6 +129,12 @@ public sealed partial class SettingsDialog : ContentDialog
 
     private void ResetZoom_Click(object sender, RoutedEventArgs e) =>
         ZoomStopsBox.Text = FormatZoomStops(AppSettings.DefaultZoomStops);
+
+    private void ResetOverlayTransient_Click(object sender, RoutedEventArgs e)
+    {
+        OverlayHoldBox.Value = Defaults.OverlayTransientHoldMs;
+        OverlayFadeBox.Value = Defaults.OverlayTransientFadeMs;
+    }
 
     private void ResetCache_Click(object sender, RoutedEventArgs e) =>
         CacheBudgetBox.Value = Defaults.CacheBudgetGB;

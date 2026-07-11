@@ -193,6 +193,8 @@ public sealed partial class PhotoStatusBar : UserControl
             s.SharePath = dialog.SharePath;
             s.Language = dialog.SelectedLanguage;
             s.ZoomStops = dialog.ZoomStops;
+            s.OverlayTransientHoldMs = dialog.OverlayTransientHoldMs;
+            s.OverlayTransientFadeMs = dialog.OverlayTransientFadeMs;
             s.CacheBudgetGB = dialog.CacheBudgetGB;
             s.PrefetchForward = dialog.PrefetchForward;
             s.PrefetchBackward = dialog.PrefetchBackward;

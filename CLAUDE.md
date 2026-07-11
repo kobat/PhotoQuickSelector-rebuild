@@ -115,8 +115,10 @@
 - `Shift+F` 完全全画面モード（ウィンドウ全画面＋左ペイン/ステータスバー非表示＋イマーシブ＋余白0 を一括）。グリッド時は
   プレビューに入って全画面化。解除は `Shift+F` または `Esc`（入る前の状態へ正確復元）
 - プレビュー中: `I` 情報オーバーレイの種類を巡回（評価バッジ→詳細情報→オフ。`AppSettings.OverlayKind` に永続化）/
-  `Shift+I` 表示タイミング切替（常時⇄切替時のみ＝写真切替・焦点写真の評価変更・プレビュー入場のたびに約1秒表示→
-  0.4秒フェードアウト。`AppSettings.OverlayTransient`）/ `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
+  `Shift+I` 表示タイミング切替（常時⇄切替時のみ＝写真切替・焦点写真の評価変更・プレビュー入場のたびに保持時間だけ表示→
+  フェードアウト。`AppSettings.OverlayTransient`。保持/フェード時間は設定＞一般で ms 指定＝
+  `AppSettings.OverlayTransientHoldMs`（既定500）/`OverlayTransientFadeMs`（既定400））/
+  `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
 - プレビュー中: `E` 右パネル上段をルーペ⇄EXIF 詳細で切替（上段のタブクリックでも可。状態は
   `AppSettings.PreviewExifPanel` に永続化。全ディレクトリ・全タグ＝Core `ExifTagReader.ReadAllTags`／
   UI `Controls/ExifDetailPanel`・グループ化 ListView 仮想化）

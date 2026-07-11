@@ -233,6 +233,9 @@ public sealed partial class PreviewControl : UserControl
 
         // キャッシュのバイト予算（GB → bytes）。
         _cache.MaxCacheBytes = (long)(Math.Max(0.1, s.CacheBudgetGB) * (1L << 30));
+
+        // 「切替時のみ」オーバーレイの保持／フェード時間。
+        ApplyOverlayFadeTimings(s);
     }
 
     /// <summary>
