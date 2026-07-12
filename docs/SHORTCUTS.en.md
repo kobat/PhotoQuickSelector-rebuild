@@ -25,7 +25,8 @@
 | `Shift+Z` | Show at 100% (1:1 pixels) |
 | `Shift+Alt+← / →` | Fit / 100% |
 | `F` | Toggle immersive view (collapses the right panel/filmstrip) |
-| `I` | Toggle the metadata overlay |
+| `I` | Cycle the info overlay (rating badge → details → off) |
+| `Shift+I` | Toggle overlay timing (always ⇄ on change only) |
 | `E` | Toggle the right panel between the loupe and EXIF details |
 | `G` | Cycle the composition grid type (none → center cross → rule of thirds → squares) |
 | `Shift+G` | Toggle the composition grid reference (image ⇄ canvas) |
@@ -40,8 +41,9 @@
 | `PageUp / PageDown / Home / End` | Move within the filmstrip |
 | `Alt+← / → / ↑ / ↓` | Pan the image |
 | `Alt+F` | Scroll to the AF focus point |
-| `Ctrl+Alt+← / →` | Scroll the loupe horizontally |
-| `Ctrl+Alt+↑ / ↓` | Scroll the loupe vertically (bulk flag when a selection set exists) |
+| `Ctrl+Alt+← / →` | Scroll the loupe horizontally (page the list up/down while the EXIF details panel is shown: ← up / → down) |
+| `Ctrl+Alt+↑ / ↓` | Scroll the loupe vertically (scroll the list while the EXIF details panel is shown; bulk flag when a selection set exists) |
+| `Ctrl+Alt+PageUp / PageDown` | Page the EXIF details list up/down while it is shown (PageUp up / PageDown down) |
 | `Ctrl+Alt+F` | Move the loupe to the AF focus point |
 
 ## Rating

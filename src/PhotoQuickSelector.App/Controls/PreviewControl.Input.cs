@@ -42,6 +42,22 @@ public sealed partial class PreviewControl
                 _ = _viewModel.ApplyEvaluationAsync(flagOp, _viewModel.SelectedPhotos.ToList());
                 return true;
             }
+            // EXIF 詳細パネル表示中はルーペが隠れている（同一セル排他）ので、Ctrl+Alt+矢印を
+            // EXIF 一覧のスクロールへ振り替える。↑/↓＝行スクロール・←/→＝ページ送り（←上／→下）。
+            // PageUp/PageDown もページ送り（併存する直感バインド。一括フラグは ↑/↓ のみなので無競合）。
+            // 一括フラグ（↑/↓・選択集合あり）は上で先取り済み＝ルーペ時と同じ優先順位を保つ。
+            if (_showExifPanel)
+            {
+                switch (key)
+                {
+                    case VirtualKey.Up: ExifPanel.ScrollByLine(down: false); return true;
+                    case VirtualKey.Down: ExifPanel.ScrollByLine(down: true); return true;
+                    case VirtualKey.Left: ExifPanel.ScrollByPage(down: false); return true;
+                    case VirtualKey.Right: ExifPanel.ScrollByPage(down: true); return true;
+                    case VirtualKey.PageUp: ExifPanel.ScrollByPage(down: false); return true;
+                    case VirtualKey.PageDown: ExifPanel.ScrollByPage(down: true); return true;
+                }
+            }
             switch (key)
             {
                 case VirtualKey.Left: ZoomPanByRatio(0.25, 0); return true;

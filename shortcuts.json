@@ -67,9 +67,11 @@
         { "keys": "Alt+F",
           "description": { "ja": "フォーカス点へスクロール", "en": "Scroll to the AF focus point" } },
         { "keys": "Ctrl+Alt+← / →",
-          "description": { "ja": "ルーペを横スクロール", "en": "Scroll the loupe horizontally" } },
+          "description": { "ja": "ルーペを横スクロール（EXIF詳細パネル表示中は一覧をページ送り＝←上／→下）", "en": "Scroll the loupe horizontally (page the list up/down while the EXIF details panel is shown: ← up / → down)" } },
         { "keys": "Ctrl+Alt+↑ / ↓",
-          "description": { "ja": "ルーペを縦スクロール（選択集合があるときは一括フラグ）", "en": "Scroll the loupe vertically (bulk flag when a selection set exists)" } },
+          "description": { "ja": "ルーペを縦スクロール（EXIF詳細パネル表示中は一覧を縦スクロール／選択集合があるときは一括フラグ）", "en": "Scroll the loupe vertically (scroll the list while the EXIF details panel is shown; bulk flag when a selection set exists)" } },
+        { "keys": "Ctrl+Alt+PageUp / PageDown",
+          "description": { "ja": "EXIF詳細パネル表示中は一覧をページ送り（PageUp上／PageDown下）", "en": "Page the EXIF details list up/down while it is shown (PageUp up / PageDown down)" } },
         { "keys": "Ctrl+Alt+F",
           "description": { "ja": "ルーペをフォーカス点へ", "en": "Move the loupe to the AF focus point" } }
       ]
