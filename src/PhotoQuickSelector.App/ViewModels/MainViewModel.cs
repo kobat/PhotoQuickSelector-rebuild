@@ -65,7 +65,8 @@ public partial class MainViewModel : ObservableObject
         Filter.Changed += (_, _) => ApplyFilter();
         // 旧設定（ShowInfoOverlay・bool）からの移行: OverlayKind が未設定（null）なら旧値を引き継ぐ。
         OverlayKind = Settings.OverlayKind ?? (Settings.ShowInfoOverlay ? InfoOverlayKind.Full : InfoOverlayKind.Off);
-        OverlayTransient = Settings.OverlayTransient;
+        BadgeTransient = Settings.BadgeTransient;
+        FullTransient = Settings.FullTransient;
         GridKind = Settings.GridKind;
         GridReference = Settings.GridReference;
     }
@@ -499,9 +500,25 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial InfoOverlayKind OverlayKind { get; set; }
 
-    /// <summary>オーバーレイの表示タイミング（false=常時表示 / true=切替時のみ。Shift+I でトグル）。</summary>
+    /// <summary>評価バッジの表示タイミング（false=常時表示 / true=切替時のみ）。種類ごとに独立して記憶する。</summary>
     [ObservableProperty]
-    public partial bool OverlayTransient { get; set; }
+    public partial bool BadgeTransient { get; set; }
+
+    /// <summary>詳細情報の表示タイミング（false=常時表示 / true=切替時のみ）。種類ごとに独立して記憶する。</summary>
+    [ObservableProperty]
+    public partial bool FullTransient { get; set; }
+
+    /// <summary>現在選択中のオーバーレイ種類の表示タイミング（true=切替時のみ）。Off のときは常に false（無効扱い）。
+    /// メニューのチェック表示・プレビューのフェード判定が参照する。Shift+I／メニューは「選択中の種類」に作用する。</summary>
+    public bool CurrentOverlayTransient => OverlayKind switch
+    {
+        InfoOverlayKind.Badge => BadgeTransient,
+        InfoOverlayKind.Full => FullTransient,
+        _ => false,
+    };
+
+    /// <summary>情報オーバーレイが表示中か（Off でない）。メニューのタイミング項目の活性判定に使う。</summary>
+    public bool IsOverlayOn => OverlayKind != InfoOverlayKind.Off;
 
     /// <summary>詳細情報オーバーレイ（<see cref="Controls.PreviewControl"/> の InfoOverlay）の表示可否。</summary>
     public Visibility InfoOverlayVisibility =>
@@ -516,10 +533,21 @@ public partial class MainViewModel : ObservableObject
         Settings.OverlayKind = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
         OnPropertyChanged(nameof(InfoOverlayVisibility));
         OnPropertyChanged(nameof(RatingBadgeVisibility));
+        OnPropertyChanged(nameof(CurrentOverlayTransient));  // 種類切替でタイミング表示が変わる
+        OnPropertyChanged(nameof(IsOverlayOn));
     }
 
-    partial void OnOverlayTransientChanged(bool value) =>
-        Settings.OverlayTransient = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
+    partial void OnBadgeTransientChanged(bool value)
+    {
+        Settings.BadgeTransient = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
+        if (OverlayKind == InfoOverlayKind.Badge) OnPropertyChanged(nameof(CurrentOverlayTransient));
+    }
+
+    partial void OnFullTransientChanged(bool value)
+    {
+        Settings.FullTransient = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
+        if (OverlayKind == InfoOverlayKind.Full) OnPropertyChanged(nameof(CurrentOverlayTransient));
+    }
 
     /// <summary>情報オーバーレイの種類を巡回する（評価バッジ→詳細情報→オフ→評価バッジ…）。I キーとメニューから共用。</summary>
     public void CycleOverlayKind() =>
@@ -530,8 +558,28 @@ public partial class MainViewModel : ObservableObject
             _ => InfoOverlayKind.Badge,
         };
 
-    /// <summary>オーバーレイの表示タイミングを切替える（常時表示 ⇄ 切替時のみ）。Shift+I キーとメニューから共用。</summary>
-    public void ToggleOverlayTiming() => OverlayTransient = !OverlayTransient;
+    /// <summary>選択中のオーバーレイ種類の表示タイミングを切替える（常時表示 ⇄ 切替時のみ）。
+    /// オフのときは何もしない。Shift+I キーとメニューから共用。</summary>
+    public void ToggleOverlayTiming()
+    {
+        switch (OverlayKind)
+        {
+            case InfoOverlayKind.Badge: BadgeTransient = !BadgeTransient; break;
+            case InfoOverlayKind.Full: FullTransient = !FullTransient; break;
+            // Off: 選択中のオーバーレイが無いので何もしない。
+        }
+    }
+
+    /// <summary>選択中のオーバーレイ種類の表示タイミングを指定値にする（メニューの「常時表示／切替時のみ」から）。
+    /// オフのときは何もしない（メニュー側で無効化されている）。</summary>
+    public void SetCurrentOverlayTransient(bool transient)
+    {
+        switch (OverlayKind)
+        {
+            case InfoOverlayKind.Badge: BadgeTransient = transient; break;
+            case InfoOverlayKind.Full: FullTransient = transient; break;
+        }
+    }
 
     public Visibility ThumbnailVisibility => IsPreviewMode ? Visibility.Collapsed : Visibility.Visible;
     public Visibility PreviewVisibility => IsPreviewMode ? Visibility.Visible : Visibility.Collapsed;

@@ -95,8 +95,11 @@ public sealed partial class PhotoStatusBar : UserControl
         OverlayKindBadgeItem.IsChecked = _viewModel.OverlayKind == InfoOverlayKind.Badge;
         OverlayKindFullItem.IsChecked = _viewModel.OverlayKind == InfoOverlayKind.Full;
         OverlayKindOffItem.IsChecked = _viewModel.OverlayKind == InfoOverlayKind.Off;
-        OverlayTimingAlwaysItem.IsChecked = !_viewModel.OverlayTransient;
-        OverlayTimingTransientItem.IsChecked = _viewModel.OverlayTransient;
+        // タイミングは「選択中の種類」に対する設定。オフのときは対象が無いので両方を無効化する。
+        OverlayTimingAlwaysItem.IsEnabled = _viewModel.IsOverlayOn;
+        OverlayTimingTransientItem.IsEnabled = _viewModel.IsOverlayOn;
+        OverlayTimingAlwaysItem.IsChecked = _viewModel.IsOverlayOn && !_viewModel.CurrentOverlayTransient;
+        OverlayTimingTransientItem.IsChecked = _viewModel.IsOverlayOn && _viewModel.CurrentOverlayTransient;
 
         GridNoneItem.IsChecked = _viewModel.GridKind == GridOverlayKind.None;
         GridCrossItem.IsChecked = _viewModel.GridKind == GridOverlayKind.CenterCross;
@@ -178,12 +181,12 @@ public sealed partial class PhotoStatusBar : UserControl
 
     private void MenuOverlayTimingAlways_Click(object sender, RoutedEventArgs e)
     {
-        if (_viewModel is not null) _viewModel.OverlayTransient = false;
+        _viewModel?.SetCurrentOverlayTransient(false);
     }
 
     private void MenuOverlayTimingTransient_Click(object sender, RoutedEventArgs e)
     {
-        if (_viewModel is not null) _viewModel.OverlayTransient = true;
+        _viewModel?.SetCurrentOverlayTransient(true);
     }
 
     // 構図グリッド（種類×基準）はラジオ選択式（PreviewControl の右クリックメニューと同じ流儀）。
@@ -240,8 +243,10 @@ public sealed partial class PhotoStatusBar : UserControl
             s.SharePath = dialog.SharePath;
             s.Language = dialog.SelectedLanguage;
             s.ZoomStops = dialog.ZoomStops;
-            s.OverlayTransientHoldMs = dialog.OverlayTransientHoldMs;
-            s.OverlayTransientFadeMs = dialog.OverlayTransientFadeMs;
+            s.BadgeHoldMs = dialog.BadgeHoldMs;
+            s.BadgeFadeMs = dialog.BadgeFadeMs;
+            s.FullHoldMs = dialog.FullHoldMs;
+            s.FullFadeMs = dialog.FullFadeMs;
             s.CacheBudgetGB = dialog.CacheBudgetGB;
             s.PrefetchForward = dialog.PrefetchForward;
             s.PrefetchBackward = dialog.PrefetchBackward;

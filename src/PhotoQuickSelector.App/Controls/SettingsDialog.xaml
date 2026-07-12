@@ -58,7 +58,7 @@
                                  PlaceholderText="例: 25, 50, 100, 200, 400" />
                     </StackPanel>
 
-                    <!-- 情報オーバーレイ「切替時のみ」の表示時間 -->
+                    <!-- 情報オーバーレイ「切替時のみ」の表示時間（種類ごとに独立） -->
                     <StackPanel Spacing="6">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -69,21 +69,41 @@
                             <HyperlinkButton Grid.Column="1" x:Uid="Settings_ResetGroup" Content="既定に戻す" Click="ResetOverlayTransient_Click" />
                         </Grid>
                         <TextBlock x:Uid="Settings_OverlayTransientNote"
-                                   Text="情報オーバーレイを「切替時のみ」表示にしたとき、写真の切替や評価変更のたびに保持時間だけ表示し、その後フェード時間をかけて消えます（Shift+I で切替）。"
+                                   Text="情報オーバーレイを「切替時のみ」表示にしたとき、写真の切替や評価変更のたびに保持時間だけ表示し、その後フェード時間をかけて消えます（Shift+I で切替）。保持時間・フェード時間は評価バッジ／詳細情報それぞれで設定できます。"
                                    TextWrapping="Wrap"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <!-- 評価バッジ -->
+                        <TextBlock x:Uid="Settings_OverlayBadgeLabel" Text="評価バッジ" FontWeight="SemiBold" Margin="0,4,0,0" />
                         <StackPanel Orientation="Horizontal" Spacing="20">
                             <StackPanel Spacing="4">
                                 <TextBlock x:Uid="Settings_OverlayHoldLabel" Text="保持時間 (ms)"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <NumberBox x:Name="OverlayHoldBox" MinWidth="140"
+                                <NumberBox x:Name="BadgeHoldBox" MinWidth="140"
                                            Minimum="0" Maximum="60000" SmallChange="100" LargeChange="500"
                                            SpinButtonPlacementMode="Compact" />
                             </StackPanel>
                             <StackPanel Spacing="4">
                                 <TextBlock x:Uid="Settings_OverlayFadeLabel" Text="フェード時間 (ms)"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                                <NumberBox x:Name="OverlayFadeBox" MinWidth="140"
+                                <NumberBox x:Name="BadgeFadeBox" MinWidth="140"
+                                           Minimum="1" Maximum="60000" SmallChange="100" LargeChange="500"
+                                           SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+                        </StackPanel>
+                        <!-- 詳細情報 -->
+                        <TextBlock x:Uid="Settings_OverlayFullLabel" Text="詳細情報" FontWeight="SemiBold" Margin="0,4,0,0" />
+                        <StackPanel Orientation="Horizontal" Spacing="20">
+                            <StackPanel Spacing="4">
+                                <TextBlock x:Uid="Settings_OverlayHoldLabel" Text="保持時間 (ms)"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <NumberBox x:Name="FullHoldBox" MinWidth="140"
+                                           Minimum="0" Maximum="60000" SmallChange="100" LargeChange="500"
+                                           SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <TextBlock x:Uid="Settings_OverlayFadeLabel" Text="フェード時間 (ms)"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                <NumberBox x:Name="FullFadeBox" MinWidth="140"
                                            Minimum="1" Maximum="60000" SmallChange="100" LargeChange="500"
                                            SpinButtonPlacementMode="Compact" />
                             </StackPanel>

@@ -98,10 +98,16 @@ public sealed partial class PreviewControl
         overlaySub.Items.Add(RadioItem(Loc.Get("PvCtx_OverlayOff"), "PvOverlayKind",
             vm.OverlayKind == InfoOverlayKind.Off, "I", () => vm.OverlayKind = InfoOverlayKind.Off));
         overlaySub.Items.Add(new MenuFlyoutSeparator());
-        overlaySub.Items.Add(RadioItem(Loc.Get("PvCtx_OverlayAlways"), "PvOverlayTiming",
-            !vm.OverlayTransient, "Shift+I", () => vm.OverlayTransient = false));
-        overlaySub.Items.Add(RadioItem(Loc.Get("PvCtx_OverlayTransient"), "PvOverlayTiming",
-            vm.OverlayTransient, "Shift+I", () => vm.OverlayTransient = true));
+        // タイミングは「選択中の種類」に対する設定。オフのときは対象が無いので両方を無効化する。
+        var overlayOn = vm.IsOverlayOn;
+        var timingAlways = RadioItem(Loc.Get("PvCtx_OverlayAlways"), "PvOverlayTiming",
+            overlayOn && !vm.CurrentOverlayTransient, "Shift+I", () => vm.SetCurrentOverlayTransient(false));
+        var timingTransient = RadioItem(Loc.Get("PvCtx_OverlayTransient"), "PvOverlayTiming",
+            overlayOn && vm.CurrentOverlayTransient, "Shift+I", () => vm.SetCurrentOverlayTransient(true));
+        timingAlways.IsEnabled = overlayOn;
+        timingTransient.IsEnabled = overlayOn;
+        overlaySub.Items.Add(timingAlways);
+        overlaySub.Items.Add(timingTransient);
         flyout.Items.Add(overlaySub);
 
         // --- 構図グリッド（種類×基準の2軸） ---

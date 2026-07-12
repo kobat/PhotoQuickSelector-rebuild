@@ -378,7 +378,13 @@
     <value>情報オーバーレイの表示時間（切替時のみ）</value>
   </data>
   <data name="Settings_OverlayTransientNote.Text" xml:space="preserve">
-    <value>情報オーバーレイを「切替時のみ」表示にしたとき、写真の切替や評価変更のたびに保持時間だけ表示し、その後フェード時間をかけて消えます（Shift+I で切替）。</value>
+    <value>情報オーバーレイを「切替時のみ」表示にしたとき、写真の切替や評価変更のたびに保持時間だけ表示し、その後フェード時間をかけて消えます（Shift+I で切替）。保持時間・フェード時間は評価バッジ／詳細情報それぞれで設定できます。</value>
+  </data>
+  <data name="Settings_OverlayBadgeLabel.Text" xml:space="preserve">
+    <value>評価バッジ</value>
+  </data>
+  <data name="Settings_OverlayFullLabel.Text" xml:space="preserve">
+    <value>詳細情報</value>
   </data>
   <data name="Settings_OverlayHoldLabel.Text" xml:space="preserve">
     <value>保持時間 (ms)</value>

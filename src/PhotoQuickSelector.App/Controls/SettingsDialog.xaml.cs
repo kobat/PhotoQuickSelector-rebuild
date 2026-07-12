@@ -45,8 +45,10 @@ public sealed partial class SettingsDialog : ContentDialog
         }
     }
 
-    public int OverlayTransientHoldMs => (int)System.Math.Round(Val(OverlayHoldBox, Defaults.OverlayTransientHoldMs));
-    public int OverlayTransientFadeMs => (int)System.Math.Round(Val(OverlayFadeBox, Defaults.OverlayTransientFadeMs));
+    public int BadgeHoldMs => (int)System.Math.Round(Val(BadgeHoldBox, Defaults.BadgeHoldMs));
+    public int BadgeFadeMs => (int)System.Math.Round(Val(BadgeFadeBox, Defaults.BadgeFadeMs));
+    public int FullHoldMs => (int)System.Math.Round(Val(FullHoldBox, Defaults.FullHoldMs));
+    public int FullFadeMs => (int)System.Math.Round(Val(FullFadeBox, Defaults.FullFadeMs));
 
     public double CacheBudgetGB => Val(CacheBudgetBox, Defaults.CacheBudgetGB);
     public int PrefetchForward => (int)System.Math.Round(Val(PrefetchForwardBox, Defaults.PrefetchForward));
@@ -67,8 +69,10 @@ public sealed partial class SettingsDialog : ContentDialog
         LanguageCombo.SelectedIndex = lang switch { "ja" => 1, "en" => 2, _ => 0 };
 
         ZoomStopsBox.Text = FormatZoomStops(settings.ZoomStops);
-        OverlayHoldBox.Value = settings.OverlayTransientHoldMs;
-        OverlayFadeBox.Value = settings.OverlayTransientFadeMs;
+        BadgeHoldBox.Value = settings.BadgeHoldMs;
+        BadgeFadeBox.Value = settings.BadgeFadeMs;
+        FullHoldBox.Value = settings.FullHoldMs;
+        FullFadeBox.Value = settings.FullFadeMs;
         CacheBudgetBox.Value = settings.CacheBudgetGB;
         PrefetchForwardBox.Value = settings.PrefetchForward;
         PrefetchBackwardBox.Value = settings.PrefetchBackward;
@@ -132,8 +136,10 @@ public sealed partial class SettingsDialog : ContentDialog
 
     private void ResetOverlayTransient_Click(object sender, RoutedEventArgs e)
     {
-        OverlayHoldBox.Value = Defaults.OverlayTransientHoldMs;
-        OverlayFadeBox.Value = Defaults.OverlayTransientFadeMs;
+        BadgeHoldBox.Value = Defaults.BadgeHoldMs;
+        BadgeFadeBox.Value = Defaults.BadgeFadeMs;
+        FullHoldBox.Value = Defaults.FullHoldMs;
+        FullFadeBox.Value = Defaults.FullFadeMs;
     }
 
     private void ResetCache_Click(object sender, RoutedEventArgs e) =>

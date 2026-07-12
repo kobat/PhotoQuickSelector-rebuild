@@ -3,7 +3,8 @@ namespace PhotoQuickSelector_App;
 /// <summary>
 /// プレビュー左上の情報オーバーレイの種類（I キーで巡回）。
 /// 巡回順は <see cref="Badge"/> → <see cref="Full"/> → <see cref="Off"/> → <see cref="Badge"/>。
-/// 表示タイミング（常時 / 切替時のみ）は別軸（<see cref="AppSettings.OverlayTransient"/>・Shift+I）。
+/// 表示タイミング（常時 / 切替時のみ）は別軸で、種類ごとに独立して記憶する
+/// （<see cref="AppSettings.BadgeTransient"/>/<see cref="AppSettings.FullTransient"/>・Shift+I）。
 /// </summary>
 public enum InfoOverlayKind
 {

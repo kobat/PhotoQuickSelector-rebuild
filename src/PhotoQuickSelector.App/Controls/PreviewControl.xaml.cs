@@ -334,7 +334,7 @@ public sealed partial class PreviewControl : UserControl
                 MainCanvas.Invalidate();
                 break;
             case nameof(MainViewModel.OverlayKind):
-            case nameof(MainViewModel.OverlayTransient):
+            case nameof(MainViewModel.CurrentOverlayTransient):
                 ApplyOverlayTiming();
                 break;
         }

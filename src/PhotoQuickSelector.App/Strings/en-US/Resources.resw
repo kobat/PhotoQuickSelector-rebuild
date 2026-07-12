@@ -378,7 +378,13 @@
     <value>Info overlay display time (transient)</value>
   </data>
   <data name="Settings_OverlayTransientNote.Text" xml:space="preserve">
-    <value>When the info overlay is set to show only on change, it appears for the hold time on each photo change or rating edit, then fades out over the fade time (toggle with Shift+I).</value>
+    <value>When the info overlay is set to show only on change, it appears for the hold time on each photo change or rating edit, then fades out over the fade time (toggle with Shift+I). Hold and fade times can be set separately for the rating badge and the detailed info.</value>
+  </data>
+  <data name="Settings_OverlayBadgeLabel.Text" xml:space="preserve">
+    <value>Rating badge</value>
+  </data>
+  <data name="Settings_OverlayFullLabel.Text" xml:space="preserve">
+    <value>Detailed info</value>
   </data>
   <data name="Settings_OverlayHoldLabel.Text" xml:space="preserve">
     <value>Hold time (ms)</value>

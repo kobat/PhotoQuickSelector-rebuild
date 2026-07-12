@@ -48,14 +48,36 @@ public sealed class AppSettings
     /// null＝旧設定 <see cref="ShowInfoOverlay"/> からの移行前（初回起動含む）。</summary>
     public InfoOverlayKind? OverlayKind { get; set; }
 
-    /// <summary>情報オーバーレイの表示タイミング（false=常時表示 / true=切替時のみ＝保持後フェードアウト。Shift+I）。</summary>
+    /// <summary>旧: 情報オーバーレイの表示タイミング（種類共有の bool）。種類別化（<see cref="BadgeTransient"/>/
+    /// <see cref="FullTransient"/>）へ移行済みで参照しない。旧 JSON との互換のためだけに残置。</summary>
     public bool OverlayTransient { get; set; }
 
-    /// <summary>「切替時のみ」オーバーレイの保持時間（ミリ秒）。この後 <see cref="OverlayTransientFadeMs"/> かけてフェードアウトする。</summary>
+    /// <summary>旧: 種類共有の保持時間（ミリ秒）。種類別化（<see cref="BadgeHoldMs"/>/<see cref="FullHoldMs"/>）へ移行済み。</summary>
     public int OverlayTransientHoldMs { get; set; } = 500;
 
-    /// <summary>「切替時のみ」オーバーレイのフェードアウト時間（ミリ秒）。保持時間の経過後にこの時間で消える。</summary>
+    /// <summary>旧: 種類共有のフェード時間（ミリ秒）。種類別化（<see cref="BadgeFadeMs"/>/<see cref="FullFadeMs"/>）へ移行済み。</summary>
     public int OverlayTransientFadeMs { get; set; } = 400;
+
+    // --- 情報オーバーレイのタイミングは種類（評価バッジ／詳細情報）ごとに独立して記憶する ---
+    // タイミング（常時/切替時）と保持/フェード時間は「選択中の種類」の設定として扱う（Shift+I・メニュー・設定）。
+
+    /// <summary>評価バッジの表示タイミング（false=常時表示 / true=切替時のみ）。既定＝切替時のみ。</summary>
+    public bool BadgeTransient { get; set; } = true;
+
+    /// <summary>詳細情報の表示タイミング（false=常時表示 / true=切替時のみ）。既定＝常時表示。</summary>
+    public bool FullTransient { get; set; }
+
+    /// <summary>評価バッジ「切替時のみ」の保持時間（ミリ秒）。既定＝0（即フェード開始）。</summary>
+    public int BadgeHoldMs { get; set; }
+
+    /// <summary>評価バッジ「切替時のみ」のフェード時間（ミリ秒）。既定＝400。</summary>
+    public int BadgeFadeMs { get; set; } = 400;
+
+    /// <summary>詳細情報「切替時のみ」の保持時間（ミリ秒）。既定＝1000。</summary>
+    public int FullHoldMs { get; set; } = 1000;
+
+    /// <summary>詳細情報「切替時のみ」のフェード時間（ミリ秒）。既定＝400。</summary>
+    public int FullFadeMs { get; set; } = 400;
 
     /// <summary>プレビュー右パネル上段の表示（false=ルーペ / true=EXIF 詳細。E キーで切替）。</summary>
     public bool PreviewExifPanel { get; set; }
