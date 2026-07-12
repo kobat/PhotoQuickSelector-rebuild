@@ -8,7 +8,8 @@ namespace PhotoQuickSelector_App;
 /// アプリ設定（評価データの SQLite とは別物）。最近開いたフォルダ・お気に入り・
 /// 左ペインの幅／折りたたみ状態を JSON で永続化する。
 ///
-/// 保存先は <c>%LOCALAPPDATA%\PhotoQuickSelector\settings.json</c>。
+/// 保存先は <c>%LOCALAPPDATA%\{フォルダ名}\settings.json</c>（フォルダ名は <see cref="SettingsFolderName"/>。
+/// Release=<c>PhotoQuickSelector</c> / Debug=<c>PhotoQuickSelector.Dev</c> で日常版と開発版の設定を分離）。
 /// packaged（MSIX 開発）でも unpackaged（配布形態）でも使える素のファイルパスを用いる
 /// （<see cref="Windows.Storage.ApplicationData"/> は unpackaged で例外になるため使わない）。
 /// </summary>
@@ -186,13 +187,26 @@ public sealed class AppSettings
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
 
+    /// <summary>
+    /// 設定フォルダ名。日常利用のリリース版（Release 構成）と開発版（Debug 構成）で設定を混ぜないよう
+    /// ビルド構成で分ける。Release は従来どおり <c>PhotoQuickSelector</c>（既存 settings.json を継承）。
+    /// packaged 開発は MSIX リダイレクトで元々別だが、<c>dotnet run</c> 等 unpackaged の開発起動も
+    /// この分岐で日常版と別フォルダになる。
+    /// </summary>
+    private const string SettingsFolderName =
+#if DEBUG
+        "PhotoQuickSelector.Dev";
+#else
+        "PhotoQuickSelector";
+#endif
+
     private static string SettingsPath
     {
         get
         {
             var dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "PhotoQuickSelector");
+                SettingsFolderName);
             return Path.Combine(dir, "settings.json");
         }
     }

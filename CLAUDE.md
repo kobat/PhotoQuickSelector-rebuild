@@ -164,6 +164,10 @@
   `request_access` に `photoquickselector.app.exe` を渡すと表示される。
 - `settings.json` の実体は packaged 時
   `…\Packages\<PFN>\LocalCache\Local\PhotoQuickSelector\settings.json` にリダイレクトされる。
+- **アプリ設定は日常版と開発版でフォルダを分離**（`AppSettings.SettingsFolderName` をビルド構成で切替。2026-07-12）。
+  Release=`%LOCALAPPDATA%\PhotoQuickSelector\`（配布＝日常利用。既存設定を継承）／Debug=`%LOCALAPPDATA%\PhotoQuickSelector.Dev\`
+  （開発起動。`dotnet run` 等 unpackaged でも日常版と混ざらない。packaged 開発は元々 MSIX リダイレクトで別）。
+  開発版に日常版の設定を引き継ぎたければ日常版の `settings.json` を `PhotoQuickSelector.Dev\` へ手動コピー。
 - × ボタン（`f6cbef4`）はビルド成功・`RemoveFavorite` ロジック検証済み。ユーザーが画面目視確認済み
   （2026-06-14、問題なし）。
 
