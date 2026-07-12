@@ -168,11 +168,15 @@ public sealed partial class PreviewControl
         return (_viewport.ImageWidth / 2, _viewport.ImageHeight / 2);
     }
 
-    /// <summary>メインプレビューで AF フォーカス点が画面中央へ来るよう 100% 表示でスクロールする（Alt+F）。</summary>
+    /// <summary>メインプレビューで AF フォーカス点が画面中央へ来るようスクロールする（Alt+F）。
+    /// すでにズーム中なら現在の倍率を保ったまま寄せる。フィット以下（画像全体が収まりパンできない）
+    /// のときだけ等倍化してから寄せる。</summary>
     private void ScrollToFocus()
     {
         if (_bitmap == null) return;
-        _viewport.SetActualSize(); // スクロールできるよう等倍にする
+        // Scale <= FitScale はフィット中またはフィット未満の縮小（Custom）＝スクロール余地が無い状態。
+        // このときだけ等倍にする。ズーム中（Scale > FitScale）は倍率を変えずパンだけで寄せる。
+        if (_viewport.Scale <= _viewport.FitScale) _viewport.SetActualSize();
         var (dispX, dispY) = FocusDisplayPoint();
         var (curX, curY) = _viewport.ImageToCanvas(dispX, dispY);
         _viewport.Pan(MainCanvas.ActualWidth / 2 - curX, MainCanvas.ActualHeight / 2 - curY);
