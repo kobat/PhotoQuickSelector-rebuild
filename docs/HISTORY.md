@@ -2022,8 +2022,18 @@ bat 経由のファイル操作 3 系統（Reject 移動／リネームコピー
 ## v0.2.0 リリース（2026-07-12）
 
 v0.1.0（2026-07-02・初回公開／Pre-release）以降の 48 コミットをまとめて **v0.2.0** として公開。
-配布形態・Release 運用は v0.1.0 を踏襲（unpackaged 自己完結 EXE の `win-x64` フォルダ発行を zip 化・
-GitHub Release に Pre-release で添付）。csproj `<Version>` を 0.2.0 に更新。
+GitHub Release に Pre-release で添付。csproj `<Version>` を 0.2.0 に更新。
+
+- **配布形態を単一ファイル版へ変更（2026-07-12・ユーザー合意）**: 当初 v0.1.0 を踏襲して `win-x64` フォルダ発行
+  （527 ファイルの zip）を添付したが、「展開版ではなく単一 exe 版が良い」との要望で `win-x64-singlefile` に差し替え。
+  - 発行 `dotnet publish -c Release -p:Platform=x64 -p:PublishProfile=win-x64-singlefile`。出力は 5 ファイル
+    （`PhotoQuickSelector.App.exe` 約292MB＋`LICENSE`＋`THIRD-PARTY-NOTICES.txt`＋`.pdb`×2）。`resources.pri` は残らない。
+  - zip には **exe＋LICENSE＋THIRD-PARTY の3点のみ**同梱（`.pdb` は配布不要のため除外）。`PhotoQuickSelector-0.2.0-win-x64.zip`
+    ＝約104MB。`gh release upload v0.2.0 … --clobber` で同名添付を置換。exe 埋め込み `FileVersion`＝0.2.0.0。
+  - 制約: 完全な単一ファイルではない（LICENSE 等が並ぶため zip 配布は維持）。初回起動でネイティブ DLL を
+    自己展開するためひと呼吸の遅延あり。**以後の Release 添付は単一ファイル版を既定**とする（CLAUDE.md 配布節）。
+  - 未実施: 発行済み単一ファイル exe の実起動スモークテスト（localization=resources.pri 非残置でも動くかの目視は
+    ユーザー確認推奨。過去に単一ファイル発行は検証済み＝メモリ `winui-seticon-singlefile` 参照）。
 
 - **v0.1.0 → v0.2.0 の主な変更**（利用者視点）:
   - 複数選択・一括評価: マウス `Ctrl`/`Shift` クリック、`Ctrl+A` すべて選択、選択集合への一括評価/一括フラグ
