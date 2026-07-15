@@ -64,6 +64,21 @@ public class ExifTagReaderTests
     }
 
     [Fact]
+    public void ReadAllTags_SonyImage_XmpGroupContainsRatingProperty()
+    {
+        var path = FindSonyImage();
+        if (path == null) return; // 実画像が無い環境ではスキップ相当
+
+        var groups = ExifTagReader.ReadAllTags(path);
+        var xmp = groups.FirstOrDefault(g => g.DirectoryName == "XMP");
+        Assert.NotNull(xmp);
+
+        var rating = xmp!.Tags.FirstOrDefault(t => t.Name == "xmp:Rating");
+        Assert.NotNull(rating);
+        Assert.False(string.IsNullOrWhiteSpace(rating!.Description));
+    }
+
+    [Fact]
     public void ReadAllTags_NonExistentPath_ReturnsEmptyWithoutThrowing()
     {
         var groups = ExifTagReader.ReadAllTags(@"C:\this\path\does\not\exist.jpg");

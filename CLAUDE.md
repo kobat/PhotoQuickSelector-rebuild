@@ -13,7 +13,7 @@
 - 構成:
   - `src/PhotoQuickSelector.Core/` … UI 非依存（メタデータ抽出・評価モデル・SQLite 永続化）
   - `src/PhotoQuickSelector.App/` … WinUI アプリ（左右分割UI・サムネイル・キー操作）
-  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（126 件）
+  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（131 件）
 
 ## ビルド / 起動（重要）
 - **packaged（MSIX 開発）構成**で開発している。**exe を直接ダブルクリックしない**（無音終了する）。
@@ -50,7 +50,7 @@
 **Phase 1〜4 すべて完了**。旧アプリの機能同等＋既知バグ改善を達成し、**v0.2.0** として公開向け発行済み
 （v0.1.0＝2026-07-02 初回公開。以降の複数選択・一括評価／左ペインピン留め／情報オーバーレイ2軸化／
 メイン画像右クリック／メニュー統一／EXIF詳細パネル 等をまとめて v0.2.0＝2026-07-12）。
-`dotnet test` **126 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`）。
+`dotnet test` **131 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`）。
 
 - **Core**: メタデータ抽出（EXIF／AF点／GPS／LensMake）・SQLite 永続化（旧DB互換・遅延作成＋作成確認）・
   フィルタ・Reject移動・リネームコピー・ファイル移動（いずれも純関数＋xUnit。旧 `ClipboardExport` は廃止）
@@ -144,7 +144,8 @@
   `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
 - プレビュー中: `E` 右パネル上段をルーペ⇄EXIF 詳細で切替（上段のタブクリックでも可。状態は
   `AppSettings.PreviewExifPanel` に永続化。全ディレクトリ・全タグ＝Core `ExifTagReader.ReadAllTags`／
-  UI `Controls/ExifDetailPanel`・グループ化 ListView 仮想化）
+  UI `Controls/ExifDetailPanel`・グループ化 ListView 仮想化。XMP は `XmpDirectory.GetXmpProperties()` で
+  `xmp:Rating` 等のプロパティへ展開＝HISTORY「EXIF 詳細パネルの XMP タグ展開」節）
 - プレビュー中: `G` 構図グリッド種類を巡回（None→中央十字→三分割→正方形→None）/ `Shift+G` グリッド基準を切替
   （画像⇄Canvas）。正方形は短辺を N 等分した正方セルを画像中央から対称配置（N＝`AppSettings.GridSquareDivisions`・既定8。
   偶数Nは中央に線・奇数Nは中央線なし）。種類/基準は `AppSettings` に永続化（次回起動で復元）

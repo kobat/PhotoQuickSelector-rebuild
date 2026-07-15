@@ -1,4 +1,5 @@
 using MetadataExtractor;
+using MetadataExtractor.Formats.Xmp;
 
 namespace PhotoQuickSelector.Core;
 
@@ -50,14 +51,15 @@ public static class ExifTagReader
             {
                 var entries = new List<ExifTagEntry>();
                 foreach (var tag in directory.Tags)
+                    AddEntry(entries, tag.Name, tag.Description);
+
+                // XmpDirectory は Tags に「XMP Value Count」しか持たず、実体（xmp:Rating 等）は
+                // XmpMeta 側にある。プロパティのパス→値へ展開しないと中身が表示できない。
+                if (directory is XmpDirectory xmp)
                 {
-                    var description = tag.Description;
-                    if (string.IsNullOrWhiteSpace(description)) continue;
-
-                    if (description.Length > MaxDescriptionLength)
-                        description = description[..(MaxDescriptionLength - 1)] + "…";
-
-                    entries.Add(new ExifTagEntry(tag.Name, description));
+                    foreach (var property in xmp.GetXmpProperties()
+                                 .OrderBy(p => p.Key, StringComparer.Ordinal))
+                        AddEntry(entries, property.Key, property.Value);
                 }
 
                 if (entries.Count == 0) continue;
@@ -71,5 +73,16 @@ public static class ExifTagReader
             // 未対応形式・破損ファイル等はすべて「表示するタグなし」として扱う。
             return Array.Empty<ExifTagGroup>();
         }
+    }
+
+    /// <summary>空値をスキップし、長すぎる値を切り詰めてタグを追加する。</summary>
+    private static void AddEntry(List<ExifTagEntry> entries, string name, string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description)) return;
+
+        if (description.Length > MaxDescriptionLength)
+            description = description[..(MaxDescriptionLength - 1)] + "…";
+
+        entries.Add(new ExifTagEntry(name, description));
     }
 }
