@@ -473,7 +473,7 @@
     <value>Create rating data</value>
   </data>
   <data name="Msg_ConfirmCreateStoreContent" xml:space="preserve">
-    <value>A rating data file (PhotoQuickSelector.sqlite3) will be created in this folder. Continue?</value>
+    <value>A rating data file ({0}) will be created in this folder. Continue?</value>
   </data>
 
   <!-- EXIF detail panel (PreviewControl) -->

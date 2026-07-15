@@ -23,7 +23,7 @@ public sealed class MetadataStoreTests : IDisposable
     public void Constructor_DoesNotCreateDatabaseFile()
     {
         using var store = new MetadataStore(_folder);
-        Assert.False(File.Exists(Path.Combine(_folder, MetadataStore.DatabaseFileName)));
+        Assert.False(File.Exists(Path.Combine(_folder, MetadataStore.DefaultDatabaseFileName)));
         Assert.False(store.DatabaseExists);
     }
 
@@ -34,9 +34,35 @@ public sealed class MetadataStoreTests : IDisposable
         var e = store.LoadEvaluation("DSC0001.JPG", exifRating: 4);
 
         // 読み込みだけではファイルを作らない（EXIF レーティングのみで返す）。
-        Assert.False(File.Exists(Path.Combine(_folder, MetadataStore.DatabaseFileName)));
+        Assert.False(File.Exists(Path.Combine(_folder, MetadataStore.DefaultDatabaseFileName)));
         Assert.Null(e.PersistedRating);
         Assert.Equal(4, e.Rating); // EXIF フォールバック
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Constructor_WithoutFileName_UsesDefault(string? fileName)
+    {
+        using var store = new MetadataStore(_folder, fileName);
+
+        Assert.Equal(MetadataStore.DefaultDatabaseFileName, store.DatabaseFileName);
+        Assert.Equal(Path.Combine(_folder, MetadataStore.DefaultDatabaseFileName), store.DatabasePath);
+    }
+
+    [Fact]
+    public void Constructor_WithFileName_UsesItAndKeepsDefaultDbUntouched()
+    {
+        const string custom = "PhotoQuickSelector.Dev.sqlite3";
+        using var store = new MetadataStore(_folder, custom);
+        Assert.Equal(Path.Combine(_folder, custom), store.DatabasePath);
+
+        store.SaveRating("DSC0001.JPG", 3);
+
+        // 指定名だけが作られ、既定名の DB（＝日常版の評価データ）は一切触られない。
+        Assert.True(File.Exists(Path.Combine(_folder, custom)));
+        Assert.False(File.Exists(Path.Combine(_folder, MetadataStore.DefaultDatabaseFileName)));
     }
 
     [Fact]
@@ -47,7 +73,7 @@ public sealed class MetadataStoreTests : IDisposable
 
         store.SaveRating("DSC0001.JPG", 3); // 初回書き込みでファイル生成
 
-        Assert.True(File.Exists(Path.Combine(_folder, MetadataStore.DatabaseFileName)));
+        Assert.True(File.Exists(Path.Combine(_folder, MetadataStore.DefaultDatabaseFileName)));
         Assert.True(store.DatabaseExists);
     }
 

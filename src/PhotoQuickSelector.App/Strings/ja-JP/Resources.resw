@@ -473,7 +473,7 @@
     <value>評価データの作成</value>
   </data>
   <data name="Msg_ConfirmCreateStoreContent" xml:space="preserve">
-    <value>このフォルダに評価データファイル（PhotoQuickSelector.sqlite3）を作成します。よろしいですか？</value>
+    <value>このフォルダに評価データファイル（{0}）を作成します。よろしいですか？</value>
   </data>
 
   <!-- EXIF 詳細パネル（PreviewControl） -->

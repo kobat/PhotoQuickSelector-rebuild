@@ -3,13 +3,14 @@ using System.Data.SQLite;
 namespace PhotoQuickSelector.Core;
 
 /// <summary>
-/// フォルダ単位の評価データ永続化。対象フォルダ直下の
-/// <c>PhotoQuickSelector.sqlite3</c> に rating / flag / カラーラベルを保存する。
+/// フォルダ単位の評価データ永続化。対象フォルダ直下の sqlite（既定
+/// <c>PhotoQuickSelector.sqlite3</c>）に rating / flag / カラーラベルを保存する。
 /// 元の画像ファイルは一切変更しない。
 /// </summary>
 public sealed class MetadataStore : IDisposable
 {
-    public const string DatabaseFileName = "PhotoQuickSelector.sqlite3";
+    /// <summary>評価データの既定ファイル名（旧アプリ互換）。</summary>
+    public const string DefaultDatabaseFileName = "PhotoQuickSelector.sqlite3";
     private const int CurrentSchemaVersion = 1;
 
     public const string ColumnRating = "rating";
@@ -31,15 +32,31 @@ public sealed class MetadataStore : IDisposable
         };
 
     public string FolderPath { get; }
+
+    /// <summary>この store が使う評価データのファイル名（<see cref="FolderPath"/> 直下）。</summary>
+    public string DatabaseFileName { get; }
+
     public string DatabasePath { get; }
 
     // 接続は遅延生成（最初の評価書き込み、または既存ファイルからの読み込み時に開く）。
     // ctor で開くと存在しない sqlite を新規作成してしまうため、ここでは開かない。
     private SQLiteConnection? _connection;
 
-    public MetadataStore(string folderPath)
+    /// <summary>
+    /// 評価ストアを作る（この時点ではファイルを作らない＝<see cref="EnsureConnection"/> 参照）。
+    /// </summary>
+    /// <param name="folderPath">評価対象のフォルダ。</param>
+    /// <param name="databaseFileName">
+    /// 評価データのファイル名。null／空なら <see cref="DefaultDatabaseFileName"/>。
+    /// 呼び出し側が用途ごとに DB を分けられるようにするための注入点であり、
+    /// Core 自身は配布形態（日常版／開発版）を関知しない。
+    /// </param>
+    public MetadataStore(string folderPath, string? databaseFileName = null)
     {
         FolderPath = Path.GetFullPath(folderPath);
+        DatabaseFileName = string.IsNullOrWhiteSpace(databaseFileName)
+            ? DefaultDatabaseFileName
+            : databaseFileName;
         DatabasePath = Path.Combine(FolderPath, DatabaseFileName);
     }
 

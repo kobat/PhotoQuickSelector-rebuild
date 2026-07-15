@@ -104,7 +104,7 @@ public sealed partial class MainPage : Page
             var dialog = new ContentDialog
             {
                 Title = Loc.Get("Msg_ConfirmCreateStoreTitle"),
-                Content = Loc.Get("Msg_ConfirmCreateStoreContent"),
+                Content = Loc.Get("Msg_ConfirmCreateStoreContent", AppSettings.DatabaseFileName),
                 PrimaryButtonText = Loc.Get("Msg_Create"),
                 CloseButtonText = Loc.Get("Msg_Cancel"),
                 DefaultButton = ContentDialogButton.Primary,

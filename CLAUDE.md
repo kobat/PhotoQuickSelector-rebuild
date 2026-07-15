@@ -7,7 +7,9 @@
 ## 技術スタック / 構成
 - WinUI 3 / .NET（App は `net10.0-windows`、Core は `net8.0`）/ Windows App SDK / CommunityToolkit.Mvvm
 - EXIF 解析: 公式 NuGet `MetadataExtractor`（フォーク不使用）
-- 永続化: `System.Data.SQLite.Core`（フォルダごとに `PhotoQuickSelector.sqlite3`）
+- 永続化: `System.Data.SQLite.Core`（フォルダごとに `PhotoQuickSelector.sqlite3`。ファイル名は
+  `MetadataStore` の ctor 引数で注入。既定＝`MetadataStore.DefaultDatabaseFileName`／App は
+  `AppSettings.DatabaseFileName` を渡す＝Debug は別名。「既知の注意点」参照）
 - 構成:
   - `src/PhotoQuickSelector.Core/` … UI 非依存（メタデータ抽出・評価モデル・SQLite 永続化）
   - `src/PhotoQuickSelector.App/` … WinUI アプリ（左右分割UI・サムネイル・キー操作）
@@ -29,6 +31,9 @@
 - `D:\Users\kobat\tmp_ClaudeCode用\20260228`（Sony α1 の DSC*.JPG＋Olympus OM-1 の P22*.JPG、71 枚）
 - 同フォルダに旧アプリの `PhotoQuickSelector.sqlite3`（評価データ）あり。新アプリと互換（確認済み）。
 - 注意: 評価操作は対象フォルダの sqlite に即保存される。検証は控えのあるフォルダで。
+- ただし Debug ビルドの書き込み先は `PhotoQuickSelector.Dev.sqlite3` なので、旧アプリ由来の
+  `PhotoQuickSelector.sqlite3` は開発中の操作では汚れない（＝旧DB互換の確認をしたい時は
+  手動でコピー＆リネームして使う）。
 
 ## 主要な決定事項
 - **配布形態 = 素の自己完結 EXE（unpackaged）**。.NET/WinAppSDK 同梱。ただし開発は packaged、
@@ -168,6 +173,14 @@
   Release=`%LOCALAPPDATA%\PhotoQuickSelector\`（配布＝日常利用。既存設定を継承）／Debug=`%LOCALAPPDATA%\PhotoQuickSelector.Dev\`
   （開発起動。`dotnet run` 等 unpackaged でも日常版と混ざらない。packaged 開発は元々 MSIX リダイレクトで別）。
   開発版に日常版の設定を引き継ぎたければ日常版の `settings.json` を `PhotoQuickSelector.Dev\` へ手動コピー。
+- **評価データ（フォルダ内 sqlite）のファイル名も日常版と開発版で分離**（`AppSettings.DatabaseFileName` を
+  ビルド構成で切替。2026-07-16）。Release=`PhotoQuickSelector.sqlite3`（旧アプリ互換の既定名＝挙動据え置き）／
+  Debug=`PhotoQuickSelector.Dev.sqlite3`。**Core は配布形態を関知しない**設計＝`MetadataStore` の ctor 第2引数で
+  ファイル名を注入し（null/空なら `DefaultDatabaseFileName`）、日常版/開発版の判断は App 側の1箇所
+  （`MainViewModel` のストア生成）に閉じている。Debug の DB は空から始まるので、実データで確認したい時は
+  `PhotoQuickSelector.sqlite3` をコピーして `.Dev.sqlite3` にリネームする。
+  開発版を実写真フォルダに向けると `PhotoQuickSelector.Dev.sqlite3` がそのフォルダに残る点に注意。
+  作成確認ダイアログの文言（`Msg_ConfirmCreateStoreContent`）はファイル名を `{0}` で受ける。
 - × ボタン（`f6cbef4`）はビルド成功・`RemoveFavorite` ロジック検証済み。ユーザーが画面目視確認済み
   （2026-06-14、問題なし）。
 

@@ -200,6 +200,19 @@ public sealed class AppSettings
         "PhotoQuickSelector";
 #endif
 
+    /// <summary>
+    /// 評価データ（フォルダごとの sqlite）のファイル名。開発中の評価操作が日常利用の評価データを
+    /// 書き換えないよう、<see cref="SettingsFolderName"/> と同じくビルド構成で分ける。
+    /// Release は旧アプリ互換の既定名。Debug の DB は空から始まる
+    /// （実データで確認したい場合は日常版のファイルを手動でコピーしてリネームする）。
+    /// </summary>
+    public const string DatabaseFileName =
+#if DEBUG
+        "PhotoQuickSelector.Dev.sqlite3";
+#else
+        PhotoQuickSelector.Core.MetadataStore.DefaultDatabaseFileName;
+#endif
+
     private static string SettingsPath
     {
         get

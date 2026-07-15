@@ -931,7 +931,7 @@ public partial class MainViewModel : ObservableObject
 
             // 3) 評価ストア（フォルダ内 sqlite）を開き、評価をマージして VM 化
             _store?.Dispose();
-            _store = new MetadataStore(folderPath);
+            _store = new MetadataStore(folderPath, AppSettings.DatabaseFileName);
 
             foreach (var meta in metas)
             {
