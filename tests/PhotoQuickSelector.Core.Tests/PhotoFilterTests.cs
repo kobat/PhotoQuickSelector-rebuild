@@ -134,4 +134,30 @@ public class PhotoFilterTests
         var f = new PhotoFilter { Enabled = false, RatingValue = 5 };
         Assert.Empty(f.DescribeConditions());
     }
+
+    [Fact]
+    public void HasConditions_FalseWhenNothingSet()
+    {
+        Assert.False(new PhotoFilter { Enabled = true }.HasConditions);
+    }
+
+    [Theory]
+    [InlineData(3, false, false, false)]  // レーティング
+    [InlineData(0, true, false, false)]   // 未評価
+    [InlineData(0, false, true, false)]   // フラグ
+    [InlineData(0, false, false, true)]   // カラーラベル
+    public void HasConditions_TrueWhenAnySystemActive(int rating, bool noRating, bool flag, bool color)
+    {
+        var f = new PhotoFilter { RatingValue = rating, NoRating = noRating, FlagAccept = flag };
+        if (color) f.SetColor(ColorLabel.Blue, true);
+
+        Assert.True(f.HasConditions);
+    }
+
+    [Fact]
+    public void HasConditions_IgnoresEnabled()
+    {
+        // Enabled は見ない（「条件が設定されているか」だけを表す）。
+        Assert.True(new PhotoFilter { Enabled = false, RatingValue = 2 }.HasConditions);
+    }
 }

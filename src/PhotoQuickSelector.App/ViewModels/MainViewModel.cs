@@ -2,8 +2,11 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using PhotoQuickSelector.Core;
+using Windows.UI;
 
 namespace PhotoQuickSelector_App.ViewModels;
 
@@ -53,6 +56,90 @@ public partial class MainViewModel : ObservableObject
     /// <summary>フィルタフライアウトの件数表示 "絞込件数 / 全件数"。</summary>
     public string FilteredCountText => $"{Photos.Count} / {AllPhotos.Count}";
 
+    // === 空状態（グリッドに写真を出せないとき）===
+
+    /// <summary>
+    /// グリッドが空になる理由。<see cref="Controls.EmptyStateView"/> がアイコン＋1 行で示す。
+    /// 読み込み中は確定していないので出さない（ちらつき防止）。
+    /// </summary>
+    public EmptyStateKind EmptyState
+    {
+        get
+        {
+            if (IsLoading) return EmptyStateKind.None;
+            if (string.IsNullOrEmpty(CurrentFolder)) return EmptyStateKind.NoFolder;
+            if (AllPhotos.Count == 0) return EmptyStateKind.NoPhotos;
+            if (Photos.Count == 0) return EmptyStateKind.FilteredOut;
+            return EmptyStateKind.None;
+        }
+    }
+
+    /// <summary>空状態パネルの表示。</summary>
+    public Visibility EmptyStateVisibility =>
+        EmptyState == EmptyStateKind.None ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>空状態のグリフ（Segoe Fluent Icons）。</summary>
+    public string EmptyStateGlyph => EmptyState switch
+    {
+        EmptyStateKind.NoFolder => "", // Folder
+        EmptyStateKind.NoPhotos => "", // Photo
+        _ => "",                       // Filter
+    };
+
+    /// <summary>
+    /// グリフに重ねる斜線の表示。「〜が無い」ケースだけ引く
+    /// （<see cref="EmptyStateKind.NoFolder"/> は不在ではなく次の操作の案内なので引かない）。
+    /// </summary>
+    public Visibility EmptyStateSlashVisibility =>
+        EmptyState is EmptyStateKind.NoPhotos or EmptyStateKind.FilteredOut
+            ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>空状態の説明文（1 行）。件数・条件はフィルタボタンと重複するため出さない。</summary>
+    public string EmptyStateMessage => EmptyState switch
+    {
+        EmptyStateKind.NoFolder => Loc.Get("Empty_NoFolder"),
+        EmptyStateKind.NoPhotos => Loc.Get("Empty_NoPhotos"),
+        EmptyStateKind.FilteredOut => Loc.Get("Empty_FilteredOut"),
+        _ => "",
+    };
+
+    // フィルタボタンの状態色。テーマは Dark 固定（MainWindow の RootGrid）なのでリテラル指定
+    // （PhotoItemViewModel の評価色と同じ流儀。ThemeResource は RootGrid スコープにあり VM から引けない）。
+    private static readonly Brush FilterInactiveBrush = new SolidColorBrush(Colors.White);
+    private static readonly Brush FilterActiveBrush =
+        new SolidColorBrush(Color.FromArgb(0xFF, 0x99, 0xE4, 0xFF)); // アクセント文字色より明るい水色
+    private static readonly Brush FilterEmptyBrush =
+        new SolidColorBrush(Color.FromArgb(0xFF, 0xFC, 0xE1, 0x00)); // SystemFillColorCaution(Dark)
+
+    /// <summary>
+    /// フィルタボタン（アイコン＋件数）の文字色。絞り込みが効いているかを一目で判るようにする。
+    /// 白＝絞り込みなし／アクセント＝絞り込み中／注意色＝絞り込み中かつ 0 件。
+    /// プレビュー中（フィルムストリップ）でもステータスバーは出ているので、そこでも状態が判る。
+    /// </summary>
+    public Brush FilterIndicatorBrush
+    {
+        get
+        {
+            if (!Filter.Model.Enabled || !Filter.Model.HasConditions) return FilterInactiveBrush;
+            return Photos.Count == 0 && AllPhotos.Count > 0 ? FilterEmptyBrush : FilterActiveBrush;
+        }
+    }
+
+    /// <summary>
+    /// 枚数・絞り込み状態に依存する表示（件数／空状態／フィルタボタンの色）をまとめて更新する。
+    /// 件数が変わり得る箇所（フォルダ読み込み・絞り込み・読み込み状態の変化）から呼ぶ。
+    /// </summary>
+    private void NotifyPhotoCountChanged()
+    {
+        OnPropertyChanged(nameof(FilteredCountText));
+        OnPropertyChanged(nameof(EmptyState));
+        OnPropertyChanged(nameof(EmptyStateVisibility));
+        OnPropertyChanged(nameof(EmptyStateGlyph));
+        OnPropertyChanged(nameof(EmptyStateSlashVisibility));
+        OnPropertyChanged(nameof(EmptyStateMessage));
+        OnPropertyChanged(nameof(FilterIndicatorBrush));
+    }
+
     /// <summary>左ペイン上部「お気に入り」一覧（<see cref="AppSettings.Favorites"/> の投影）。</summary>
     public ObservableCollection<FolderShortcut> Favorites { get; } = new();
 
@@ -82,7 +169,7 @@ public partial class MainViewModel : ObservableObject
             if (Filter.Model.Matches(item.Eval))
                 Photos.Add(item);
 
-        OnPropertyChanged(nameof(FilteredCountText));
+        NotifyPhotoCountChanged();
 
         // 焦点と選択集合を絞り込み結果に合わせて調停する（集合は素の焦点移動で消えないようガード ON で）。
         _managingSelection = true;
@@ -414,6 +501,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string? CurrentFolder { get; set; }
 
+    // 空状態はフォルダ有無・読み込み中かで変わるため、両者の変化で表示を更新する。
+    partial void OnCurrentFolderChanged(string? value) => NotifyPhotoCountChanged();
+
     /// <summary>
     /// 「リネームしてコピー」で最後に指定したコピー先。アプリ起動中だけ保持する（永続化しない＝
     /// 再起動後の初期値は表示中フォルダに戻る）。OK（バッチ生成）時にのみ更新する。
@@ -422,6 +512,8 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
+
+    partial void OnIsLoadingChanged(bool value) => NotifyPhotoCountChanged();
 
     /// <summary>
     /// 焦点の写真（常に 1 枚。プレビュー表示・通常評価・ステータスバー・セッション復元を駆動）。
@@ -889,7 +981,7 @@ public partial class MainViewModel : ObservableObject
         SelectedPhotos.Clear();    // 別フォルダの古い複数選択を残さない
         _selectionPivot = null;
         _focusAnchor = null;       // 別フォルダの古い写真を基準に残さない
-        OnPropertyChanged(nameof(FilteredCountText));
+        NotifyPhotoCountChanged();
         CurrentFolder = folderPath;
         StatusText = Loc.Get("Status_Loading", folderPath);
 

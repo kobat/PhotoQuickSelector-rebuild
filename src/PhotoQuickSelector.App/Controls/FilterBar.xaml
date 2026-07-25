@@ -12,10 +12,14 @@
          Binding（null セーフ）、件数・コピー/移動操作は x:Bind / コードビハインドで処理する。 -->
     <Button x:Name="FilterButton" x:Uid="Filter_Button" Height="32" VerticalAlignment="Center"
             ToolTipService.ToolTip="フィルタ (Ctrl+L)">
+        <!-- アイコンと件数の色で絞り込み状態を示す（白=絞り込みなし／アクセント=絞り込み中／
+             注意色=絞り込み中かつ 0 件）。ボタンの枠は既定のままにして、ステータスバーを騒がせない。 -->
         <StackPanel Orientation="Horizontal" Spacing="6">
-            <FontIcon Glyph="&#xE71C;" FontSize="14" />
+            <FontIcon Glyph="&#xE71C;" FontSize="14"
+                      Foreground="{x:Bind ViewModel.FilterIndicatorBrush, Mode=OneWay}" />
             <TextBlock Text="{x:Bind ViewModel.FilteredCountText, Mode=OneWay}"
-                       VerticalAlignment="Center" />
+                       VerticalAlignment="Center"
+                       Foreground="{x:Bind ViewModel.FilterIndicatorBrush, Mode=OneWay}" />
         </StackPanel>
 
         <Button.Flyout>

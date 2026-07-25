@@ -2107,6 +2107,63 @@ GitHub Release に Pre-release で添付。csproj `<Version>` を 0.2.0 に更�
   `About_DatabaseFileFormat`）。`BUILD SUCCEEDED`（x64 Debug）／`dotnet test` **131 件緑**。
   実機目視（About のレイアウト・2 ボタンの動作）はユーザー確認推奨。
 
+## グリッドの空状態表示＋フィルタボタンの状態色（2026-07-25）
+
+**きっかけ＝「フォルダ内容が正常に表示されない」の調査**。ユーザーの開発版 settings.json で起動すると
+`D:\…\2026_日常系\20260718`（JPG 1281＋ARW 1281）が何も表示されなかった。原因は**復元された絞り込み条件**で、
+`LastSession.Filter` が `Enabled=true / RatingValue=2 / ≧` の一方、当該フォルダには評価 DB が存在せず
+（`PhotoQuickSelector.sqlite3` も `.Dev.sqlite3` も無し）評価は XMP の `xmp:Rating` のみ。実測分布は
+rating=0 が 1274 枚・rating=1 が 7 枚で **★2 以上が 0 枚**＝`Photos` が空になり、グリッドが無地になっていた。
+
+**「読み取りが遅い」説は実測で否定**（同フォルダ・実データ）:
+
+| 処理 | 実測 |
+|---|---|
+| `Directory.GetFiles` ＋拡張子選別 | 8 ms（2562 エントリ→JPEG 1281） |
+| `MetadataReader.Read` × 1281（`Parallel.For`） | 527 ms（逐次 1.5 s／中央値 1.0 ms・最大 4.3 ms） |
+| ソート | 3 ms |
+| `MetadataStore.LoadEvaluation` × 1281 | ≒0（DB 不在時は `EnsureConnection(false)` が即 false） |
+| `LoadThumbnailsAsync`（シェルサムネイル 1281 枚・`_shellGate` で直列） | **14.8 s**（中央値 11.2 ms・p99 15.4 ms・常駐 38.3 MB） |
+
+`LoadFolderAsync` は 1 秒未満で返る。裏で 15 秒回り続けるのは先読みだけで、表示が出ない直接原因ではない。
+なお `ProgressRing` は `IsLoading`（＝`LoadFolderAsync` 中）にしか連動しないので、先読み中は回らない。
+
+**対策＝案A「グリッド領域の空状態」**（他に InfoBar 常設・ステータス文言のみ・フィルタボタン強調を比較）。
+視線が最初に行く「本来サムネイルが並ぶ場所」に理由を出すのが本質という判断。ユーザー指示で
+**アイコン＋1 行のみの最小構成**とし、件数・絞り込み条件・復帰ボタンは**フィルタボタンと重複するため載せない**。
+
+- `EmptyStateKind`（新規 enum）＝`None`/`NoFolder`/`NoPhotos`/`FilteredOut`。`MainViewModel.EmptyState` が
+  `IsLoading` → `CurrentFolder` → `AllPhotos.Count` → `Photos.Count` の順で判定する。
+  **読み込み中は `None`**（確定前に出すとちらつくため）。
+- `Controls/EmptyStateView`（新規）: 48px の `FontIcon`＋`SubtitleTextBlockStyle` の 1 行。二次色・非太字
+  （エラーではなく状態なので落ち着かせる）。`IsHitTestVisible=False` でクリックはグリッドへ透過。
+  グリフは Folder(`E8B7`)／Photo(`E91B`)／Filter(`E71C`)。**Segoe Fluent Icons に斜線入りのグリフが無い**ため、
+  「〜が無い」ケース（`NoPhotos`/`FilteredOut`）だけ `Path`（`M 7,41 L 41,7`）を重ねて斜線を描く。
+  `NoFolder` は不在ではなく次操作の案内なので斜線なし。
+- 置き場所は `PhotoGridView.xaml`（`GridView` を `Grid` で包んで重ねる）。プレビュー中は `Photos` が空だと
+  `EnterPreview()` が no-op で入れないため、**フィルムストリップ側には出さない**。
+- **フィルタボタンの状態色**（同時実施）: アイコン＋件数の文字色を `MainViewModel.FilterIndicatorBrush` で
+  白＝絞り込みなし／`#99E4FF`＝絞り込み中／`#FCE100`＝絞り込み中かつ 0 件、の 3 段に
+  （絞り込み中は当初 `#60CDFF`＝Dark のアクセント文字色にしたが、実機目視で暗いというユーザー指摘があり
+  同系のまま明度を上げた）。**ボタンの枠は既定のまま**
+  （枠まで塗るとステータスバーが騒がしく、既定の 2 トーン枠も失われる）。テーマは Dark 固定（`MainWindow` の
+  `RootGrid`）なので `ThemeResource` は VM から引けず、`PhotoItemViewModel` の評価色と同じくリテラル指定。
+- Core に `PhotoFilter.HasConditions`（`Enabled` を見ず「条件が設定されているか」だけを返す）を追加。
+  `Enabled=true` でも条件ゼロなら全件通過するため、状態色を出し分けるのに必要。
+- 更新の起点は `MainViewModel.NotifyPhotoCountChanged()` に集約（件数・空状態 4 プロパティ・状態色）。
+  呼び出し元は `ApplyFilter` / `LoadFolderAsync` 冒頭 / `OnCurrentFolderChanged` / `OnIsLoadingChanged`。
+- 変更/新規: `Core/PhotoFilter.cs`、`EmptyStateKind.cs`、`Controls/EmptyStateView.xaml(.cs)`、
+  `Controls/PhotoGridView.xaml(.cs)`、`Controls/FilterBar.xaml`、`ViewModels/MainViewModel.cs`、
+  resw（ja/en 各 3 キー: `Empty_NoFolder`／`Empty_NoPhotos`／`Empty_FilteredOut`）、
+  `tests/PhotoFilterTests.cs`（`HasConditions` 6 件）。`BUILD SUCCEEDED`（x64 Debug）／`dotnet test` **137 件緑**。
+
+**実機目視はユーザー確認済み**（2026-07-25）。この作業環境からは `winapp run` が `CoreMessagingXP.dll` で
+fail-fast（`0xc0000602`）して即終了し起動確認ができなかったため、画面確認はユーザーが実施
+（変更前の時点で 5 回再現＝環境要因。イベントログ上、過去 14 日で通常利用時のクラッシュは無し）。
+
+**副次の知見**: 読み込みエラー（`LoadFolderAsync` の catch）でも `AllPhotos` が空なので空状態は
+「JPEG がありません」を出す。実際の理由はステータスバーのエラー文言側に出る。専用の状態は設けていない。
+
 ## 残タスク（記録・すべて完了済み）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**

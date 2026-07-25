@@ -10,91 +10,96 @@
     mc:Ignorable="d">
 
     <!-- サムネイルグリッド。焦点は ViewModel.FocusedPhoto と双方向同期（コードビハインド）。
-         表示/非表示（プレビューとの排他）は呼び出し側が Visibility で制御する。 -->
-    <GridView
-        x:Name="PhotoGrid"
-        ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
-        SelectionMode="Single"
-        IsItemClickEnabled="False"
-        SelectionChanged="PhotoGrid_SelectionChanged"
-        DoubleTapped="PhotoGrid_DoubleTapped"
-        RightTapped="PhotoGrid_RightTapped"
-        ContainerContentChanging="PhotoGrid_ContainerContentChanging">
-        <GridView.Resources>
-            <!-- 焦点（=選択）の枠を既定のアクセント色（青＝水色）から純白へ差し替える。
-                 焦点＝選択として同期しているため、GridViewItem の「選択」枠が焦点インジケータになる。
-                 焦点は「くっきりした純白の枠」、選択集合メンバーは「白の塗りウォッシュ」という別チャンネルで
-                 表現し（案A）、焦点が最も明るく強い縁取りになるよう純白に揃える。
-                 フィルムストリップの焦点リング（#FFFFFFFF）と色を揃える。 -->
-            <SolidColorBrush x:Key="GridViewItemSelectedBorderBrush" Color="#FFFFFFFF" />
-            <SolidColorBrush x:Key="GridViewItemSelectedPointerOverBorderBrush" Color="#FFFFFFFF" />
-            <SolidColorBrush x:Key="GridViewItemSelectedPressedBorderBrush" Color="#FFFFFFFF" />
-        </GridView.Resources>
-        <GridView.ItemContainerStyle>
-            <!-- BasedOn 必須: 既定スタイルを丸ごと置き換えると選択枠（SelectedBorderBrush を描く
-                 ListViewItemPresenter の配線）が失われ、焦点セルの枠が出なくなる。既定を継承した上で
-                 キーボードフォーカス枠（外周の白い矩形）だけ無効化する。焦点は上で白系へ上書きした選択枠で示す。 -->
-            <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
-                <Setter Property="UseSystemFocusVisuals" Value="False" />
-            </Style>
-        </GridView.ItemContainerStyle>
-        <GridView.ItemTemplate>
-            <DataTemplate x:DataType="vm:PhotoItemViewModel">
-                <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
-                <Border Width="200" Height="200" Margin="2"
-                        CornerRadius="6" BorderThickness="3"
-                        BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
-                    <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}">
-                        <!-- Source はバインドせず、ContainerContentChanging で可視分だけ生成/破棄する -->
-                        <Image x:Name="ThumbImage" Stretch="Uniform" />
+         表示/非表示（プレビューとの排他）は呼び出し側が Visibility で制御する。
+         写真を 1 枚も出せないときは空状態（EmptyStateView）をグリッドへ重ねて理由を示す。 -->
+    <Grid>
+        <GridView
+            x:Name="PhotoGrid"
+            ItemsSource="{x:Bind ViewModel.Photos, Mode=OneWay}"
+            SelectionMode="Single"
+            IsItemClickEnabled="False"
+            SelectionChanged="PhotoGrid_SelectionChanged"
+            DoubleTapped="PhotoGrid_DoubleTapped"
+            RightTapped="PhotoGrid_RightTapped"
+            ContainerContentChanging="PhotoGrid_ContainerContentChanging">
+            <GridView.Resources>
+                <!-- 焦点（=選択）の枠を既定のアクセント色（青＝水色）から純白へ差し替える。
+                     焦点＝選択として同期しているため、GridViewItem の「選択」枠が焦点インジケータになる。
+                     焦点は「くっきりした純白の枠」、選択集合メンバーは「白の塗りウォッシュ」という別チャンネルで
+                     表現し（案A）、焦点が最も明るく強い縁取りになるよう純白に揃える。
+                     フィルムストリップの焦点リング（#FFFFFFFF）と色を揃える。 -->
+                <SolidColorBrush x:Key="GridViewItemSelectedBorderBrush" Color="#FFFFFFFF" />
+                <SolidColorBrush x:Key="GridViewItemSelectedPointerOverBorderBrush" Color="#FFFFFFFF" />
+                <SolidColorBrush x:Key="GridViewItemSelectedPressedBorderBrush" Color="#FFFFFFFF" />
+            </GridView.Resources>
+            <GridView.ItemContainerStyle>
+                <!-- BasedOn 必須: 既定スタイルを丸ごと置き換えると選択枠（SelectedBorderBrush を描く
+                     ListViewItemPresenter の配線）が失われ、焦点セルの枠が出なくなる。既定を継承した上で
+                     キーボードフォーカス枠（外周の白い矩形）だけ無効化する。焦点は上で白系へ上書きした選択枠で示す。 -->
+                <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+                    <Setter Property="UseSystemFocusVisuals" Value="False" />
+                </Style>
+            </GridView.ItemContainerStyle>
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="vm:PhotoItemViewModel">
+                    <!-- カラーラベル＝枠線。透明時も 3px 確保しレイアウトを安定させる -->
+                    <Border Width="200" Height="200" Margin="2"
+                            CornerRadius="6" BorderThickness="3"
+                            BorderBrush="{x:Bind ColorLabelBorderBrush, Mode=OneWay}">
+                        <Grid Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                            <!-- Source はバインドせず、ContainerContentChanging で可視分だけ生成/破棄する -->
+                            <Image x:Name="ThumbImage" Stretch="Uniform" />
 
-                        <!-- 旗バッジ（左上）：採用=旗 / 拒否=×。正方形 -->
-                        <Border VerticalAlignment="Top" HorizontalAlignment="Left"
-                                Margin="6" Width="30" Height="30" CornerRadius="4"
-                                Background="#99000000"
-                                Visibility="{x:Bind FlagVisibility, Mode=OneWay}">
-                            <ctl:FlagGlyph GlyphSize="16"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-
-                        <!-- 色ドット（右上）：高さは旗と同じ、単一色は正方形 -->
-                        <Border VerticalAlignment="Top" HorizontalAlignment="Right"
-                                Margin="6" Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
-                                Background="#99000000"
-                                Visibility="{x:Bind ColorDotsVisibility, Mode=OneWay}">
-                            <ctl:ColorLabelDots DotSize="15" Spacing="4"
-                                                HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-
-                        <!-- 下部: ★レーティング（中央, 色ドットと同形の黒バッジ）／ファイル名（黒帯, 常時） -->
-                        <StackPanel VerticalAlignment="Bottom" Spacing="2">
-                            <Border HorizontalAlignment="Center"
-                                    Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
+                            <!-- 旗バッジ（左上）：採用=旗 / 拒否=×。正方形 -->
+                            <Border VerticalAlignment="Top" HorizontalAlignment="Left"
+                                    Margin="6" Width="30" Height="30" CornerRadius="4"
                                     Background="#99000000"
-                                    Visibility="{x:Bind RatingVisibility, Mode=OneWay}">
-                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           FontSize="14"
-                                           Foreground="{x:Bind RatingForeground, Mode=OneWay}"
-                                           Text="{x:Bind RatingStars, Mode=OneWay}" />
+                                    Visibility="{x:Bind FlagVisibility, Mode=OneWay}">
+                                <ctl:FlagGlyph GlyphSize="16"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
-                            <Border Background="#80000000" Padding="6,4">
-                                <TextBlock Text="{x:Bind FileName}" Foreground="White"
-                                           FontSize="11" TextTrimming="CharacterEllipsis" />
-                            </Border>
-                        </StackPanel>
 
-                        <!-- 選択集合メンバーのハイライト（案A＝「塗りウォッシュ」チャンネル）。半透明白の背景
-                             ウォッシュ主体で「集合の一員」を示し、縁取りは 1px の淡い白のみに留める。焦点の純白枠
-                             （GridView 標準の選択ビジュアル）と競合しないよう、太い枠は使わない。
-                             ウォッシュは薄め（#33FFFFFF＝20%）にして写真の発色を残す（濃いと「色あせ＝削除」に見える）。
-                             メンバー時のみ SelectionHighlightOpacity(1.0) で可視。 -->
-                        <Border CornerRadius="4" BorderThickness="1"
-                                BorderBrush="#FFFFFFFF" Background="#33FFFFFF"
-                                IsHitTestVisible="False"
-                                Opacity="{x:Bind SelectionHighlightOpacity, Mode=OneWay}" />
-                    </Grid>
-                </Border>
-            </DataTemplate>
-        </GridView.ItemTemplate>
-    </GridView>
+                            <!-- 色ドット（右上）：高さは旗と同じ、単一色は正方形 -->
+                            <Border VerticalAlignment="Top" HorizontalAlignment="Right"
+                                    Margin="6" Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
+                                    Background="#99000000"
+                                    Visibility="{x:Bind ColorDotsVisibility, Mode=OneWay}">
+                                <ctl:ColorLabelDots DotSize="15" Spacing="4"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+
+                            <!-- 下部: ★レーティング（中央, 色ドットと同形の黒バッジ）／ファイル名（黒帯, 常時） -->
+                            <StackPanel VerticalAlignment="Bottom" Spacing="2">
+                                <Border HorizontalAlignment="Center"
+                                        Height="30" MinWidth="30" Padding="6,0" CornerRadius="4"
+                                        Background="#99000000"
+                                        Visibility="{x:Bind RatingVisibility, Mode=OneWay}">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               FontSize="14"
+                                               Foreground="{x:Bind RatingForeground, Mode=OneWay}"
+                                               Text="{x:Bind RatingStars, Mode=OneWay}" />
+                                </Border>
+                                <Border Background="#80000000" Padding="6,4">
+                                    <TextBlock Text="{x:Bind FileName}" Foreground="White"
+                                               FontSize="11" TextTrimming="CharacterEllipsis" />
+                                </Border>
+                            </StackPanel>
+
+                            <!-- 選択集合メンバーのハイライト（案A＝「塗りウォッシュ」チャンネル）。半透明白の背景
+                                 ウォッシュ主体で「集合の一員」を示し、縁取りは 1px の淡い白のみに留める。焦点の純白枠
+                                 （GridView 標準の選択ビジュアル）と競合しないよう、太い枠は使わない。
+                                 ウォッシュは薄め（#33FFFFFF＝20%）にして写真の発色を残す（濃いと「色あせ＝削除」に見える）。
+                                 メンバー時のみ SelectionHighlightOpacity(1.0) で可視。 -->
+                            <Border CornerRadius="4" BorderThickness="1"
+                                    BorderBrush="#FFFFFFFF" Background="#33FFFFFF"
+                                    IsHitTestVisible="False"
+                                    Opacity="{x:Bind SelectionHighlightOpacity, Mode=OneWay}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
+
+        <ctl:EmptyStateView x:Name="EmptyStateOverlay" />
+    </Grid>
 </UserControl>

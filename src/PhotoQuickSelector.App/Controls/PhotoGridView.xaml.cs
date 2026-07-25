@@ -45,6 +45,7 @@ public sealed partial class PhotoGridView : UserControl
                 _viewModel.PropertyChanged += OnViewModelPropertyChanged;
                 ((INotifyCollectionChanged)_viewModel.Photos).CollectionChanged += OnPhotosChanged;
             }
+            EmptyStateOverlay.ViewModel = value; // 重ねた空状態にも同じ VM を渡す
             Bindings.Update();
         }
     }

@@ -507,6 +507,17 @@
     <value>Previous folder not found: {0}</value>
   </data>
 
+  <!-- Empty states (EmptyStateView / MainViewModel.EmptyStateMessage) -->
+  <data name="Empty_NoFolder" xml:space="preserve">
+    <value>Open a folder to get started</value>
+  </data>
+  <data name="Empty_NoPhotos" xml:space="preserve">
+    <value>No JPEG files in this folder</value>
+  </data>
+  <data name="Empty_FilteredOut" xml:space="preserve">
+    <value>No photos match the current filter</value>
+  </data>
+
   <!-- Left pane toggle tooltips (PhotoStatusBar.UpdateLeftPaneGlyph) -->
   <data name="StatusBar_HideLeftPane" xml:space="preserve">
     <value>Hide left pane</value>

@@ -60,6 +60,13 @@ public sealed class PhotoFilter
     private bool IsColorActive => _colors.Values.Any(v => v);
 
     /// <summary>
+    /// いずれかの系統に有効な条件が設定されているか（<see cref="Enabled"/> は見ない）。
+    /// 条件が無ければ <see cref="Enabled"/> が true でも全件通過するため、UI 側で
+    /// 「絞り込みが効いている」かを表示し分けるのに使う。
+    /// </summary>
+    public bool HasConditions => IsRatingActive || IsFlagActive || IsColorActive;
+
+    /// <summary>
     /// 評価が現在の絞り込み条件に一致するか。<see cref="Enabled"/> が false なら常に true。
     /// </summary>
     public bool Matches(PhotoEvaluation eval)

@@ -507,6 +507,17 @@
     <value>前回のフォルダが見つかりません: {0}</value>
   </data>
 
+  <!-- 空状態（EmptyStateView / MainViewModel.EmptyStateMessage） -->
+  <data name="Empty_NoFolder" xml:space="preserve">
+    <value>フォルダを開いてください</value>
+  </data>
+  <data name="Empty_NoPhotos" xml:space="preserve">
+    <value>このフォルダに JPEG がありません</value>
+  </data>
+  <data name="Empty_FilteredOut" xml:space="preserve">
+    <value>絞り込み条件に一致する写真がありません</value>
+  </data>
+
   <!-- 左ペイン開閉ツールチップ（PhotoStatusBar.UpdateLeftPaneGlyph） -->
   <data name="StatusBar_HideLeftPane" xml:space="preserve">
     <value>左ペインを隠す</value>
