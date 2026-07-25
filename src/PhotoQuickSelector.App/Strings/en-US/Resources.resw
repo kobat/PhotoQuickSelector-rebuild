@@ -302,6 +302,15 @@
   <data name="About_GitHubLink.Content" xml:space="preserve">
     <value>GitHub repository</value>
   </data>
+  <data name="About_SettingsFileHeader.Text" xml:space="preserve">
+    <value>Settings file</value>
+  </data>
+  <data name="About_ShowSettingsFileButton.Content" xml:space="preserve">
+    <value>Show in Explorer</value>
+  </data>
+  <data name="About_CopySettingsPathButton.Content" xml:space="preserve">
+    <value>Copy path</value>
+  </data>
 
   <!-- ============ LicenseDialog ============ -->
   <data name="LicenseDialog.Title" xml:space="preserve">
@@ -514,6 +523,9 @@
   <!-- About / License -->
   <data name="About_VersionFormat" xml:space="preserve">
     <value>Version {0}</value>
+  </data>
+  <data name="About_DatabaseFileFormat" xml:space="preserve">
+    <value>Rating data: {0} (created in each photo folder)</value>
   </data>
   <data name="License_LoadFailed" xml:space="preserve">
     <value>(Could not load {0})</value>

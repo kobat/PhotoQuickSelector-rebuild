@@ -15,19 +15,40 @@
     <!-- アプリ名・バージョン・著作権。バージョンはコードビハインドでアセンブリから設定（ハードコードしない）。
          「ライセンス情報」は PrimaryButton。ContentDialog の入れ子表示はクラッシュ要因のため、
          呼び出し側（PhotoStatusBar）が本ダイアログを閉じてから LicenseDialog を開く連鎖にする。 -->
-    <StackPanel Width="420" Spacing="14" Orientation="Horizontal">
-        <Image Source="ms-appx:///Assets/Square150x150Logo.scale-200.png"
-               Width="72" Height="72" VerticalAlignment="Top" />
+    <StackPanel Width="560" Spacing="16">
+        <StackPanel Spacing="14" Orientation="Horizontal">
+            <Image Source="ms-appx:///Assets/Square150x150Logo.scale-200.png"
+                   Width="72" Height="72" VerticalAlignment="Top" />
+            <StackPanel Spacing="6">
+                <TextBlock Text="PhotoQuickSelector" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                <TextBlock x:Name="VersionText"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="Copyright © 2026 KOBAT" Margin="0,4,0,0"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="MIT License"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <HyperlinkButton x:Uid="About_GitHubLink" Content="GitHub リポジトリ" Margin="0,4,0,0" Padding="0"
+                                 NavigateUri="https://github.com/kobat/PhotoQuickSelector-rebuild" />
+            </StackPanel>
+        </StackPanel>
+
+        <Border BorderThickness="0,1,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+        <!-- データの保存先。パス・評価データのファイル名はコードビハインドで設定する
+             （日常版/開発版でフォルダ名・DB 名が違い、packaged 実行では実体が MSIX 側へ
+             リダイレクトされるため、実行時にしか確定しない）。 -->
         <StackPanel Spacing="6">
-            <TextBlock Text="PhotoQuickSelector" Style="{ThemeResource SubtitleTextBlockStyle}" />
-            <TextBlock x:Name="VersionText"
+            <TextBlock x:Uid="About_SettingsFileHeader" Text="設定ファイル" FontWeight="SemiBold" />
+            <TextBlock x:Name="SettingsPathText" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                       Style="{ThemeResource CaptionTextBlockStyle}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <TextBlock Text="Copyright © 2026 KOBAT" Margin="0,4,0,0"
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                <Button x:Uid="About_ShowSettingsFileButton" Content="エクスプローラで表示" Click="ShowSettingsFile_Click" />
+                <Button x:Uid="About_CopySettingsPathButton" Content="パスをコピー" Click="CopySettingsPath_Click" />
+            </StackPanel>
+            <TextBlock x:Name="DatabaseNameText" TextWrapping="Wrap" Margin="0,6,0,0"
+                       Style="{ThemeResource CaptionTextBlockStyle}"
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <TextBlock Text="MIT License"
-                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            <HyperlinkButton x:Uid="About_GitHubLink" Content="GitHub リポジトリ" Margin="0,4,0,0" Padding="0"
-                             NavigateUri="https://github.com/kobat/PhotoQuickSelector-rebuild" />
         </StackPanel>
     </StackPanel>
 </ContentDialog>

@@ -2076,6 +2076,37 @@ GitHub Release に Pre-release で添付。csproj `<Version>` を 0.2.0 に更�
 **検証**: Core を直接叩く使い捨てコンソールで XMP グループをダンプし、`XMP Value Count = 1` ＋
 `xmp:Rating = 0` の 2 行が出ることを両機の実画像で確認（アプリ画面での目視は未実施）。
 
+## バージョン情報ダイアログにデータの保存先を表示（2026-07-25）
+
+**きっかけ**: 日常版（Release）/開発版（Debug）で設定フォルダと評価データのファイル名を分離した結果
+（CLAUDE.md「既知の注意点」）、「いま動いているアプリがどのファイルを読み書きしているのか」を画面から
+確認できなかった。設定ダイアログ／バージョン情報／ハンバーガーメニューの 3 案を比較し、
+**バージョン情報ダイアログ（About）に載せる案**をユーザーが選択。
+
+**要点＝表示するパスは読み書きに使うパスと違う**: `AppSettings` は packaged/unpackaged 双方で使える素の
+`%LOCALAPPDATA%\{フォルダ名}\settings.json` を読み書きに使うが、**packaged 実行では MSIX のファイルシステム
+仮想化で実体が `…\Packages\{PFN}\LocalCache\Local\` 配下へリダイレクトされる**。この文字列をそのまま表示すると
+エクスプローラで開けないパスになるため、表示用に実体を解決するプロパティを別に設けた。
+
+- `AppSettings.SettingsFileDisplayPath`（新規・public）: `Windows.Storage.ApplicationData.Current.LocalCacheFolder.Path`
+  を try/catch で取得し、取れたら（＝packaged）`<LocalCache>\Local\{フォルダ名}\settings.json` を返す。
+  例外（＝unpackaged）なら読み書き用の `SettingsPath` をそのまま返す。読み書き経路は従来どおり無変更。
+- **`dotnet run` は packaged 起動**（csproj の `Microsoft.Windows.SDK.BuildTools.WinApp` がデバッグ ID を登録して
+  AUMID 起動する）。従来コメント/CLAUDE.md の「`dotnet run` 等 unpackaged の開発起動」は誤りだったので修正。
+  実測での開発時の実体は `%LOCALAPPDATA%\Packages\60348750-46D8-401F-865F-CB8EC131C5A0_1z32rh13vfry6\LocalCache\Local\PhotoQuickSelector.Dev\settings.json`。
+- **About の内容**: 既存の横並び（アイコン＋アプリ名/バージョン/著作権/GitHub）を縦 `StackPanel` で包み、区切り線の下に
+  「設定ファイル」＝パス（`IsTextSelectionEnabled`・折り返し）＋ボタン 2 つ（エクスプローラで表示／パスをコピー）と、
+  「評価データ: {ファイル名}（写真フォルダごとに作成されます）」の 1 行（`AppSettings.DatabaseFileName`）。
+  幅は 560／`ContentDialogMaxWidth` を 700 に拡張（既定 ≈548 だと長いパスが細かく折り返す）。
+- **エクスプローラで表示**: ファイルがあれば `/select` 表示、無ければ**実在する直近の親フォルダ**を開く
+  （表示のためにフォルダを作りはしない＝副作用を持たせない）。`PhotoFileCommands` の `ShowInExplorer` /
+  `SetClipboardText` を private → public 化して再利用（`/select` の引数作法を 2 箇所に散らさないため）。
+- 変更/新規: `AppSettings.cs`（`SettingsFileDisplayPath` 追加・`SettingsFileName` 定数化・コメント修正）、
+  `PhotoFileCommands.cs`（2 メソッド公開）、`Controls/AboutDialog.xaml(.cs)`、resw（ja/en 各 4 キー：
+  `About_SettingsFileHeader.Text`／`About_ShowSettingsFileButton.Content`／`About_CopySettingsPathButton.Content`／
+  `About_DatabaseFileFormat`）。`BUILD SUCCEEDED`（x64 Debug）／`dotnet test` **131 件緑**。
+  実機目視（About のレイアウト・2 ボタンの動作）はユーザー確認推奨。
+
 ## 残タスク（記録・すべて完了済み）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**

@@ -125,8 +125,11 @@ public static class PhotoFileCommands
         SetClipboardText(paths.Select(p => System.IO.Path.GetFileName(p)).ToList());
     }
 
-    /// <summary>パス一覧（1 行 1 パス）をクリップボードのテキストとして載せる。空なら何もしない。</summary>
-    private static void SetClipboardText(IReadOnlyList<string> paths)
+    /// <summary>
+    /// パス一覧（1 行 1 パス）をクリップボードのテキストとして載せる。空なら何もしない。
+    /// 写真以外のパス（設定ファイル等）のコピーからも使う。
+    /// </summary>
+    public static void SetClipboardText(IReadOnlyList<string> paths)
     {
         if (paths.Count == 0) return;
         try
@@ -146,8 +149,11 @@ public static class PhotoFileCommands
         _ = ShareHelper.ShareAsync(paths, settings);
     }
 
-    /// <summary>エクスプローラで対象ファイルを選択状態にして表示する（<c>/select,</c>）。</summary>
-    private static void ShowInExplorer(string path)
+    /// <summary>
+    /// エクスプローラで対象ファイルを選択状態にして表示する（<c>/select,</c>）。
+    /// 写真以外のファイル（設定ファイル等）の表示からも使う。
+    /// </summary>
+    public static void ShowInExplorer(string path)
     {
         try
         {

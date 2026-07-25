@@ -11,7 +11,9 @@ namespace PhotoQuickSelector_App;
 /// 保存先は <c>%LOCALAPPDATA%\{フォルダ名}\settings.json</c>（フォルダ名は <see cref="SettingsFolderName"/>。
 /// Release=<c>PhotoQuickSelector</c> / Debug=<c>PhotoQuickSelector.Dev</c> で日常版と開発版の設定を分離）。
 /// packaged（MSIX 開発）でも unpackaged（配布形態）でも使える素のファイルパスを用いる
-/// （<see cref="Windows.Storage.ApplicationData"/> は unpackaged で例外になるため使わない）。
+/// （<see cref="Windows.Storage.ApplicationData"/> は unpackaged で例外になるため読み書きには使わない）。
+/// ただし packaged 実行では書き込みが MSIX に仮想化され実体は別の場所になるため、
+/// 画面に見せるパスは <see cref="SettingsFileDisplayPath"/> を使う。
 /// </summary>
 public sealed class AppSettings
 {
@@ -190,7 +192,7 @@ public sealed class AppSettings
     /// <summary>
     /// 設定フォルダ名。日常利用のリリース版（Release 構成）と開発版（Debug 構成）で設定を混ぜないよう
     /// ビルド構成で分ける。Release は従来どおり <c>PhotoQuickSelector</c>（既存 settings.json を継承）。
-    /// packaged 開発は MSIX リダイレクトで元々別だが、<c>dotnet run</c> 等 unpackaged の開発起動も
+    /// packaged 開発は MSIX リダイレクトで元々別だが、unpackaged で開発起動した場合も
     /// この分岐で日常版と別フォルダになる。
     /// </summary>
     private const string SettingsFolderName =
@@ -213,6 +215,8 @@ public sealed class AppSettings
         PhotoQuickSelector.Core.MetadataStore.DefaultDatabaseFileName;
 #endif
 
+    private const string SettingsFileName = "settings.json";
+
     private static string SettingsPath
     {
         get
@@ -220,7 +224,30 @@ public sealed class AppSettings
             var dir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 SettingsFolderName);
-            return Path.Combine(dir, "settings.json");
+            return Path.Combine(dir, SettingsFileName);
+        }
+    }
+
+    /// <summary>
+    /// 画面表示・エクスプローラで開く用の設定ファイルパス（実体の位置）。
+    /// packaged 実行では <c>%LOCALAPPDATA%</c> への書き込みが MSIX のファイルシステム仮想化で
+    /// <c>…\Packages\{PFN}\LocalCache\Local\</c> 配下へリダイレクトされるため、読み書きに使う
+    /// <see cref="SettingsPath"/> と実体の位置が食い違う。unpackaged（配布形態）では両者は同じ。
+    /// </summary>
+    public static string SettingsFileDisplayPath
+    {
+        get
+        {
+            try
+            {
+                // ApplicationData は unpackaged だと例外。取れた＝packaged なのでリダイレクト先を組み立てる。
+                var localCache = Windows.Storage.ApplicationData.Current.LocalCacheFolder.Path;
+                return Path.Combine(localCache, "Local", SettingsFolderName, SettingsFileName);
+            }
+            catch
+            {
+                return SettingsPath;
+            }
         }
     }
 

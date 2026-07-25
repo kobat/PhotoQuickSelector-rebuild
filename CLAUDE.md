@@ -171,9 +171,13 @@
 - `settings.json` の実体は packaged 時
   `…\Packages\<PFN>\LocalCache\Local\PhotoQuickSelector\settings.json` にリダイレクトされる。
 - **アプリ設定は日常版と開発版でフォルダを分離**（`AppSettings.SettingsFolderName` をビルド構成で切替。2026-07-12）。
-  Release=`%LOCALAPPDATA%\PhotoQuickSelector\`（配布＝日常利用。既存設定を継承）／Debug=`%LOCALAPPDATA%\PhotoQuickSelector.Dev\`
-  （開発起動。`dotnet run` 等 unpackaged でも日常版と混ざらない。packaged 開発は元々 MSIX リダイレクトで別）。
+  Release=`%LOCALAPPDATA%\PhotoQuickSelector\`（配布＝日常利用。既存設定を継承）／Debug=`%LOCALAPPDATA%\PhotoQuickSelector.Dev\`。
   開発版に日常版の設定を引き継ぎたければ日常版の `settings.json` を `PhotoQuickSelector.Dev\` へ手動コピー。
+  **`dotnet run` は packaged 起動**（`Microsoft.Windows.SDK.BuildTools.WinApp` がデバッグ ID を登録して AUMID 起動）
+  なので、実体は MSIX リダイレクト先の
+  `%LOCALAPPDATA%\Packages\<PFN>\LocalCache\Local\PhotoQuickSelector.Dev\settings.json`。
+  実体パスはアプリの**バージョン情報ダイアログ**に表示される（`AppSettings.SettingsFileDisplayPath`。
+  評価データのファイル名も併記。2026-07-25）。
 - **評価データ（フォルダ内 sqlite）のファイル名も日常版と開発版で分離**（`AppSettings.DatabaseFileName` を
   ビルド構成で切替。2026-07-16）。Release=`PhotoQuickSelector.sqlite3`（旧アプリ互換の既定名＝挙動据え置き）／
   Debug=`PhotoQuickSelector.Dev.sqlite3`。**Core は配布形態を関知しない**設計＝`MetadataStore` の ctor 第2引数で

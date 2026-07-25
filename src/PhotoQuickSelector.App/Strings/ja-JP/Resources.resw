@@ -302,6 +302,15 @@
   <data name="About_GitHubLink.Content" xml:space="preserve">
     <value>GitHub リポジトリ</value>
   </data>
+  <data name="About_SettingsFileHeader.Text" xml:space="preserve">
+    <value>設定ファイル</value>
+  </data>
+  <data name="About_ShowSettingsFileButton.Content" xml:space="preserve">
+    <value>エクスプローラで表示</value>
+  </data>
+  <data name="About_CopySettingsPathButton.Content" xml:space="preserve">
+    <value>パスをコピー</value>
+  </data>
 
   <!-- ============ LicenseDialog（ライセンス情報） ============ -->
   <data name="LicenseDialog.Title" xml:space="preserve">
@@ -514,6 +523,9 @@
   <!-- バージョン情報／ライセンス -->
   <data name="About_VersionFormat" xml:space="preserve">
     <value>バージョン {0}</value>
+  </data>
+  <data name="About_DatabaseFileFormat" xml:space="preserve">
+    <value>評価データ: {0}（写真フォルダごとに作成されます）</value>
   </data>
   <data name="License_LoadFailed" xml:space="preserve">
     <value>（{0} を読み込めませんでした）</value>
