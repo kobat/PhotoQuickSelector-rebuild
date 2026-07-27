@@ -72,6 +72,23 @@ public class MetadataCalcTests
         => Assert.Equal(expected, MetadataCalc.IsoDescription(iso));
 
     [Theory]
+    [InlineData(0, "")]
+    [InlineData(-1, "")]
+    [InlineData(double.NaN, "")]
+    [InlineData(double.PositiveInfinity, "")]
+    [InlineData(1.0 / 250, "1/250")]
+    [InlineData(1.0 / 3, "1/3")]
+    [InlineData(0.5, "1/2")]
+    [InlineData(0.8, "0.8s")]      // 逆数 1.25＝整数から遠いので秒表記
+    [InlineData(1, "1s")]
+    [InlineData(1.3, "1.3s")]
+    [InlineData(2.5, "2.5s")]
+    [InlineData(4, "4s")]
+    [InlineData(30, "30s")]
+    public void ExposureTimeDescription(double seconds, string expected)
+        => Assert.Equal(expected, MetadataCalc.ExposureTimeDescription(seconds));
+
+    [Theory]
     [InlineData(0, "±0EV")]
     [InlineData(0.7, "+0.7EV")]
     [InlineData(-1.0, "-1.0EV")]

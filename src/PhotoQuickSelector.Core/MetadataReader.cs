@@ -107,7 +107,7 @@ public static class MetadataReader
     {
         if (subIfd == null || !subIfd.ContainsTag(ExifDirectoryBase.TagExposureTime)) return "";
         var rational = subIfd.GetRational(ExifDirectoryBase.TagExposureTime);
-        return rational.IsZero ? "" : rational.ToString();
+        return MetadataCalc.ExposureTimeDescription(rational.ToDouble());
     }
 
     private static string ReadExposureBiasDescription(ExifSubIfdDirectory? subIfd)

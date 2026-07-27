@@ -57,6 +57,28 @@ public static class MetadataCalc
         => iso == 0 ? "" : $"ISO{iso}";
 
     /// <summary>
+    /// シャッター速度の表示文字列。例: "1/250", "1/3", "0.8s", "1s", "1.3s", "30s"。
+    /// 秒未満は分数、1 秒以上は秒（単位付き）で表す。
+    /// </summary>
+    /// <param name="seconds">露出時間(秒)。0 以下・NaN・∞ は空文字。</param>
+    public static string ExposureTimeDescription(double seconds)
+    {
+        if (double.IsNaN(seconds) || double.IsInfinity(seconds) || seconds <= 0) return "";
+
+        if (seconds < 1)
+        {
+            // 逆数が整数に十分近いときだけ分数化する。1/1.3 秒のような「分母が整数にならない」
+            // 低速側を丸めると 1/1 のような誤表示になるため、そこは秒の小数表記へ落とす。
+            var denominator = 1.0 / seconds;
+            var rounded = Math.Round(denominator);
+            if (rounded >= 1 && Math.Abs(denominator - rounded) / rounded <= 0.02)
+                return $"1/{rounded:0}";
+        }
+
+        return $"{Math.Round(seconds, 1):0.#}s";
+    }
+
+    /// <summary>
     /// 露出補正の表示文字列。タグが存在する場合のみ呼ぶ。例: "+0.7EV", "±0EV", "-1.0EV"。
     /// </summary>
     public static string ExposureBiasDescription(double exposureBias)
