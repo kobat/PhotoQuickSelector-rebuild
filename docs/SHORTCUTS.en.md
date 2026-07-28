@@ -31,6 +31,8 @@
 | `G` | Cycle the composition grid type (none → center cross → rule of thirds → squares) |
 | `Shift+G` | Toggle the composition grid reference (image ⇄ canvas) |
 | `C` | Toggle the prefetch cache overlay (debug) |
+| `M` | Toggle the memory usage overlay (debug) |
+| `Ctrl+M` | Force a full GC and show memory usage before/after (debug) |
 
 ## Navigation
 

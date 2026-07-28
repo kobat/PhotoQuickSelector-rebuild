@@ -178,7 +178,7 @@ CREATE TABLE image_file_metadata (
 | Ctrl+L | フィルタ ON/OFF |
 | Ctrl+E / Alt+E / Ctrl+Alt+E | エクスプローラで表示 / 既定アプリで開く / パスをコピー |
 | Alt+S | 共有（Nearby Share 等。パスは**設定化**する） |
-| M | （デバッグ用 GC）**未実装**（意図した割り切り。必要になれば追加） |
+| M / Ctrl+M | デバッグ用。メモリ使用量オーバーレイの表示切替 / 強制 GC（全世代ブロッキング＋LOH 圧縮）を実行し前後を表示 |
 
 上表は代表的なもの。実装済みの全ショートカットは **`shortcuts.json`（唯一の情報源）**／
 生成物 `docs/SHORTCUTS.md`／アプリ内 `F1` を参照。

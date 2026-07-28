@@ -50,6 +50,12 @@
                 x:Name="Preview"
                 Grid.Row="1"
                 Visibility="{x:Bind ViewModel.PreviewVisibility, Mode=OneWay}" />
+
+            <!-- メモリ使用量のデバッグオーバーレイ（M でトグル / Ctrl+M で強制 GC。初期非表示）。
+                 グリッド／プレビューのどちらでも見えるよう両者に重ねる（後勝ちで最前面）。
+                 右上はプレビューのキャッシュ一覧オーバーレイが使うため右下に置く。 -->
+            <ctl:MemoryOverlay x:Name="MemoryPanel" Grid.Row="1" Margin="12"
+                               HorizontalAlignment="Right" VerticalAlignment="Bottom" />
         </Grid>
 
         <!-- 左ペインのフライアウト表示（ピン解除時）: LeftNav 自体は再ペアレントせず、ColumnSpan/Width/

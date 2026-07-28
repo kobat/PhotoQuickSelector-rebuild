@@ -368,6 +368,21 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        // M / Ctrl+M: メモリオーバーレイのトグル / 強制フル GC（デバッグ。両モード共通）。
+        // 表示先が MainPage 側なのでプレビューへ委譲する前に処理する。
+        if (e.Key == Windows.System.VirtualKey.M)
+        {
+            // 2 つの割り当てを持つので修飾子は厳密に見る（Ctrl+Shift+M 等では発火させない）。
+            bool ctrlOnly = KeyboardModifiers.Ctrl && !KeyboardModifiers.Shift && !KeyboardModifiers.Alt;
+            if (ctrlOnly || KeyboardModifiers.None)
+            {
+                if (ctrlOnly) MemoryPanel.ForceGarbageCollect();
+                else MemoryPanel.Toggle();
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (ViewModel.IsPreviewMode)
         {
             if (Preview.HandleKeyDown(e.Key))

@@ -106,6 +106,9 @@ public sealed partial class PreviewControl : UserControl
     /// <summary>キャッシュ中の画像（状態色付き）一覧（デバッグオーバーレイ用。C キーでトグル）。</summary>
     public ObservableCollection<CacheEntry> CachedFileNames { get; } = new();
 
+    // オーバーレイ更新の多重投入ガード（下の RefreshCacheOverlay 参照）。
+    private bool _cacheOverlayRefreshQueued;
+
     // 先読みキャッシュオーバーレイの状態別文字色（cached=白／loading=緑系／waiting=灰系）。
     private static readonly Brush CachedBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE8, 0xFF, 0xFF, 0xFF));
     private static readonly Brush LoadingBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x7C, 0xE3, 0x8B));
@@ -654,12 +657,21 @@ public sealed partial class PreviewControl : UserControl
     /// （読込中・待機中も同列。キャッシュがフィルム上のどの範囲を覆っているかを読みやすくする）。
     /// ラベルはデバッグ専用オーバーレイなのでローカライズせず日本語ハードコードのまま（resw 追加は不要）。
     /// </para>
+    /// <para>
+    /// 1 回の写真切替でも「読込開始 → キャッシュ登録 → Trim」と <c>Changed</c> が複数回発火し、
+    /// さらに切替側からも明示的に呼ばれる。<c>TryEnqueue</c> は同一処理を合体してくれないため、
+    /// フラグで多重投入を潰す
+    /// （実行までに何回呼ばれても、実際の再構築は 1 回で最新状態を反映する）。
+    /// </para>
     /// </summary>
     private void RefreshCacheOverlay()
     {
         if (CacheOverlay.Visibility != Visibility.Visible) return;
+        if (_cacheOverlayRefreshQueued) return;
+        _cacheOverlayRefreshQueued = true;
         DispatcherQueue.TryEnqueue(() =>
         {
+            _cacheOverlayRefreshQueued = false;
             var items = _cache.Snapshot();
             var window = WindowEntries();
             // 窓分類の辞書（先勝ち＝WindowEntries の重複除去ルールと一致）。

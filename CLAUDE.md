@@ -144,6 +144,9 @@
   保持0ms/フェード400ms（`AppSettings.BadgeTransient`/`BadgeHoldMs`/`BadgeFadeMs`）、詳細情報:常時・保持1000ms/
   フェード400ms（`AppSettings.FullTransient`/`FullHoldMs`/`FullFadeMs`）。保持/フェードは設定＞一般で種類別に ms 指定 /
   `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
+- `M` メモリ使用量オーバーレイの切替 / `Ctrl+M` 強制フル GC（デバッグ・両モード共通。`Controls/MemoryOverlay`＋
+  `MemoryDiagnostics`）。オーバーレイは MainPage 右下・500ms 周期の自己更新（キャッシュ一覧とは分離。理由は
+  HISTORY「メモリオーバーレイの分離」節）
 - プレビュー中: `E` 右パネル上段をルーペ⇄EXIF 詳細で切替（上段のタブクリックでも可。状態は
   `AppSettings.PreviewExifPanel` に永続化。全ディレクトリ・全タグ＝Core `ExifTagReader.ReadAllTags`／
   UI `Controls/ExifDetailPanel`・グループ化 ListView 仮想化。XMP は `XmpDirectory.GetXmpProperties()` で

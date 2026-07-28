@@ -641,7 +641,8 @@ CLAUDE.md の旧「現在の進捗」節を移設したもの（並びは時系�
   - 変更/新規: `PhotoFileCommands.cs`（新規）・`ShareHelper.cs`（新規）・`Controls/SettingsDialog.xaml(.cs)`（新規）、
     `AppSettings.cs`、`Controls/PhotoStatusBar.xaml(.cs)`、`MainPage.xaml.cs`、`Controls/PreviewControl.Input.cs`。
     `BUILD SUCCEEDED`（x64・警告0）／`dotnet test` 87 件緑。実機で Ctrl+E/Alt+E/Ctrl+Alt+E/Alt+S・設定保存・
-    共有2系統をユーザー確認済み（2026-06-26）。`M`（デバッグ GC）は SPEC 通り未実装。
+    共有2系統をユーザー確認済み（2026-06-26）。`M`（デバッグ GC）は当時 SPEC 通り未実装
+    （後日実装＝「デバッグ用の強制 GC（`M` キー）とメモリ現況表示」節）。
 
 - **公開向けライセンス整備 完了（2026-06-26）**: GitHub 公開済みソースに対し、本アプリのライセンス明示と、同梱する
   第三者ライブラリの許諾義務への対応を実施。
@@ -2192,6 +2193,81 @@ fail-fast（`0xc0000602`）して即終了し起動確認ができなかった�
   `dotnet test` **150 件緑**／`BUILD SUCCEEDED`（x64 Debug）。実画像での目視確認は未実施
   （長秒露光のテストデータが手元テストフォルダに無いため）。
 
+## デバッグ用の強制 GC（`M` キー）とメモリ現況表示（2026-07-28）
+
+**目的**: 「毎秒 4〜5 回のペースで ←/→ を押すとメモリ使用量が微増するが、放っておくと減っている」という
+観察に対し、**回収が追いついていないだけなのか、本当に増え続けるのか**を切り分ける。任意のタイミングで
+フル GC を打って落ちるなら前者、という検証を可能にする。旧アプリにあった `M` キーの移植でもある
+（SPEC §3-7 では「未実装（意図した割り切り。必要になれば追加）」としていた項目を、必要が出たので実装）。
+
+**実装**:
+- `MemoryDiagnostics`（新規・App 直下）… 診断専用の静的ヘルパ。
+  - `Snapshot()` … マネージドヒープ（`GC.GetTotalMemory(false)`）／GC コミット済み容量
+    （`GetGCMemoryInfo().TotalCommittedBytes`）／ワーキングセット（`Process.WorkingSet64`）の 3 値。
+    Win2D/WIC のアンマネージド確保はマネージド側に出ないので WS を併記しないと判断を誤る。
+  - `ForceFullCollect()` … `LargeObjectHeapCompactionMode.CompactOnce` → 全世代ブロッキング＋compacting
+    collect → `WaitForPendingFinalizers()` → **もう一度 collect** の 2 段。ファイナライザ経由で解放される
+    COM ラッパ（`CanvasBitmap` 等）は 1 回では回収し切れないため。プレビューのピクセルバッファは LOH 行きの
+    大きな `byte[]` なので LOH 圧縮も入れる。
+- `M`（修飾子なし）: プレビュー時は `PreviewControl.ForceGarbageCollect()`（`PreviewControl.Input.cs`）＝
+  GC 実行後に前後の値を `C` オーバーレイへ出す。オーバーレイが閉じていれば**自動で開く**（結果が見えないため）。
+  グリッド表示時は `MainPage.HandleGlobalKeyDown` で GC のみ実行（結果の表示先が無いのでタスクマネージャー等で観察）。
+- `C` オーバーレイのサマリに**メモリ現況行を常設**（`RefreshCacheOverlay`）。この Refresh は写真切替のたびに
+  走るので、←/→ 連打中の増減をそのまま読める。直近の GC 結果行は次の `M` まで残す。
+
+**先行する知見との関係**: 「連写切替でメモリ/VRAM が増え続ける」問題（本ファイル該当節）では、`Trim` に
+`GC.Collect()`＋`WaitForPendingFinalizers()` を一時挿入した診断で**押しっぱなし中の増加は止まらず**、
+finalizer 保持ではなく**生成レート飽和**と確定している。今回の対象は毎秒 4〜5 回とレートが 1 桁低く、
+かつその後キャッシュは `byte[]`（LOH）常駐方式に変わっているため、同じ結論とは限らない＝再検証の価値がある。
+
+- 変更/新規: `src/PhotoQuickSelector.App/MemoryDiagnostics.cs`（新規）、`Controls/PreviewControl.Input.cs`、
+  `Controls/PreviewControl.xaml.cs`、`MainPage.xaml.cs`、`shortcuts.json`（＋`tools/gen-shortcuts.ps1` で
+  `docs/SHORTCUTS.md`/`SHORTCUTS.en.md` 再生成）、`SPEC.md`。`BUILD SUCCEEDED`（x64 Debug・警告0）／
+  `dotnet test` 150 件緑。**実機での目視確認と、肝心の「M で減るか」の検証はユーザー実施待ち**。
+
+## メモリオーバーレイの分離（`M` / `Ctrl+M`）（2026-07-28）
+
+**症状**: 上記でキャッシュ一覧オーバーレイ（`C`）にメモリ現況行を足したところ、**オーバーレイ表示中は
+←/→ の連続移動が目に見えて遅くなった**。
+
+**原因は 2 つ**:
+1. `Process.WorkingSet64` が高すぎる。.NET の Windows 実装では `Process` のメモリ系プロパティは
+   `NtQuerySystemInformation(SystemProcessInformation)` で**マシン上の全プロセス・全スレッド**の
+   スナップショットを取ってから自分の分を拾うため、1 回で数〜数十 ms かかる。これを UI スレッドで払っていた。
+2. しかも 1 回の写真切替で複数回走っていた。`RefreshCacheOverlay` は `_cache.Changed`（読込開始／登録／Trim）
+   からも呼ばれ、切替側からも明示的に呼ばれる。`DispatcherQueue.TryEnqueue` は**同一処理を合体しない**ので、
+   ナビ 1 回あたり 3〜5 回フル再構築＝全プロセス列挙が走っていた。
+
+**対処**:
+- **計測を psapi の `GetProcessMemoryInfo` へ**（`MemoryDiagnostics`）。自プロセスのみのクエリで数十 µs。
+  ついでに `PrivateUsage`（タスクマネージャーの「コミット サイズ」）も取得して表示に加えた。
+- **オーバーレイを分離**（`Controls/MemoryOverlay.xaml(.cs)` 新規）。更新はコントロール内の
+  `DispatcherQueueTimer`（500ms・表示中のみ稼働）で完結し、**写真切替の処理経路には一切載せない**。
+  非表示中はタイマーを止めるのでコストゼロ。
+  - 置き場所は **`MainPage` の右ペイン右下**。メモリはプレビュー固有の情報ではないので、グリッド表示でも
+    見えるべきという判断（前版で「グリッドでは `M` の結果を出す場所が無い」と積み残していた件も解消）。
+    右上はキャッシュ一覧が使うため右下。
+  - キー割り当て（ユーザー確定）: **`M`＝オーバーレイのトグル / `Ctrl+M`＝強制 GC**。`M` 単独が GC だと
+    誤爆したときに数百 ms 固まるため、破壊力のある方に修飾子を付けた。キー処理は
+    `MainPage.HandleGlobalKeyDown`（プレビューへ委譲する前）に置いて両モード共通にしている。
+- **`RefreshCacheOverlay` の多重投入を合体**（`_cacheOverlayRefreshQueued` フラグ）。メモリ表示とは独立に、
+  キャッシュ一覧単体の負荷も 3〜5 分の 1 になる。
+
+**表示の落とし穴（桁揃え）**: 当初はヘッダ行を等幅（Consolas）1 枚の TextBlock にして
+`{value,10}` の空白パディングで 2 列に見せていたが、**右列（WS）の数値が左にずれた**。Consolas に日本語
+グリフが無くフォールバックが起き、その全角幅が ASCII 2 文字ぶんとは限らないため、文字数で詰めても
+表示幅は揃わない。**Grid の列で組み直し**、数値セルだけ Consolas＋右寄せ＋`MinWidth` 固定にして解決
+（桁数が変わっても右端が動かない）。日本語ラベルを含む等幅レイアウトでは同じ罠を踏むので注意。
+ヘッダには実行方法として `(Ctrl+MでGC)` を併記した。
+
+**副次の効果**: 一定周期サンプリングになったことで**観測が対象を乱さなくなった**。旧実装は「見ていること自体が
+ナビを遅くし、文字列生成でゴミも増やす」構造で、メモリ検証の道具としては筋が悪かった。時間軸で等間隔に
+読めるので推移も追いやすい。
+
+- 変更/新規: `Controls/MemoryOverlay.xaml(.cs)`（新規）、`MemoryDiagnostics.cs`、`MainPage.xaml(.cs)`、
+  `Controls/PreviewControl.xaml.cs`、`Controls/PreviewControl.Input.cs`、`shortcuts.json`（＋生成物）、
+  `SPEC.md`。`BUILD SUCCEEDED`（x64 Debug・警告0）／`dotnet test` 150 件緑。**実機確認はユーザー実施待ち**。
+
 ## 残タスク（記録・すべて完了済み）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**
@@ -2199,7 +2275,7 @@ fail-fast（`0xc0000602`）して即終了し起動確認ができなかった�
   AF 枠の正確な位置（回転画像）はユーザー最終確認推奨。
 - ~~Phase 4-A: フィルタ／クリップボード出力~~ → **完了（`c073853`）。** 上の「現在の進捗」参照。
 - ~~Phase 4-B: 外部連携（`Ctrl+E`／`Alt+E`／`Ctrl+Alt+E`／`Alt+S`）＋設定（`AppSettings.SharePath` 設定化・歯車→設定ダイアログ）~~
-  → **完了（2026-06-26）。** 上の「現在の進捗」参照。`M`（デバッグ GC）は SPEC 通り未実装。
+  → **完了（2026-06-26）。** 上の「現在の進捗」参照。`M`（デバッグ GC）は 2026-07-28 に実装済み。
 - ~~パッケージング: 素の自己完結 EXE の publish 構成を組み込み＋発行確認~~ → **完了（2026-06-20）。** 上の「現在の進捗」参照。
   pubxml 2 系統（フォルダ／単一ファイル）＋`Publish.ps1`。実発行・起動確認済み（コミット済み）。
 

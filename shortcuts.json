@@ -50,7 +50,11 @@
         { "keys": "Shift+G",
           "description": { "ja": "構図グリッドの基準を切替（画像⇄Canvas）", "en": "Toggle the composition grid reference (image ⇄ canvas)" } },
         { "keys": "C",
-          "description": { "ja": "先読みキャッシュ一覧の切替（デバッグ）", "en": "Toggle the prefetch cache overlay (debug)" } }
+          "description": { "ja": "先読みキャッシュ一覧の切替（デバッグ）", "en": "Toggle the prefetch cache overlay (debug)" } },
+        { "keys": "M",
+          "description": { "ja": "メモリ使用量オーバーレイの切替（デバッグ）", "en": "Toggle the memory usage overlay (debug)" } },
+        { "keys": "Ctrl+M",
+          "description": { "ja": "強制 GC を実行し前後のメモリ使用量を表示（デバッグ）", "en": "Force a full GC and show memory usage before/after (debug)" } }
       ]
     },
     {

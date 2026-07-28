@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="PhotoQuickSelector_App.Controls.MemoryOverlay"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!-- メモリ使用量のデバッグオーバーレイ（M でトグル / Ctrl+M で強制 GC）。
+         更新はこのコントロール内のタイマー（既定 500ms）で完結させ、写真切替の処理経路には一切載せない
+         （＝連打しても表示が負荷にならない／観測が対象を乱さない）。非表示中はタイマーを止めてコストゼロ。
+         ラベルはデバッグ専用なのでローカライズせず日本語ハードコード（キャッシュ一覧オーバーレイと同方針）。
+         ポインタは透過させて下の操作を妨げない。
+
+         桁揃えは Grid の列で行う（等幅フォントの空白パディングではない）。Consolas に日本語グリフが無く
+         フォールバック先の全角幅が ASCII 2 文字ぶんとは限らないため、文字数で詰めると数値の左端がずれる。
+         数値セルだけ Consolas＋右寄せ・MinWidth 固定にして、桁数が変わっても右端が動かないようにする。 -->
+    <Border x:Name="Root"
+            Padding="10,8" CornerRadius="8"
+            Background="#A6000000" IsHitTestVisible="False"
+            Visibility="Collapsed">
+        <StackPanel Spacing="3">
+            <!-- GC の実行方法をその場で分かるようにヘッダへ併記する（区切りの空白は Run のテキストに含める。
+                 要素間の改行/インデントに頼ると空白の有無が処理系任せになるため） -->
+            <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="#BFFFFFFF"><Run Text="メモリ" /><Run Text=" (Ctrl+MでGC)" Foreground="#8CFFFFFF" /></TextBlock>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="マネージド"
+                           FontSize="11" Foreground="#E8FFFFFF" />
+                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="ManagedValue" Margin="8,0,0,0"
+                           MinWidth="72" TextAlignment="Right"
+                           FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="GCコミット" Margin="16,0,0,0"
+                           FontSize="11" Foreground="#E8FFFFFF" />
+                <TextBlock Grid.Row="0" Grid.Column="3" x:Name="CommittedValue" Margin="8,0,0,0"
+                           MinWidth="72" TextAlignment="Right"
+                           FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
+
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="プライベート"
+                           FontSize="11" Foreground="#E8FFFFFF" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="PrivateValue" Margin="8,0,0,0"
+                           MinWidth="72" TextAlignment="Right"
+                           FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
+                <TextBlock Grid.Row="1" Grid.Column="2" Text="WS" Margin="16,0,0,0"
+                           FontSize="11" Foreground="#E8FFFFFF" />
+                <TextBlock Grid.Row="1" Grid.Column="3" x:Name="WorkingSetValue" Margin="8,0,0,0"
+                           MinWidth="72" TextAlignment="Right"
+                           FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
+            </Grid>
+
+            <TextBlock x:Name="GcCountText" FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
+
+            <!-- 直近の強制 GC の結果。まだ一度も実行していなければブロックごと消す。 -->
+            <StackPanel x:Name="CollectPanel" Spacing="3" Visibility="Collapsed">
+                <TextBlock x:Name="CollectHeader" FontSize="11" Foreground="#FF7CE38B" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="マネージド"
+                               FontSize="11" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="0" Grid.Column="1" x:Name="CollectManagedValue" Margin="8,0,0,0"
+                               FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="WS"
+                               FontSize="11" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CollectWorkingSetValue" Margin="8,0,0,0"
+                               FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
+                </Grid>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
