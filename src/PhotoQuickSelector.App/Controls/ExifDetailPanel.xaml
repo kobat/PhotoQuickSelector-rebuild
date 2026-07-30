@@ -6,21 +6,72 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:core="using:PhotoQuickSelector.Core"
+    xmlns:ctl="using:PhotoQuickSelector_App.Controls"
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- グループ化ソース。コードビハインドから Source に ExifTagGroup のリストを代入する。
-             ItemsPath=Tags で各グループの子要素（ExifTagEntry）を取り出す。 -->
-        <CollectionViewSource x:Name="GroupedTagsSource"
+        <!-- グループ化ソース。コードビハインドから Source に InfoGroup のリストを代入する。
+             ItemsPath=Rows で各グループの子要素（EXIF タグ行／評価行）を取り出す。 -->
+        <CollectionViewSource x:Name="GroupedRowsSource"
                                IsSourceGrouped="True"
-                               ItemsPath="Tags" />
+                               ItemsPath="Rows" />
+
+        <!-- EXIF タグ行（タグ名＋値）。内容は写真ごとに固定なので OneTime（既定）で足りる。 -->
+        <DataTemplate x:Key="ExifRowTemplate" x:DataType="core:ExifTagEntry">
+            <Grid ColumnDefinitions="110,*">
+                <TextBlock Grid.Column="0"
+                           Text="{x:Bind Name}"
+                           FontSize="11"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,8,0" />
+                <TextBlock Grid.Column="1"
+                           Text="{x:Bind Description}"
+                           FontSize="11"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                           TextWrapping="Wrap"
+                           IsTextSelectionEnabled="True" />
+            </Grid>
+        </DataTemplate>
+
+        <!-- 評価行（項目名＋値＋更新日時）。評価変更で書き換わるため OneWay。
+             タグ名列の幅は EXIF 行と揃える（セクションを跨いで縦が通るように）。 -->
+        <DataTemplate x:Key="EvaluationRowTemplate" x:DataType="ctl:EvaluationInfoRow">
+            <Grid ColumnDefinitions="110,*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{x:Bind Name}"
+                           FontSize="11"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,8,0" />
+                <TextBlock Grid.Column="1"
+                           Text="{x:Bind Value, Mode=OneWay}"
+                           FontSize="11"
+                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                           TextWrapping="Wrap"
+                           IsTextSelectionEnabled="True" />
+                <!-- 値が 2 行になる行（レーティングの Exif 併記）でも 1 行目に揃うよう上寄せ。 -->
+                <TextBlock Grid.Column="2"
+                           Text="{x:Bind UpdatedAtText, Mode=OneWay}"
+                           FontSize="10"
+                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Top"
+                           IsTextSelectionEnabled="True" />
+            </Grid>
+        </DataTemplate>
+
+        <ctl:InfoRowTemplateSelector x:Key="InfoRowTemplateSelector"
+                                     ExifTemplate="{StaticResource ExifRowTemplate}"
+                                     EvaluationTemplate="{StaticResource EvaluationRowTemplate}" />
     </UserControl.Resources>
 
-    <!-- (a) グループ化 ListView と (b) メッセージ表示を重ねる。ShowTags/ShowMessage で片方だけ見せる。 -->
+    <!-- (a) グループ化 ListView と (b) メッセージ表示を重ねる。ShowInfo/ShowMessage で片方だけ見せる。 -->
     <Grid>
-        <!-- タグ総数が数百〜千超のこともあるため必ず仮想化 ListView を使う（非仮想化 ItemsControl 禁止）。 -->
-        <ListView x:Name="TagListView"
-                  ItemsSource="{Binding Source={StaticResource GroupedTagsSource}}"
+        <!-- 行総数が数百〜千超のこともあるため必ず仮想化 ListView を使う（非仮想化 ItemsControl 禁止）。 -->
+        <ListView x:Name="RowListView"
+                  ItemsSource="{Binding Source={StaticResource GroupedRowsSource}}"
+                  ItemTemplateSelector="{StaticResource InfoRowTemplateSelector}"
                   SelectionMode="None"
                   IsItemClickEnabled="False"
                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -35,24 +86,6 @@
                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 </Style>
             </ListView.ItemContainerStyle>
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="core:ExifTagEntry">
-                    <Grid ColumnDefinitions="110,*">
-                        <TextBlock Grid.Column="0"
-                                   Text="{x:Bind Name}"
-                                   FontSize="11"
-                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                   TextWrapping="Wrap"
-                                   Margin="0,0,8,0" />
-                        <TextBlock Grid.Column="1"
-                                   Text="{x:Bind Description}"
-                                   FontSize="11"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                                   TextWrapping="Wrap"
-                                   IsTextSelectionEnabled="True" />
-                    </Grid>
-                </DataTemplate>
-            </ListView.ItemTemplate>
             <ListView.GroupStyle>
                 <GroupStyle>
                     <GroupStyle.HeaderContainerStyle>
@@ -64,8 +97,8 @@
                         </Style>
                     </GroupStyle.HeaderContainerStyle>
                     <GroupStyle.HeaderTemplate>
-                        <DataTemplate x:DataType="core:ExifTagGroup">
-                            <TextBlock Text="{x:Bind DirectoryName}"
+                        <DataTemplate x:DataType="ctl:InfoGroup">
+                            <TextBlock Text="{x:Bind Name}"
                                        FontSize="12"
                                        FontWeight="SemiBold"
                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
@@ -75,7 +108,7 @@
             </ListView.GroupStyle>
         </ListView>
 
-        <!-- メッセージ表示（「EXIF なし」等）。文言は呼び出し側が渡す＝本コントロールは resw を持たない。 -->
+        <!-- メッセージ表示（「読込中…」等）。文言は呼び出し側が渡す＝本コントロールは resw を持たない。 -->
         <TextBlock x:Name="MessageText"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"

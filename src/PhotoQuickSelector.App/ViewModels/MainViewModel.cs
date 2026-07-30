@@ -1025,10 +1025,20 @@ public partial class MainViewModel : ObservableObject
             _store?.Dispose();
             _store = new MetadataStore(folderPath, AppSettings.DatabaseFileName);
 
+            // 評価は 1 クエリで全行まとめて読む（写真ごとに引くと枚数分のクエリになる）。
+            // キー比較は SQLite の既定（BINARY＝バイナリ比較）と一致させるため Ordinal 固定。
+            // OrdinalIgnoreCase にすると大文字小文字だけ違う旧行を拾い始めて挙動が変わる。
+            var records = _store.LoadAllRecords()
+                .ToDictionary(r => r.FileName, StringComparer.Ordinal);
+
             foreach (var meta in metas)
             {
-                var eval = _store.LoadEvaluation(meta.FileName, meta.ExifRating);
-                AllPhotos.Add(new PhotoItemViewModel(meta, eval, _store));
+                records.TryGetValue(meta.FileName, out var record);
+                AllPhotos.Add(new PhotoItemViewModel(
+                    meta,
+                    PhotoEvaluation.FromRecord(record, meta.ExifRating),
+                    EvaluationTimestamps.FromRecord(record),
+                    _store));
             }
 
             ApplyFilter();

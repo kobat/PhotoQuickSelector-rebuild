@@ -130,43 +130,24 @@ public sealed class MetadataStore : IDisposable
     /// <summary>
     /// 保存済みの評価を読み込んで <see cref="PhotoEvaluation"/> を構築する。
     /// 行が無い、または invalid_flag が立っている場合は永続化値なし（EXIF レーティングのみ）。
+    /// DB ファイルが無ければ作らない（開いただけでは sqlite を生成しない）。
     /// </summary>
     public PhotoEvaluation LoadEvaluation(string fileName, int exifRating)
-    {
-        var evaluation = new PhotoEvaluation { ExifRating = exifRating };
+        => PhotoEvaluation.FromRecord(LoadRecord(fileName), exifRating);
 
-        // ファイルが無ければ作らずに EXIF レーティングのみで返す（開いただけでは sqlite を生成しない）。
-        if (!EnsureConnection(createIfMissing: false)) return evaluation;
+    /// <summary>レーティングを保存し、適用後の更新時刻を返す。</summary>
+    public EvaluationSaveResult SaveRating(string fileName, int? rating)
+        => UpsertColumn(fileName, ColumnRating, rating);
 
-        using var command = _connection!.CreateCommand();
-        command.CommandText =
-            $"SELECT {ColumnRating}, {ColumnFlagRating}, " +
-            $"{ColumnColorLabelRed}, {ColumnColorLabelYellow}, {ColumnColorLabelGreen}, " +
-            $"{ColumnColorLabelBlue}, {ColumnColorLabelPurple} " +
-            "FROM image_file_metadata WHERE file_name = @fn AND invalid_flag = 0";
-        command.Parameters.AddWithValue("@fn", fileName);
+    /// <summary>フラグを保存し、適用後の更新時刻を返す。</summary>
+    public EvaluationSaveResult SaveFlagRating(string fileName, int? flag)
+        => UpsertColumn(fileName, ColumnFlagRating, flag);
 
-        using var reader = command.ExecuteReader();
-        if (!reader.Read()) return evaluation;
-
-        evaluation.PersistedRating = ReadNullableInt(reader, 0);
-        evaluation.PersistedFlagRating = ReadNullableInt(reader, 1);
-        evaluation.SetPersistedColorLabel(ColorLabel.Red, ReadNullableInt(reader, 2));
-        evaluation.SetPersistedColorLabel(ColorLabel.Yellow, ReadNullableInt(reader, 3));
-        evaluation.SetPersistedColorLabel(ColorLabel.Green, ReadNullableInt(reader, 4));
-        evaluation.SetPersistedColorLabel(ColorLabel.Blue, ReadNullableInt(reader, 5));
-        evaluation.SetPersistedColorLabel(ColorLabel.Purple, ReadNullableInt(reader, 6));
-        return evaluation;
-    }
-
-    public void SaveRating(string fileName, int? rating) => UpsertColumn(fileName, ColumnRating, rating);
-
-    public void SaveFlagRating(string fileName, int? flag) => UpsertColumn(fileName, ColumnFlagRating, flag);
-
-    public void SaveColorLabel(string fileName, ColorLabel label, int? value)
+    /// <summary>カラーラベルを保存し、適用後の更新時刻を返す。</summary>
+    public EvaluationSaveResult SaveColorLabel(string fileName, ColorLabel label, int? value)
         => UpsertColumn(fileName, ColorLabelColumns[label], value);
 
-    private void UpsertColumn(string fileName, string column, object? value)
+    private EvaluationSaveResult UpsertColumn(string fileName, string column, object? value)
     {
         // 評価書き込み＝ファイル生成点。無ければここで sqlite が新規作成される。
         EnsureConnection(createIfMissing: true);
@@ -186,6 +167,9 @@ public sealed class MetadataStore : IDisposable
         //
         // 行単位 updated_at は項目別更新時刻の最大値。時計が巻き戻ったときに後退させないよう、
         // 既存値より新しいときだけ進める。
+        //
+        // RETURNING で適用後の時刻をそのまま返す。呼び出し側（メモリ常駐の
+        // <see cref="EvaluationTimestamps"/>）が上の CASE を再実装せずに済ませるため。
         command.CommandText =
             $"INSERT INTO image_file_metadata (file_name, {column}, {updatedAtColumn}, {ColumnUpdatedAt}) " +
             "VALUES (@fn, @val, @now, @now) " +
@@ -194,11 +178,16 @@ public sealed class MetadataStore : IDisposable
             $"{updatedAtColumn} = CASE WHEN {column} IS @val THEN {updatedAtColumn} ELSE @now END, " +
             $"{ColumnUpdatedAt} = CASE WHEN {column} IS @val THEN {ColumnUpdatedAt} " +
             $"WHEN {ColumnUpdatedAt} IS NULL OR {ColumnUpdatedAt} < @now THEN @now " +
-            $"ELSE {ColumnUpdatedAt} END";
+            $"ELSE {ColumnUpdatedAt} END " +
+            $"RETURNING {updatedAtColumn}, {ColumnUpdatedAt}";
         command.Parameters.AddWithValue("@fn", fileName);
         command.Parameters.AddWithValue("@val", value ?? DBNull.Value);
         command.Parameters.AddWithValue("@now", now);
-        command.ExecuteNonQuery();
+
+        // RETURNING を伴う文は reader で 1 行読む（ExecuteNonQuery だと結果行を取り出せない）。
+        using var reader = command.ExecuteReader();
+        if (!reader.Read()) return default;
+        return new EvaluationSaveResult(ReadNullableTimestamp(reader, 0), ReadNullableTimestamp(reader, 1));
     }
 
     // --- 忠実な読み取り（エクスポート／インポートの突き合わせ用） ---
@@ -277,13 +266,13 @@ public sealed class MetadataStore : IDisposable
     private static int? ReadNullableInt(SQLiteDataReader reader, string column)
         => ReadNullableInt(reader, reader.GetOrdinal(column));
 
-    private static DateTimeOffset? ReadNullableTimestamp(SQLiteDataReader reader, string column)
-    {
-        var ordinal = reader.GetOrdinal(column);
-        return reader.IsDBNull(ordinal)
+    private static DateTimeOffset? ReadNullableTimestamp(SQLiteDataReader reader, int ordinal)
+        => reader.IsDBNull(ordinal)
             ? null
             : DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(reader.GetValue(ordinal)));
-    }
+
+    private static DateTimeOffset? ReadNullableTimestamp(SQLiteDataReader reader, string column)
+        => ReadNullableTimestamp(reader, reader.GetOrdinal(column));
 
     // --- スキーマ管理 ---
 

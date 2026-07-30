@@ -44,7 +44,7 @@ public sealed partial class PhotoStatusBar : UserControl
     /// <summary>イマーシブ表示の切替要求（<see cref="MainPage"/> が <see cref="PreviewControl.SetImmersive"/> を呼ぶ）。</summary>
     public event EventHandler? ToggleImmersiveRequested;
 
-    /// <summary>EXIF 詳細パネルの切替要求（<see cref="MainPage"/> が <see cref="PreviewControl.ToggleExifPanel"/> を呼ぶ）。</summary>
+    /// <summary>画像情報パネルの切替要求（<see cref="MainPage"/> が <see cref="PreviewControl.ToggleExifPanel"/> を呼ぶ）。</summary>
     public event EventHandler? ToggleExifPanelRequested;
 
     /// <summary>設定ダイアログが保存されたとき発火する（<see cref="MainPage"/> が <see cref="PreviewControl.ApplyPreviewSettings"/> を呼ぶ）。</summary>
@@ -53,7 +53,7 @@ public sealed partial class PhotoStatusBar : UserControl
     /// <summary>イマーシブ表示中かを返す（メニューのチェック表示用。<see cref="MainPage"/> が Preview から供給）。</summary>
     public Func<bool>? IsImmersiveProvider { get; set; }
 
-    /// <summary>EXIF 詳細パネル表示中かを返す（メニューのチェック表示用。<see cref="MainPage"/> が Preview から供給）。</summary>
+    /// <summary>画像情報パネル表示中かを返す（メニューのチェック表示用。<see cref="MainPage"/> が Preview から供給）。</summary>
     public Func<bool>? IsExifPanelProvider { get; set; }
 
     /// <summary>全画面表示中かを返す（メニューのチェック表示用。<see cref="MainPage"/> が <see cref="MainWindow"/> から供給）。</summary>

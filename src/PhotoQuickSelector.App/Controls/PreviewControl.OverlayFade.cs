@@ -71,8 +71,11 @@ public sealed partial class PreviewControl
 
     private void OnOverlayWatchedPhotoPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != null && OverlayEvalTriggerProperties.Contains(e.PropertyName))
-            RestartOverlayFade();
+        if (e.PropertyName == null || !OverlayEvalTriggerProperties.Contains(e.PropertyName)) return;
+
+        RestartOverlayFade();
+        // 画像情報パネルの評価行も同じ「焦点写真の評価変更」で更新する（監視対象が同一のため相乗り）。
+        OnFocusEvaluationChangedForExif();
     }
 
     /// <summary>

@@ -79,6 +79,34 @@ public class ExifTagReaderTests
     }
 
     [Fact]
+    public void ReadAllTags_SonyImage_FileGroupComesFirst()
+    {
+        var path = FindSonyImage();
+        if (path == null) return; // 実画像が無い環境ではスキップ相当
+
+        var groups = ExifTagReader.ReadAllTags(path);
+        Assert.NotEmpty(groups);
+
+        // MetadataExtractor は File を末尾に足すが、表示は先頭で欲しいので並べ替えている。
+        Assert.Equal(ExifTagReader.FileDirectoryName, groups[0].DirectoryName);
+        Assert.Contains(groups[0].Tags, t => t.Name == "File Name");
+    }
+
+    [Fact]
+    public void ReadAllTags_SonyImage_FileTypeStaysAfterExifGroups()
+    {
+        var path = FindSonyImage();
+        if (path == null) return; // 実画像が無い環境ではスキップ相当
+
+        var groups = ExifTagReader.ReadAllTags(path);
+        var fileTypeIndex = groups.ToList().FindIndex(g => g.DirectoryName == "File Type");
+        var exifIndex = groups.ToList().FindIndex(g => g.DirectoryName.StartsWith("Exif", StringComparison.Ordinal));
+
+        // File Type は情報価値が薄いので末尾据え置き（File だけを先頭へ移す）。
+        Assert.True(fileTypeIndex > exifIndex, "File Type が EXIF 群より前に来ている");
+    }
+
+    [Fact]
     public void ReadAllTags_NonExistentPath_ReturnsEmptyWithoutThrowing()
     {
         var groups = ExifTagReader.ReadAllTags(@"C:\this\path\does\not\exist.jpg");

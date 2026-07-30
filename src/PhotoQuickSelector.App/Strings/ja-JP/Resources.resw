@@ -141,7 +141,7 @@
     <value>イマーシブ表示</value>
   </data>
   <data name="Menu_ExifPanel.Text" xml:space="preserve">
-    <value>EXIF 詳細パネル</value>
+    <value>画像情報パネル</value>
   </data>
   <data name="Menu_OverlaySub.Text" xml:space="preserve">
     <value>情報オーバーレイ</value>
@@ -449,7 +449,7 @@
     <value>ルーペ</value>
   </data>
   <data name="Preview_ExifTab.Content" xml:space="preserve">
-    <value>EXIF</value>
+    <value>情報</value>
   </data>
 
   <!-- ============ コード側（Loc.Get。ドット無しの素のキー） ============ -->
@@ -485,9 +485,27 @@
     <value>このフォルダに評価データファイル（{0}）を作成します。よろしいですか？</value>
   </data>
 
-  <!-- EXIF 詳細パネル（PreviewControl） -->
+  <!-- 画像情報パネル（PreviewControl／EvaluationInfoSection） -->
   <data name="ExifPanel_Loading" xml:space="preserve">
     <value>読込中…</value>
+  </data>
+  <data name="Info_EvalGroup" xml:space="preserve">
+    <value>評価（このアプリ）</value>
+  </data>
+  <data name="Info_LastUpdated" xml:space="preserve">
+    <value>最終更新</value>
+  </data>
+  <data name="Info_Unset" xml:space="preserve">
+    <value>未設定</value>
+  </data>
+  <data name="Info_ExifRating" xml:space="preserve">
+    <value>(Exif: {0})</value>
+  </data>
+  <data name="Info_ColorOn" xml:space="preserve">
+    <value>あり</value>
+  </data>
+  <data name="Info_ColorOff" xml:space="preserve">
+    <value>なし</value>
   </data>
 
   <!-- ステータスバー文言（MainViewModel / MainPage） -->
@@ -769,7 +787,7 @@
     <value>完全全画面</value>
   </data>
   <data name="PvCtx_ExifPanel" xml:space="preserve">
-    <value>EXIF 詳細パネル</value>
+    <value>画像情報パネル</value>
   </data>
   <data name="PvCtx_Overlay" xml:space="preserve">
     <value>情報オーバーレイ</value>

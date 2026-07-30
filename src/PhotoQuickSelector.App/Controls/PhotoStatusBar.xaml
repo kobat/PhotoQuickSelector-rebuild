@@ -183,7 +183,7 @@
                     <!-- プレビュー専用群（Opening でプレビュー時のみ有効化） -->
                     <MenuFlyoutSubItem x:Name="PreviewSubItem" x:Uid="Menu_PreviewSub" Text="プレビュー">
                         <ToggleMenuFlyoutItem x:Name="ExifPanelToggleItem" x:Uid="Menu_ExifPanel"
-                                              Text="EXIF 詳細パネル"
+                                              Text="画像情報パネル"
                                               KeyboardAcceleratorTextOverride="E"
                                               Click="MenuExifPanel_Click" />
                         <MenuFlyoutSubItem x:Name="OverlaySubItem" x:Uid="Menu_OverlaySub" Text="情報オーバーレイ">

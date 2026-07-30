@@ -36,8 +36,16 @@ public static class ExifTagReader
     private const int MaxDescriptionLength = 300;
 
     /// <summary>
+    /// ファイル自体の情報（ファイル名・サイズ・更新日時）を持つディレクトリ名
+    /// （MetadataExtractor の <c>FileMetadataDirectory</c> の名前）。並べ替えの基準＝呼び出し側が
+    /// 「先頭が File グループか」を判定するためにも使う。
+    /// </summary>
+    public const string FileDirectoryName = "File";
+
+    /// <summary>
     /// 指定ファイルの全メタデータディレクトリ・全タグを人間可読の形でダンプする。
     /// タグ名/ディレクトリ名は MetadataExtractor の英語名のまま（ローカライズしない）。
+    /// <see cref="FileDirectoryName"/> グループだけは先頭へ移し、残りは原順のまま返す。
     /// 例外時（未対応形式・破損ファイル・パス不正など）は throw せず空リストを返す。
     /// </summary>
     public static IReadOnlyList<ExifTagGroup> ReadAllTags(string path)
@@ -66,6 +74,7 @@ public static class ExifTagReader
                 groups.Add(new ExifTagGroup(directory.Name, entries));
             }
 
+            MoveFileGroupToFront(groups);
             return groups;
         }
         catch
@@ -73,6 +82,21 @@ public static class ExifTagReader
             // 未対応形式・破損ファイル等はすべて「表示するタグなし」として扱う。
             return Array.Empty<ExifTagGroup>();
         }
+    }
+
+    /// <summary>
+    /// File グループを先頭へ移す（他のグループの相対順は変えない）。
+    /// MetadataExtractor は File Type / File を末尾に足すため、既定ではファイル自体の情報が
+    /// 一番下に来てしまう。File Type（検出形式・MIME）は情報価値が薄いので末尾に据え置く。
+    /// </summary>
+    private static void MoveFileGroupToFront(List<ExifTagGroup> groups)
+    {
+        var index = groups.FindIndex(g => g.DirectoryName == FileDirectoryName);
+        if (index <= 0) return; // 見つからない、または既に先頭
+
+        var fileGroup = groups[index];
+        groups.RemoveAt(index);
+        groups.Insert(0, fileGroup);
     }
 
     /// <summary>空値をスキップし、長すぎる値を切り詰めてタグを追加する。</summary>

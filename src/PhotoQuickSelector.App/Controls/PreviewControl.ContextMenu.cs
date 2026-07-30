@@ -86,7 +86,7 @@ public sealed partial class PreviewControl
 
         flyout.Items.Add(new MenuFlyoutSeparator());
 
-        // --- EXIF 詳細パネル ---
+        // --- 画像情報パネル ---
         flyout.Items.Add(ToggleItem(Loc.Get("PvCtx_ExifPanel"), _showExifPanel, "E", ToggleExifPanel));
 
         // --- 情報オーバーレイ（種類×表示タイミングの2軸） ---

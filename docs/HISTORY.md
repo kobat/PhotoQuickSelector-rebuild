@@ -2347,6 +2347,94 @@ try/catch が拾ってステータスバーに出るのでクラッシュしな�
   `tests/MetadataStoreTests.cs`。`dotnet test` **164 件緑**（+14）／`BUILD SUCCEEDED`（x64 Debug）。
   App は署名互換（`timeProvider` は省略可）で無変更。
 
+## 画像情報パネル（旧 EXIF 詳細パネル）＋評価と更新時刻の表示（2026-07-30）
+
+「EXIF 詳細パネル」を**画像情報パネル**へ位置づけ直し、グループ並びを **File → 評価（このアプリ）→
+EXIF 等**にした。評価は項目ごとの**更新日時**も併記する（スキーマ v2 で記録済みの時刻の初の可視化）。
+
+### 決めたこと（ユーザー合意）
+- 評価変更への追従は「固定行＋OneWay の差分更新」（検討時の案C）。
+- `File Type` グループ（検出形式・MIME）は情報価値が薄いので**末尾据え置き**。上げるのは `File` だけ。
+- File グループに**フルパスは足さない**（表示が長くなる）。MetadataExtractor の 3 行（File Name／
+  File Size／File Modified Date）そのまま。
+- カラーラベルの未設定表示は**「未設定」**（レーティングと表記を揃える）。設定済みは「あり」／解除済みは「なし」。
+- 内部識別子（`AppSettings.PreviewExifPanel`／クラス名 `ExifDetailPanel`／partial `PreviewControl.ExifPanel.cs`）は
+  **改名しない**。設定キーを変えると既存ユーザーの設定が飛ぶため。ユーザー向け文字列のみ差し替えた。
+
+### 更新時刻をメモリ常駐にした（表示のたびに DB を引かない）
+初案は描画時に `MetadataStore.LoadRecord` を引く形だったが、**評価値と同じく write-through で
+メモリに持つ**方式へ変更した（ユーザー提案）。
+- `Core/EvaluationTimestamps.cs`（新規）＝**epoch 秒の固定フィールドのみ**を持つ軽量な器。
+  `EvaluationRecord` は同じ情報を持つがエクスポート用の一時オブジェクト（値＋`Dictionary` 2 本）で、
+  数千〜1 万枚を常駐させる用途には重い。1 万枚でも 1MB 未満に収まる表現を選んだ。
+- **「時刻を進めるか」の判定は SQL に一本化**したまま。`UpsertColumn` に `RETURNING` を付けて
+  適用後の（項目別・行単位の）時刻を返し、`EvaluationSaveResult` として呼び出し側が受け取る。
+  C# 側で同値判定・時計巻き戻しガードを再実装すると必ず乖離するため。
+  **`System.Data.SQLite.Core` 1.0.119 で `RETURNING` は動く**（ただし `ExecuteNonQuery` では結果行を
+  取り出せないので `ExecuteReader` で 1 行読む）。
+- 書き込み経路は `PhotoItemViewModel` の 3 メソッド（`SetRating`／`SaveFlag`／`ToggleColorLabel`）に
+  閉じているので、同期漏れの穴は小さい。
+- 副産物として**フォルダ読み込みのクエリが N→1 に減った**。従来は写真ごとに `LoadEvaluation`
+  （1 枚 1 クエリ）だったのを `LoadAllRecords()` 1 回＋辞書引きへ。辞書のキー比較は
+  **`StringComparer.Ordinal` 固定**（SQLite 既定の BINARY 比較と一致。`OrdinalIgnoreCase` にすると
+  大文字小文字だけ違う旧行を拾い始めて挙動が変わる）。
+- `LoadEvaluation` は `LoadRecord` ＋ `PhotoEvaluation.FromRecord` の薄いラッパへ寄せ、
+  列マッピングの二重実装をなくした。
+
+### 評価変更で ListView を再構築しない（案C の要点）
+`ShowInfo`（旧 `ShowTags`）は `CollectionViewSource.Source` の差し替えで、グループ化 ListView の
+全再構築＋**スクロール位置の先頭復帰**を伴う。評価編集はこのアプリの主ループなので、キー入力ごとに
+これを走らせると 2026-07-09 に潰したもたつきが再発する。
+- `Controls/EvaluationInfoSection.cs`（新規）＝評価グループの行を**固定長（フラグ／レーティング／
+  カラー5色／最終更新＝8 行）**で作り置きし、内容だけ書き換える。行は `EvaluationInfoRow`
+  （`ObservableObject`＋`[ObservableProperty]`）で、テンプレートは OneWay バインド。
+  行数が変わらないのでコレクション変更通知も不要。
+- 評価変更の購読は既存の「焦点写真の評価変更」監視（`SubscribeOverlayWatchedPhoto` ／
+  `OverlayEvalTriggerProperties`）に相乗りし、`OnFocusEvaluationChangedForExif()` を呼ぶだけ。
+  1 回の評価操作で複数プロパティが飛ぶが、`SetProperty` の同値スキップで実描画は 1 回。
+- 行の型が EXIF 行（`ExifTagEntry`・OneTime・2 列）と評価行（3 列）で違うため
+  `Controls/InfoRowTemplateSelector.cs`（`DataTemplateSelector`）で振り分ける。
+  **WinUI は WPF の暗黙 DataTemplate（`DataType` 指定）を持たない**のでセレクタが必要。
+- グループの器は `Controls/InfoGroup.cs`（見出し＋`IReadOnlyList<object>` の行）。
+  `IReadOnlyList<T>` は共変なので Core 側の `IReadOnlyList<ExifTagEntry>` をそのまま渡せる（コピーなし）。
+  `CollectionViewSource.ItemsPath` は `Tags` から `Rows` へ変更。
+
+### 表示仕様
+- 時刻は **ローカル時刻・固定書式 `yyyy-MM-dd HH:mm:ss`**（ja/en 共通。一覧で前後関係が読めるように）。
+  不明（v2 より前に付けた評価／未変更の項目／DB なし）は `—`。
+- レーティングは**永続化値をそのまま**出す（EXIF フォールバックの実効値ではない＝「このアプリの評価」）。
+  未設定は「未設定」。**EXIF（`xmp:Rating`）にも値があるときは改行して `(Exif: 2)` を併記**する
+  （`TextBlock` は文字列中の改行をそのまま行分割として描く。更新日時列は 1 行目に揃うよう上寄せ）
+  （＝永続化値が無いときの実効値の出所が判る。`ExifRating` は未記録でも 0 になり明示的な 0 と
+  区別できないので 1 以上のときだけ出す。resw `Info_ExifRating`）。
+- 行の並びは全表示箇所と同じ「旗 → ★ → カラー」。最後に行単位の「最終更新」。
+- EXIF が空（未対応・破損ファイル）でも評価グループは出る（従来は真っ白だった）。
+- 連打経路（←/→）は従来どおり placeholder のみで、実描画は settle 後の 1 回。
+
+### 落とし穴・申し送り
+- **`MetadataStore` は単一接続でスレッド安全でない**。時刻をメモリに持つ主目的の一つがこれで、
+  描画時に DB を引く設計だと UI スレッド固定の制約が付きまとう（`ExifTagReader` のように
+  `Task.Run` へ載せてはいけない）。
+- パネルを開いただけでは **sqlite を作らない**（読みは全てメモリ／`LoadAllRecords` は
+  `createIfMissing: false`）。この性質はテストでも担保している。
+- 多重起動で同じフォルダを開くと時刻は自インスタンスの認識のまま古くなる。**評価値も元から同じ性質**
+  なので新しい欠陥ではない。
+- **評価エクスポート／インポート（フェーズ B）への申し送り**: 一括で DB を書く実装は、
+  メモリ側（`PhotoItemViewModel.EvalTimestamps` と `Eval`）も更新するか、フォルダを読み直すこと。
+  DB だけ書くと画像情報パネルの表示が古い時刻のまま残る。
+- 文字列は resw に `Info_EvalGroup`／`Info_LastUpdated`／`Info_Unset`／`Info_ColorOn`／`Info_ColorOff` を追加し、
+  項目名・フラグ値・色名は既存の右クリックメニュー用キー（`Ctx_Flag`／`Ctx_Rating`／`Ctx_Flag_*`／
+  `Ctx_Color_*`）を再利用してメニューと表記を揃えた。`Preview_ExifTab` は「EXIF」→「情報」/"Info"。
+- 変更/新規: Core＝`ExifTagReader.cs`（File 先頭へ並べ替え＋`FileDirectoryName`）、
+  `EvaluationTimestamps.cs`（新規）、`PhotoEvaluation.cs`（`FromRecord`）、`MetadataStore.cs`。
+  App＝`Controls/InfoGroup.cs`／`EvaluationInfoSection.cs`／`InfoRowTemplateSelector.cs`（いずれも新規）、
+  `ExifDetailPanel.xaml(.cs)`、`PreviewControl.ExifPanel.cs`、`PreviewControl.OverlayFade.cs`、
+  `PhotoItemViewModel.cs`、`MainViewModel.cs`、resw（ja/en）、`shortcuts.json`＋SHORTCUTS.md 再生成。
+  `dotnet test` **173 件緑**（+9）／`BUILD SUCCEEDED`（x64 Debug）。
+- **実機確認済み（2026-07-30・ユーザー目視）**。仕上げの微修正: レーティングの Exif 併記は
+  `(EXIF: 2)`→`(Exif: 2)` のキャメルケースにし、同じ行で**改行して 2 行目に置く**形に変更
+  （更新日時列は `VerticalAlignment=Top`）。
+
 ## 残タスク（記録・すべて完了済み）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**

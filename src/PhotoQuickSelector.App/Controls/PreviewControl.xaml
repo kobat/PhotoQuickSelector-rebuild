@@ -161,7 +161,7 @@
                 ResizeBehavior="BasedOnAlignment"
                 ResizeDirection="Auto" />
 
-            <!-- 右カラム: 上=ズームプレビュー(ルーペ)⇄EXIF詳細（タブ/E キーで切替） / 下=ナビゲーター -->
+            <!-- 右カラム: 上=ズームプレビュー(ルーペ)⇄画像情報（タブ/E キーで切替） / 下=ナビゲーター -->
             <Grid x:Name="RightPanel" Grid.Column="2"
                   Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
                   SizeChanged="RightPanel_SizeChanged">
@@ -196,7 +196,7 @@
                     PointerReleased="ZoomCanvas_PointerReleased"
                     PointerWheelChanged="ZoomCanvas_PointerWheelChanged" />
 
-                <!-- EXIF 詳細（ルーペと同一セルで排他表示。内容の供給は PreviewControl.ExifPanel.cs） -->
+                <!-- 画像情報（ルーペと同一セルで排他表示。内容の供給は PreviewControl.ExifPanel.cs） -->
                 <ctl:ExifDetailPanel x:Name="ExifPanel" Grid.Row="1" Visibility="Collapsed" />
 
                 <!-- ズームプレビューとナビゲーターのリサイズ用スプリッター -->

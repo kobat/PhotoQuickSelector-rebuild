@@ -23,10 +23,18 @@ public partial class PhotoItemViewModel : ObservableObject
     public ImageMetadata Meta { get; }
     public PhotoEvaluation Eval { get; }
 
-    public PhotoItemViewModel(ImageMetadata meta, PhotoEvaluation eval, MetadataStore store)
+    /// <summary>
+    /// 各評価項目を最後に変更した時刻（画像情報パネルの表示に使う）。値と同じくメモリ常駐で、
+    /// 保存のたびに DB が返した適用後の時刻を取り込む（＝表示のたびに DB を引かない）。
+    /// </summary>
+    public EvaluationTimestamps EvalTimestamps { get; }
+
+    public PhotoItemViewModel(
+        ImageMetadata meta, PhotoEvaluation eval, EvaluationTimestamps evalTimestamps, MetadataStore store)
     {
         Meta = meta;
         Eval = eval;
+        EvalTimestamps = evalTimestamps;
         _store = store;
     }
 
@@ -100,7 +108,7 @@ public partial class PhotoItemViewModel : ObservableObject
     private Task? _loadBytesTask;
 
     /// <summary>
-    /// EXIF 詳細パネル用の全タグ（全ディレクトリ）。一度解析したら常駐させ、往復での再解析をゼロにする
+    /// 画像情報パネル用の EXIF 全タグ（全ディレクトリ）。一度解析したら常駐させ、往復での再解析をゼロにする
     /// （<see cref="_thumbnailBytes"/> と同じ「一度だけ取得して持ち続ける」パターン）。フォルダ再読込で
     /// Photos ごと破棄されるため別途 LRU は不要。破損・未対応ファイルは空リストが入る（無限リトライしない）。
     /// </summary>
@@ -190,7 +198,8 @@ public partial class PhotoItemViewModel : ObservableObject
             ? Visibility.Visible : Visibility.Collapsed;
 
     // カラーラベルの色（XAML の楕円 Fill と一致）。枠線色の決定にも使う。
-    private static readonly ColorLabel[] ColorLabelOrder =
+    /// <summary>カラーラベルの表示順（全表示箇所で共通）。</summary>
+    internal static readonly ColorLabel[] ColorLabelOrder =
         { ColorLabel.Red, ColorLabel.Yellow, ColorLabel.Green, ColorLabel.Blue, ColorLabel.Purple };
 
     private static readonly Brush TransparentBrush = new SolidColorBrush(Colors.Transparent);
@@ -264,7 +273,7 @@ public partial class PhotoItemViewModel : ObservableObject
     public void SetRating(int value)
     {
         Eval.SetRating(value);
-        _store.SaveRating(FileName, Eval.PersistedRating);
+        EvalTimestamps.SetRating(_store.SaveRating(FileName, Eval.PersistedRating));
         OnPropertyChanged(nameof(RatingStars));
         OnPropertyChanged(nameof(RatingForeground)); // EXIF由来→ユーザー変更で色が変わる
         OnPropertyChanged(nameof(RatingVisibility));
@@ -277,14 +286,14 @@ public partial class PhotoItemViewModel : ObservableObject
     public void FlagUp()
     {
         Eval.FlagUp();
-        _store.SaveFlagRating(FileName, Eval.PersistedFlagRating);
+        SaveFlag();
         NotifyFlag();
     }
 
     public void FlagDown()
     {
         Eval.FlagDown();
-        _store.SaveFlagRating(FileName, Eval.PersistedFlagRating);
+        SaveFlag();
         NotifyFlag();
     }
 
@@ -292,9 +301,13 @@ public partial class PhotoItemViewModel : ObservableObject
     public void SetFlag(int value)
     {
         Eval.SetFlag(value);
-        _store.SaveFlagRating(FileName, Eval.PersistedFlagRating);
+        SaveFlag();
         NotifyFlag();
     }
+
+    /// <summary>フラグを永続化し、更新時刻をメモリへ取り込む（3 つの遷移メソッドで共有）。</summary>
+    private void SaveFlag()
+        => EvalTimestamps.SetFlagRating(_store.SaveFlagRating(FileName, Eval.PersistedFlagRating));
 
     private void NotifyFlag()
     {
@@ -307,7 +320,8 @@ public partial class PhotoItemViewModel : ObservableObject
     public void ToggleColorLabel(ColorLabel label)
     {
         Eval.ToggleColorLabel(label);
-        _store.SaveColorLabel(FileName, label, Eval.GetPersistedColorLabel(label));
+        EvalTimestamps.SetColorLabel(
+            label, _store.SaveColorLabel(FileName, label, Eval.GetPersistedColorLabel(label)));
         OnPropertyChanged($"{label}Visibility");
         OnPropertyChanged(nameof(ColorLabelBorderBrush));
         OnPropertyChanged(nameof(ColorDotsVisibility));

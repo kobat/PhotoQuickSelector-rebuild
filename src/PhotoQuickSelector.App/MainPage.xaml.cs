@@ -66,7 +66,7 @@ public sealed partial class MainPage : Page
                 Preview.SetImmersive(!Preview.IsImmersive);
             }
         };
-        // メニュー「EXIF 詳細パネル」は Preview 内の操作（E キーと同じ経路）。
+        // メニュー「画像情報パネル」は Preview 内の操作（E キーと同じ経路）。
         StatusBar.ToggleExifPanelRequested += (_, _) => Preview.ToggleExifPanel();
         // 設定ダイアログ保存時、ズーム段・先読み・レート・キャッシュ予算をプレビューへ反映（同時デコード数のみ再起動後）。
         StatusBar.SettingsChanged += (_, _) => Preview.ApplyPreviewSettings(ViewModel.Settings);

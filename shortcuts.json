@@ -44,7 +44,7 @@
         { "keys": "Shift+I",
           "description": { "ja": "オーバーレイの表示タイミングを切替（常時⇄切替時のみ）", "en": "Toggle overlay timing (always ⇄ on change only)" } },
         { "keys": "E",
-          "description": { "ja": "右パネル上段をルーペ⇄EXIF詳細で切替", "en": "Toggle the right panel between the loupe and EXIF details" } },
+          "description": { "ja": "右パネル上段をルーペ⇄画像情報で切替", "en": "Toggle the right panel between the loupe and the image info" } },
         { "keys": "G",
           "description": { "ja": "構図グリッドの種類を巡回（なし→中央十字→三分割→正方形）", "en": "Cycle the composition grid type (none → center cross → rule of thirds → squares)" } },
         { "keys": "Shift+G",
@@ -71,11 +71,11 @@
         { "keys": "Alt+F",
           "description": { "ja": "フォーカス点へスクロール", "en": "Scroll to the AF focus point" } },
         { "keys": "Ctrl+Alt+← / →",
-          "description": { "ja": "ルーペを横スクロール（EXIF詳細パネル表示中は一覧をページ送り＝←上／→下）", "en": "Scroll the loupe horizontally (page the list up/down while the EXIF details panel is shown: ← up / → down)" } },
+          "description": { "ja": "ルーペを横スクロール（画像情報パネル表示中は一覧をページ送り＝←上／→下）", "en": "Scroll the loupe horizontally (page the list up/down while the image info panel is shown: ← up / → down)" } },
         { "keys": "Ctrl+Alt+↑ / ↓",
-          "description": { "ja": "ルーペを縦スクロール（EXIF詳細パネル表示中は一覧を縦スクロール／選択集合があるときは一括フラグ）", "en": "Scroll the loupe vertically (scroll the list while the EXIF details panel is shown; bulk flag when a selection set exists)" } },
+          "description": { "ja": "ルーペを縦スクロール（画像情報パネル表示中は一覧を縦スクロール／選択集合があるときは一括フラグ）", "en": "Scroll the loupe vertically (scroll the list while the image info panel is shown; bulk flag when a selection set exists)" } },
         { "keys": "Ctrl+Alt+PageUp / PageDown",
-          "description": { "ja": "EXIF詳細パネル表示中は一覧をページ送り（PageUp上／PageDown下）", "en": "Page the EXIF details list up/down while it is shown (PageUp up / PageDown down)" } },
+          "description": { "ja": "画像情報パネル表示中は一覧をページ送り（PageUp上／PageDown下）", "en": "Page the image info list up/down while it is shown (PageUp up / PageDown down)" } },
         { "keys": "Ctrl+Alt+F",
           "description": { "ja": "ルーペをフォーカス点へ", "en": "Move the loupe to the AF focus point" } }
       ]

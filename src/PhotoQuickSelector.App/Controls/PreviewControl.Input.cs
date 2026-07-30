@@ -42,8 +42,8 @@ public sealed partial class PreviewControl
                 _ = _viewModel.ApplyEvaluationAsync(flagOp, _viewModel.SelectedPhotos.ToList());
                 return true;
             }
-            // EXIF 詳細パネル表示中はルーペが隠れている（同一セル排他）ので、Ctrl+Alt+矢印を
-            // EXIF 一覧のスクロールへ振り替える。↑/↓＝行スクロール・←/→＝ページ送り（←上／→下）。
+            // 画像情報パネル表示中はルーペが隠れている（同一セル排他）ので、Ctrl+Alt+矢印を
+            // 情報一覧のスクロールへ振り替える。↑/↓＝行スクロール・←/→＝ページ送り（←上／→下）。
             // PageUp/PageDown もページ送り（併存する直感バインド。一括フラグは ↑/↓ のみなので無競合）。
             // 一括フラグ（↑/↓・選択集合あり）は上で先取り済み＝ルーペ時と同じ優先順位を保つ。
             if (_showExifPanel)
@@ -173,7 +173,7 @@ public sealed partial class PreviewControl
             return true;
         }
 
-        // E : 右パネル上段をルーペ ⇄ EXIF 詳細で切替（Ctrl/Alt 併用の外部連携 E は下の PhotoFileCommands 側）
+        // E : 右パネル上段をルーペ ⇄ 画像情報で切替（Ctrl/Alt 併用の外部連携 E は下の PhotoFileCommands 側）
         if (KeyboardModifiers.None && key == VirtualKey.E)
         {
             ToggleExifPanel();

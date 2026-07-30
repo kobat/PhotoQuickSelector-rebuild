@@ -456,7 +456,7 @@ public sealed partial class PreviewControl : UserControl
                 _recentDecodes.Enqueue(now);
             }
             LoadCurrentAsync(preserveView: true, prefetch: true);
-            // 停止後に EXIF 詳細も確定描画（1 停止 1 回）。表示中でなければ RenderExifForFocus 側で no-op。
+            // 停止後に画像情報も確定描画（1 停止 1 回）。表示中でなければ RenderExifForFocus 側で no-op。
             RenderExifForFocus();
         };
         return timer;

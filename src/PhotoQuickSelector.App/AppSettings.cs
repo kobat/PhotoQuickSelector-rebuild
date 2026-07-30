@@ -82,7 +82,10 @@ public sealed class AppSettings
     /// <summary>詳細情報「切替時のみ」のフェード時間（ミリ秒）。既定＝400。</summary>
     public int FullFadeMs { get; set; } = 400;
 
-    /// <summary>プレビュー右パネル上段の表示（false=ルーペ / true=EXIF 詳細。E キーで切替）。</summary>
+    /// <summary>
+    /// プレビュー右パネル上段の表示（false=ルーペ / true=画像情報。E キーで切替）。
+    /// キー名は「EXIF 詳細パネル」時代のまま＝既存ユーザーの設定を保つため改名していない。
+    /// </summary>
     public bool PreviewExifPanel { get; set; }
 
     /// <summary>プレビューの構図グリッドの種類（G キーで巡回）。</summary>

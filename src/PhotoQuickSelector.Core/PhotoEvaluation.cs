@@ -34,6 +34,22 @@ public sealed class PhotoEvaluation
         [ColorLabel.Purple] = null,
     };
 
+    /// <summary>
+    /// DB から読んだ 1 行（null＝行なし／DB なし）と EXIF レーティングから評価を組み立てる。
+    /// 行が無ければ永続化値なし（＝EXIF レーティングのみ）。
+    /// </summary>
+    public static PhotoEvaluation FromRecord(EvaluationRecord? record, int exifRating)
+    {
+        var evaluation = new PhotoEvaluation { ExifRating = exifRating };
+        if (record == null) return evaluation;
+
+        evaluation.PersistedRating = record.Rating;
+        evaluation.PersistedFlagRating = record.FlagRating;
+        foreach (var label in Enum.GetValues<ColorLabel>())
+            evaluation.SetPersistedColorLabel(label, record.GetColorLabel(label));
+        return evaluation;
+    }
+
     /// <summary>実効レーティング（0–5）。永続化値を優先し、無ければ EXIF 値。</summary>
     public int Rating => PersistedRating ?? ExifRating;
 

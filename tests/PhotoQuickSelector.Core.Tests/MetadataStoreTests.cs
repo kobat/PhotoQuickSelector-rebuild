@@ -359,6 +359,128 @@ public sealed class MetadataStoreTests : IDisposable
         Assert.Equal(2, all[1].Rating);
     }
 
+    // --- 保存の戻り値（メモリ常駐の更新時刻へ反映するため） ---
+
+    [Fact]
+    public void Save_ReturnsAppliedTimestamps()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0300.JPG";
+
+        var saved = store.SaveRating(file, 3);
+
+        Assert.Equal(T0, saved.ItemUpdatedAt);
+        Assert.Equal(T0, saved.RowUpdatedAt);
+        // DB を読み直した値と一致する（＝メモリ側が SQL の判定を再実装せずに済む）。
+        var r = store.LoadRecord(file)!;
+        Assert.Equal(r.RatingUpdatedAt, saved.ItemUpdatedAt);
+        Assert.Equal(r.UpdatedAt, saved.RowUpdatedAt);
+    }
+
+    [Fact]
+    public void Save_SameValue_ReturnsUnchangedTimestamps()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0301.JPG";
+
+        store.SaveRating(file, 3);
+        clock.Advance(TimeSpan.FromHours(1));
+        var saved = store.SaveRating(file, 3); // 同値の押し直しは時刻を進めない
+
+        Assert.Equal(T0, saved.ItemUpdatedAt);
+        Assert.Equal(T0, saved.RowUpdatedAt);
+    }
+
+    [Fact]
+    public void Save_OtherFieldsKeepTheirOwnTimestamps()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0302.JPG";
+
+        store.SaveRating(file, 1);
+        clock.Advance(TimeSpan.FromMinutes(5));
+        var saved = store.SaveColorLabel(file, ColorLabel.Blue, 1);
+
+        Assert.Equal(T0.AddMinutes(5), saved.ItemUpdatedAt); // 保存した項目の時刻
+        Assert.Equal(T0.AddMinutes(5), saved.RowUpdatedAt);  // 行単位は最大値
+        Assert.Equal(T0, store.LoadRecord(file)!.RatingUpdatedAt); // 触っていない項目は不変
+    }
+
+    [Fact]
+    public void EvaluationTimestamps_FromRecord_CarriesAllFields()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0303.JPG";
+
+        store.SaveRating(file, 4);
+        clock.Advance(TimeSpan.FromMinutes(1));
+        store.SaveFlagRating(file, -1);
+        clock.Advance(TimeSpan.FromMinutes(1));
+        store.SaveColorLabel(file, ColorLabel.Purple, 1);
+
+        var timestamps = EvaluationTimestamps.FromRecord(store.LoadRecord(file));
+
+        Assert.Equal(T0, timestamps.Rating);
+        Assert.Equal(T0.AddMinutes(1), timestamps.FlagRating);
+        Assert.Equal(T0.AddMinutes(2), timestamps.GetColorLabel(ColorLabel.Purple));
+        Assert.Null(timestamps.GetColorLabel(ColorLabel.Red)); // 未変更の項目は不明
+        Assert.Equal(T0.AddMinutes(2), timestamps.UpdatedAt);
+    }
+
+    [Fact]
+    public void EvaluationTimestamps_FromNullRecord_IsAllUnknown()
+    {
+        var timestamps = EvaluationTimestamps.FromRecord(null);
+
+        Assert.Null(timestamps.Rating);
+        Assert.Null(timestamps.FlagRating);
+        Assert.Null(timestamps.UpdatedAt);
+        foreach (var label in Enum.GetValues<ColorLabel>())
+            Assert.Null(timestamps.GetColorLabel(label));
+    }
+
+    [Fact]
+    public void EvaluationTimestamps_TakeSaveResults()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0304.JPG";
+        var timestamps = EvaluationTimestamps.FromRecord(store.LoadRecord(file)); // 行なし＝全不明
+
+        timestamps.SetRating(store.SaveRating(file, 2));
+        clock.Advance(TimeSpan.FromMinutes(3));
+        timestamps.SetColorLabel(ColorLabel.Green, store.SaveColorLabel(file, ColorLabel.Green, 1));
+
+        Assert.Equal(T0, timestamps.Rating);
+        Assert.Equal(T0.AddMinutes(3), timestamps.GetColorLabel(ColorLabel.Green));
+        Assert.Equal(T0.AddMinutes(3), timestamps.UpdatedAt);
+        Assert.Null(timestamps.FlagRating);
+    }
+
+    [Fact]
+    public void PhotoEvaluation_FromRecord_UsesPersistedValuesOverExifRating()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0305.JPG";
+
+        store.SaveRating(file, 5);
+        store.SaveColorLabel(file, ColorLabel.Yellow, 1);
+
+        var e = PhotoEvaluation.FromRecord(store.LoadRecord(file), exifRating: 2);
+        Assert.Equal(5, e.Rating);
+        Assert.True(e.HasColorLabel(ColorLabel.Yellow));
+
+        // 行が無ければ EXIF フォールバックのみ。
+        var none = PhotoEvaluation.FromRecord(null, exifRating: 2);
+        Assert.Null(none.PersistedRating);
+        Assert.Equal(2, none.Rating);
+    }
+
     // --- スキーマ移行 / 前方互換 ---
 
     /// <summary>
