@@ -70,18 +70,22 @@ public static class MemoryDiagnostics
     }
 
     /// <summary>
-    /// 全世代のブロッキング GC ＋ LOH 圧縮を強制し、前後のスナップショットを返す。
+    /// 全世代のブロッキング GC ＋ LOH 圧縮 ＋可能な限りの decommit を強制し、
+    /// 前後のスナップショットを返す。
     /// <para>
     /// ファイナライザ経由で解放されるアンマネージド資源（Win2D の CanvasBitmap 等の COM ラッパ）は
     /// 1 回の <see cref="GC.Collect()"/> では回収し切れないため、
     /// 「回収 → ファイナライザ待ち → もう一度回収」の 2 段で回す。
-    /// プレビュー用のピクセルバッファは LOH 行きの大きな byte[] なので、
-    /// 断片化ぶんも含めて減らせるよう LOH 圧縮も一度だけ有効にする。
+    /// 1 段目はファイナライザ対象を確定するだけの通常 GC とし、ファイナライザ完了後の
+    /// 最終段を <see cref="GCCollectionMode.Aggressive"/> にする。Aggressive は通常の
+    /// Forced と異なり、GC が保持している未使用ページを可能な限り decommit する。
+    /// プレビュー用のピクセルバッファは LOH 行きの大きな byte[] なので、最終段に合わせて
+    /// LOH 圧縮も一度だけ有効にする。
     /// </para>
     /// <para>
-    /// 空き領域の OS への返却（decommit）は GC 1 回あたりの予算で分割実施されるため、
-    /// 1 回呼んだだけではワーキングセットは少ししか減らない（連打すると階段状に減る）。
-    /// これはランタイムの仕様であり、回収漏れではない。
+    /// 通常の Forced GC は空き領域の OS への返却（decommit）を 1 回あたりの予算内で
+    /// 分割実施するため、連打しないとワーキングセットが階段状に減らないことがある。
+    /// Aggressive を最終段に使うことで、その連打を 1 回の診断操作に集約する。
     /// </para>
     /// </summary>
     /// <returns>GC 前後のスナップショットと所要時間。</returns>
@@ -90,10 +94,16 @@ public static class MemoryDiagnostics
         var before = Snapshot();
         var sw = Stopwatch.StartNew();
 
-        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        // まず到達不能な COM ラッパ等をファイナライザキューへ送り、解放完了を待つ。
+        // ここではまだ圧縮/decommit を要求せず、重い処理は最終段へ集約する。
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: false);
         GC.WaitForPendingFinalizers();
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+
+        // 最終段で、ファイナライズ済みオブジェクトの回収、SOH/LOH 圧縮、未使用ページの
+        // 最大限の decommit をまとめて行う。.NET 7+ の Aggressive は MaxGeneration・
+        // blocking・compacting が必須で、この 2 引数オーバーロードが3条件を満たす。
+        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive);
 
         sw.Stop();
         return (before, Snapshot(), sw.Elapsed);

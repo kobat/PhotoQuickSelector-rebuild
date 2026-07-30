@@ -44,8 +44,10 @@ public sealed partial class MemoryOverlay : UserControl
     public void ForceGarbageCollect()
     {
         var (before, after, elapsed) = MemoryDiagnostics.ForceFullCollect();
-        CollectHeader.Text = $"GC 実行（{elapsed.TotalMilliseconds:#,0}ms）";
+        CollectHeader.Text = $"GC＋decommit 実行（{elapsed.TotalMilliseconds:#,0}ms）";
         CollectManagedValue.Text = $"{MemoryDiagnostics.Mb(before.ManagedBytes)} → {MemoryDiagnostics.Mb(after.ManagedBytes)}";
+        CollectCommittedValue.Text = $"{MemoryDiagnostics.Mb(before.CommittedBytes)} → {MemoryDiagnostics.Mb(after.CommittedBytes)}";
+        CollectPrivateValue.Text = $"{MemoryDiagnostics.Mb(before.PrivateBytes)} → {MemoryDiagnostics.Mb(after.PrivateBytes)}";
         CollectWorkingSetValue.Text = $"{MemoryDiagnostics.Mb(before.WorkingSetBytes)} → {MemoryDiagnostics.Mb(after.WorkingSetBytes)}";
         CollectPanel.Visibility = Visibility.Visible;
         SetShown(true);

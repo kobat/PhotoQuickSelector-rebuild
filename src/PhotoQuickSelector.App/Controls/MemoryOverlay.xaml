@@ -73,15 +73,25 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="マネージド"
                                FontSize="11" Foreground="#FF7CE38B" />
                     <TextBlock Grid.Row="0" Grid.Column="1" x:Name="CollectManagedValue" Margin="8,0,0,0"
                                FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="WS"
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="GCコミット"
                                FontSize="11" Foreground="#FF7CE38B" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CollectWorkingSetValue" Margin="8,0,0,0"
+                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CollectCommittedValue" Margin="8,0,0,0"
+                               FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="プライベート"
+                               FontSize="11" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="CollectPrivateValue" Margin="8,0,0,0"
+                               FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="WS"
+                               FontSize="11" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="3" Grid.Column="1" x:Name="CollectWorkingSetValue" Margin="8,0,0,0"
                                FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
                 </Grid>
             </StackPanel>
