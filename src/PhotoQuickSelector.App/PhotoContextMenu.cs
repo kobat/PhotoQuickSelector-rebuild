@@ -59,6 +59,7 @@ public static class PhotoContextMenu
         AddFlagSub(flyout.Items, vm, targets, suffix);
         AddRatingSub(flyout.Items, vm, targets, suffix);
         AddColorSub(flyout.Items, vm, targets, suffix);
+        AddResetItem(flyout.Items, vm, targets, suffix, xamlRoot);
 
         flyout.Items.Add(new MenuFlyoutSeparator());
 
@@ -206,6 +207,21 @@ public static class PhotoContextMenu
             sub.Items.Add(Item(Loc.Get("Ctx_Flag_Reject"), () => Apply(vm, i => i.SetFlag(-1), targets)));
         }
         items.Add(sub);
+    }
+
+    /// <summary>
+    /// 「評価をリセット」項目を追加する（評価 3 サブメニューの直下）。対象の評価を DB の行ごと消して
+    /// 未評価へ戻す＝レーティングは EXIF 値へフォールバックする。取り消せないうえ複数枚まとめて消え得るため、
+    /// 大量対象（<see cref="BatchFlows.BulkWarnThreshold"/> 枚以上）には確認ダイアログを挟む。
+    /// キー割当は付けていない（誤打鍵で評価が飛ぶため。メニューからの明示操作に限る）。
+    /// </summary>
+    internal static void AddResetItem(
+        IList<MenuFlyoutItemBase> items, MainViewModel vm, IReadOnlyList<PhotoItemViewModel> targets,
+        string suffix, XamlRoot xamlRoot)
+    {
+        items.Add(Item(Loc.Get("Ctx_ResetEval") + suffix,
+            () => _ = BatchFlows.RunWithBulkWarningAsync(xamlRoot, targets.Count, "BulkWarn_ResetMessage",
+                () => vm.ResetEvaluations(targets))));
     }
 
     private static void AddSelectAll(MenuFlyout flyout, MainViewModel vm)

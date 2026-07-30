@@ -562,4 +562,97 @@ public sealed class MetadataStoreTests : IDisposable
         Assert.Throws<NotSupportedException>(() => store.LoadRecord("OLD0001.JPG"));
         Assert.Throws<NotSupportedException>(() => store.SaveRating("OLD0001.JPG", 1));
     }
+
+    // --- 評価のリセット（行削除） ---
+
+    [Fact]
+    public void ClearEvaluation_WithoutDatabase_DoesNothingAndDoesNotCreateFile()
+    {
+        using var store = new MetadataStore(_folder);
+
+        Assert.False(store.ClearEvaluation("DSC0200.JPG"));
+        Assert.False(File.Exists(Path.Combine(_folder, MetadataStore.DefaultDatabaseFileName)));
+    }
+
+    [Fact]
+    public void ClearEvaluation_RemovesRowAndFallsBackToExifRating()
+    {
+        using var store = new MetadataStore(_folder);
+        const string file = "DSC0201.JPG";
+        store.SaveRating(file, 2);
+        store.SaveFlagRating(file, -1);
+        store.SaveColorLabel(file, ColorLabel.Green, 1);
+
+        Assert.True(store.ClearEvaluation(file));
+
+        // 行ごと消えるので「一度も評価していない」状態と同じ（更新時刻も残らない）。
+        Assert.Null(store.LoadRecord(file));
+        var e = store.LoadEvaluation(file, exifRating: 4);
+        Assert.Null(e.PersistedRating);
+        Assert.Null(e.PersistedFlagRating);
+        Assert.False(e.HasColorLabel(ColorLabel.Green));
+        Assert.Equal(4, e.Rating); // EXIF フォールバックが復活する
+    }
+
+    [Fact]
+    public void ClearEvaluation_LeavesOtherFilesUntouched()
+    {
+        using var store = new MetadataStore(_folder);
+        store.SaveRating("DSC0202.JPG", 3);
+        store.SaveRating("DSC0203.JPG", 5);
+
+        store.ClearEvaluation("DSC0202.JPG");
+
+        Assert.Single(store.LoadAllRecords());
+        Assert.Equal(5, store.LoadRecord("DSC0203.JPG")!.Rating);
+    }
+
+    [Fact]
+    public void ClearEvaluation_WithoutRow_ReturnsFalse()
+    {
+        using var store = new MetadataStore(_folder);
+        store.SaveRating("DSC0204.JPG", 3); // DB は作られるが対象ファイルの行は無い
+
+        Assert.False(store.ClearEvaluation("DSC0205.JPG"));
+    }
+
+    [Fact]
+    public void EvaluationTimestamps_Reset_ClearsAllTimes()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0207.JPG";
+        store.SaveRating(file, 3);
+        store.SaveFlagRating(file, 1);
+        store.SaveColorLabel(file, ColorLabel.Red, 1);
+
+        var timestamps = EvaluationTimestamps.FromRecord(store.LoadRecord(file));
+        Assert.Equal(T0, timestamps.Rating);
+
+        timestamps.Reset();
+
+        Assert.Null(timestamps.Rating);
+        Assert.Null(timestamps.FlagRating);
+        Assert.Null(timestamps.UpdatedAt);
+        foreach (var label in Enum.GetValues<ColorLabel>())
+            Assert.Null(timestamps.GetColorLabel(label));
+    }
+
+    [Fact]
+    public void SaveAfterClearEvaluation_StartsFreshTimestamps()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0206.JPG";
+        store.SaveRating(file, 3);
+
+        store.ClearEvaluation(file);
+        clock.Advance(TimeSpan.FromHours(1));
+        store.SaveRating(file, 3); // リセット前と同じ値。行が無いので「変更なし」にはならない
+
+        var r = store.LoadRecord(file)!;
+        Assert.Equal(3, r.Rating);
+        Assert.Equal(T0.AddHours(1), r.RatingUpdatedAt); // 旧行の時刻は引き継がない
+        Assert.Equal(T0.AddHours(1), r.UpdatedAt);
+    }
 }

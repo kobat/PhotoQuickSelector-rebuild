@@ -138,6 +138,7 @@ public sealed partial class PreviewControl
             PhotoContextMenu.AddFlagSub(flyout.Items, vm, targets, suffix: "");
             PhotoContextMenu.AddRatingSub(flyout.Items, vm, targets, suffix: "");
             PhotoContextMenu.AddColorSub(flyout.Items, vm, targets, suffix: "");
+            PhotoContextMenu.AddResetItem(flyout.Items, vm, targets, suffix: "", XamlRoot);
 
             flyout.Items.Add(new MenuFlyoutSeparator());
 

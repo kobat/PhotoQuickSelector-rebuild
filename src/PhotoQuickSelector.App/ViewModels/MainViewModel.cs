@@ -958,6 +958,16 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
+    /// <paramref name="targets"/> の評価をリセットする（DB の行ごと削除＝未評価へ戻す）。
+    /// <see cref="ApplyEvaluationAsync"/> と違い作成確認は挟まない。消すだけの操作なので
+    /// sqlite がまだ無ければ何も起きず、ファイルも作られないため（<see cref="MetadataStore.ClearEvaluation"/>）。
+    /// </summary>
+    public void ResetEvaluations(IReadOnlyList<PhotoItemViewModel> targets)
+    {
+        foreach (var t in targets) t.ResetEvaluation();
+    }
+
+    /// <summary>
     /// フォルダ内の JPEG を読み込み、メタデータを並列抽出してサムネイル一覧を構築する。
     /// 評価は既存の <see cref="MetadataStore"/>（フォルダ内 sqlite）からマージする。
     /// </summary>

@@ -111,6 +111,19 @@ public sealed class PhotoEvaluation
         return FlagRating;
     }
 
+    /// <summary>
+    /// 永続化値をすべて未設定(null)へ戻す（評価のリセット）。カラーラベルの 0（解除済み）とも異なり、
+    /// 「一度も評価していない」状態になる＝実効レーティングは <see cref="ExifRating"/> へ戻る。
+    /// 永続化は呼び出し側（<see cref="MetadataStore.ClearEvaluation"/>）。
+    /// </summary>
+    public void Reset()
+    {
+        PersistedRating = null;
+        PersistedFlagRating = null;
+        foreach (var label in Enum.GetValues<ColorLabel>())
+            _persistedColorLabels[label] = null;
+    }
+
     /// <summary>カラーラベルのオン/オフをトグルし、新しい値(0 or 1)を返す。</summary>
     public int ToggleColorLabel(ColorLabel label)
     {

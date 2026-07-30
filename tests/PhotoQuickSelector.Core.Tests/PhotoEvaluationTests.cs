@@ -111,4 +111,26 @@ public class PhotoEvaluationTests
         Assert.True(e.HasColorLabel(ColorLabel.Red));
         Assert.False(e.HasColorLabel(ColorLabel.Blue));
     }
+
+    [Fact]
+    public void Reset_ClearsPersistedValuesAndRestoresExifRating()
+    {
+        var e = new PhotoEvaluation { ExifRating = 4 };
+        e.SetRating(1);
+        e.SetFlag(-1);
+        e.ToggleColorLabel(ColorLabel.Red);
+        e.ToggleColorLabel(ColorLabel.Purple);
+
+        e.Reset();
+
+        Assert.Null(e.PersistedRating);
+        Assert.Null(e.PersistedFlagRating);
+        Assert.Equal(4, e.Rating);   // EXIF フォールバックへ戻る（0 ではない）
+        Assert.Equal(0, e.FlagRating);
+        foreach (var label in Enum.GetValues<ColorLabel>())
+        {
+            Assert.Null(e.GetPersistedColorLabel(label)); // 0（解除済み）ではなく未設定
+            Assert.False(e.HasColorLabel(label));
+        }
+    }
 }

@@ -2336,8 +2336,11 @@ try/catch が拾ってステータスバーに出るのでクラッシュしな�
   インポート UI に「更新時刻が不明な項目も上書きする」チェックを 1 つ置く。両側 NULL も同じ規則でリモート勝ち。
 - 同一性キーが `file_name` である脆さ（リネーム・別フォルダ間の衝突）。撮影日時・機種・寸法での照合は
   画像から都度読めるので DB には持たせていない。
-- 行削除も NULL 書き戻しも起きない（解除は 0/NULL という実値の変更として記録される）ので、
-  **tombstone の設計は不要**で項目単位 LWW だけで足りる。
+- ~~行削除も NULL 書き戻しも起きない（解除は 0/NULL という実値の変更として記録される）ので、
+  **tombstone の設計は不要**で項目単位 LWW だけで足りる。~~
+  → **2026-07-30 に前提が変わった**。「評価をリセット」（下記の節）が**行を削除する**ので、消した事実は
+  どこにも残らない。項目単位 LWW は従来どおり成立するが、**リセットした写真は古いエクスポートを
+  取り込むと評価が復活する**（ユーザー了解済みの割り切り）。
 - 一括評価は 1 枚ずつ別の時刻になるが、同一秒に並ぶのは**別ファイルの行**なので競合判定
   （同一ファイルの同一項目）には影響しない。時刻を揃える対応は入れていない。
 - `invalid_flag` はアプリが書いておらず、`LoadRecord` / `LoadAllRecords` も `LoadEvaluation` と同様に
@@ -2434,6 +2437,58 @@ EXIF 等**にした。評価は項目ごとの**更新日時**も併記する（
 - **実機確認済み（2026-07-30・ユーザー目視）**。仕上げの微修正: レーティングの Exif 併記は
   `(EXIF: 2)`→`(Exif: 2)` のキャメルケースにし、同じ行で**改行して 2 行目に置く**形に変更
   （更新日時列は `VerticalAlignment=Top`）。
+
+## 評価のリセット（行削除）（2026-07-30）
+
+このアプリで付けた評価を「付ける前」へ戻す手段が無かったので、右クリックメニューに
+**「評価をリセット」**を追加した。
+
+### 決めたこと（ユーザー確定）
+- **対象は焦点の 1 枚／選択集合まで**。フォルダ全体の一括リセットは**作らない**
+  （必要なら sqlite を手動で消せば済むため）。
+- **DB は行ごと削除**（`DELETE FROM image_file_metadata WHERE file_name=@fn`）。値を NULL で
+  上書きする案と比較して選定。
+- **キー割当なし**。誤打鍵で評価が飛ぶ事故を避け、メニューからの明示操作に限る。
+- 既存の「レーティング＞なし (0)」「カラーラベル＞クリア」は**据え置き**（0 を書く従来動作のまま）。
+  リセットは別項目として並べる。
+
+### なぜ NULL 書き戻しではなく行削除か
+- 全項目をまとめて解除する操作なので、**行が無い＝一度も評価していない状態**と完全に同じにできる。
+  NULL 書き戻しだと「値は未設定なのに `updated_at` だけ残る」行になり、画像情報パネルに
+  「未設定＋更新日時あり」という説明の要る表示が出る。
+- **DB を作らないガードが自然に書ける**。`UpsertColumn` は `createIfMissing: true`（＝評価書き込みが
+  ファイル生成点）なので NULL 書き戻し案では別途ガードが要るが、`DELETE` なら
+  `EnsureConnection(createIfMissing: false)` の early return がそのまま「DB が無ければ何もしない」になる。
+- 更新時刻の CASE 判定（`UpsertColumn`）に一切触らずに済む。リセット後の再評価は行の新規作成なので、
+  **リセット前と同じ値を押しても時刻は新しく打たれる**（テストで固定）。
+- 代償は tombstone が残らないこと＝上の「評価データの更新時刻の記録」節の申し送りを訂正済み。
+
+### 実装
+- Core: `MetadataStore.ClearEvaluation(fileName)`（削除した行があれば true）、
+  `PhotoEvaluation.Reset()`（永続化値を全て null＝実効レーティングは EXIF へ戻る）、
+  `EvaluationTimestamps.Reset()`（全項目を「不明」へ）。
+- App: `PhotoItemViewModel.ResetEvaluation()` が 3 つを呼び、評価系プロパティを一括通知する。
+  通知先が既存の `OverlayEvalTriggerProperties` を含むため、**情報オーバーレイと画像情報パネルの
+  評価行は既存の購読経路で自動追従**する（新しい配線は不要だった）。
+  `MainViewModel.ResetEvaluations(targets)` は `ApplyEvaluationAsync` を通さない
+  （消すだけの操作＝sqlite 作成確認を出す意味がない）。
+- UI: `PhotoContextMenu.AddResetItem` を評価 3 サブメニューの直下に置き、グリッド／フィルムストリップの
+  右クリックとメイン画像の右クリック（対象は焦点 1 枚）で共有。**10 枚以上は
+  `BatchFlows.RunWithBulkWarningAsync`（`BulkWarn_ResetMessage`）で確認**を挟む。
+- resw（ja/en）に `Ctx_ResetEval`／`BulkWarn_ResetMessage` を追加。
+
+### 落とし穴・申し送り
+- `invalid_flag` が立った旧アプリ由来の行も同じ `file_name` なら消える（読み取り側は元から
+  「無い」扱いなので実害なし）。
+- **リセット後は絞り込みを掛け直さない**（既存の評価変更と同じ挙動。`Photos` は再構築されないので、
+  絞込条件から外れた写真もその場では一覧に残る）。
+- レーティングだけを未設定へ戻す（項目単位の NULL 化）は**この実装では出来ない**。必要になったら
+  `UpsertColumn(..., null)` を呼ぶ別口を足すことになる。
+- 変更/新規: Core＝`MetadataStore.cs`／`PhotoEvaluation.cs`／`EvaluationTimestamps.cs`、
+  App＝`ViewModels/PhotoItemViewModel.cs`／`ViewModels/MainViewModel.cs`／`PhotoContextMenu.cs`／
+  `Controls/PreviewControl.ContextMenu.cs`／resw（ja/en）、
+  tests＝`MetadataStoreTests.cs`／`PhotoEvaluationTests.cs`。
+  `dotnet test` **180 件緑**（+7）／`BUILD SUCCEEDED`（x64 Debug）。
 
 ## 残タスク（記録・すべて完了済み）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。

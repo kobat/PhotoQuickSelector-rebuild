@@ -80,6 +80,18 @@ public sealed class EvaluationTimestamps
     }
 
     /// <summary>
+    /// 全項目の更新時刻を「不明」へ戻す（評価のリセット＝行削除に追随させる）。
+    /// 行が消えた以上、次に評価するまで時刻は存在しない。
+    /// </summary>
+    public void Reset()
+    {
+        _rating = Unknown;
+        _flagRating = Unknown;
+        Array.Clear(_colorLabels);
+        _updatedAt = Unknown;
+    }
+
+    /// <summary>
     /// DB から読んだ 1 行（null＝行なし／DB なし）から更新時刻を取り出す。
     /// フォルダ読み込み時に写真ごとに 1 つ作る。
     /// </summary>

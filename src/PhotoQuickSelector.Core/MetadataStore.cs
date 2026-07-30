@@ -190,6 +190,27 @@ public sealed class MetadataStore : IDisposable
         return new EvaluationSaveResult(ReadNullableTimestamp(reader, 0), ReadNullableTimestamp(reader, 1));
     }
 
+    /// <summary>
+    /// 1 ファイル分の評価を行ごと削除し、「一度も評価していない」状態へ戻す。
+    /// 全項目をまとめて解除する操作なので、値を NULL で上書きするのではなく行を消す
+    /// （更新時刻も残らず、未評価の写真と完全に同じ状態になる）。
+    ///
+    /// 行削除は tombstone を残さない＝「消した」事実がエクスポートに乗らないため、将来の
+    /// インポートで古いデータから評価が復活し得る（許容済み。docs/HISTORY.md 参照）。
+    /// DB がまだ無ければ何もしない（読み取りと同じくファイルを作らない）。
+    /// </summary>
+    /// <returns>削除した行があれば true（＝評価が登録されていた）。</returns>
+    public bool ClearEvaluation(string fileName)
+    {
+        if (!EnsureConnection(createIfMissing: false)) return false;
+
+        using var command = _connection!.CreateCommand();
+        // invalid_flag が立った行（旧アプリ由来・読み取り側では「無い」扱い）もまとめて消える。
+        command.CommandText = "DELETE FROM image_file_metadata WHERE file_name = @fn";
+        command.Parameters.AddWithValue("@fn", fileName);
+        return command.ExecuteNonQuery() > 0;
+    }
+
     // --- 忠実な読み取り（エクスポート／インポートの突き合わせ用） ---
 
     // SELECT する列（file_name → 評価値 7 列 → 更新時刻 7 列 → 行単位 updated_at）。

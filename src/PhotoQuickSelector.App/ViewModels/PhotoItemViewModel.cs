@@ -274,6 +274,11 @@ public partial class PhotoItemViewModel : ObservableObject
     {
         Eval.SetRating(value);
         EvalTimestamps.SetRating(_store.SaveRating(FileName, Eval.PersistedRating));
+        NotifyRating();
+    }
+
+    private void NotifyRating()
+    {
         OnPropertyChanged(nameof(RatingStars));
         OnPropertyChanged(nameof(RatingForeground)); // EXIF由来→ユーザー変更で色が変わる
         OnPropertyChanged(nameof(RatingVisibility));
@@ -323,6 +328,12 @@ public partial class PhotoItemViewModel : ObservableObject
         EvalTimestamps.SetColorLabel(
             label, _store.SaveColorLabel(FileName, label, Eval.GetPersistedColorLabel(label)));
         OnPropertyChanged($"{label}Visibility");
+        NotifyColorLabelSummary();
+    }
+
+    /// <summary>個々の色ドット以外（枠線色・ドット群・評価バッジ）の再評価を促す。</summary>
+    private void NotifyColorLabelSummary()
+    {
         OnPropertyChanged(nameof(ColorLabelBorderBrush));
         OnPropertyChanged(nameof(ColorDotsVisibility));
         OnPropertyChanged(nameof(HasAnyEvalVisibility));
@@ -337,6 +348,25 @@ public partial class PhotoItemViewModel : ObservableObject
         foreach (var label in ColorLabelOrder)
             if (Eval.HasColorLabel(label))
                 ToggleColorLabel(label);
+    }
+
+    /// <summary>
+    /// この写真の評価（レーティング・フラグ・カラーラベル）をすべて解除し、DB からも行ごと消す
+    /// ＝「一度も評価していない」状態へ戻す。項目単位のクリア（<see cref="SetRating"/>(0) や
+    /// <see cref="ClearColorLabels"/>）が明示的な 0 を残すのと違い、未設定に戻るのでレーティングは
+    /// EXIF(xmp:Rating) 値へフォールバックし、★も EXIF 由来の淡い色に戻る。
+    /// </summary>
+    public void ResetEvaluation()
+    {
+        Eval.Reset();
+        _store.ClearEvaluation(FileName);
+        EvalTimestamps.Reset();
+
+        NotifyRating();
+        NotifyFlag();
+        foreach (var label in ColorLabelOrder)
+            OnPropertyChanged($"{label}Visibility");
+        NotifyColorLabelSummary();
     }
 
     /// <summary>

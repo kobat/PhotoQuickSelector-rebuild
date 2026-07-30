@@ -718,6 +718,9 @@ Log: {1}</value>
   <data name="Ctx_Flag_Reject" xml:space="preserve">
     <value>Reject</value>
   </data>
+  <data name="Ctx_ResetEval" xml:space="preserve">
+    <value>Reset evaluation</value>
+  </data>
   <data name="Ctx_CopyFiles" xml:space="preserve">
     <value>Copy files</value>
   </data>
@@ -840,6 +843,9 @@ Log: {1}</value>
   </data>
   <data name="BulkWarn_CopyMessage" xml:space="preserve">
     <value>You are about to copy {0} files to the clipboard. Preparing many files takes time, so pasting may not be available immediately. Continue?</value>
+  </data>
+  <data name="BulkWarn_ResetMessage" xml:space="preserve">
+    <value>You are about to clear the evaluation (rating, flag, color labels) of {0} files. This cannot be undone. Continue?</value>
   </data>
   <data name="Share_MultipleTitle" xml:space="preserve">
     <value>{0} files</value>
