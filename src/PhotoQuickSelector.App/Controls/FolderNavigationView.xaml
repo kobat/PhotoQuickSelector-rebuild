@@ -116,10 +116,14 @@
             </ListView>
         </Expander>
 
+        <!-- CanDragItems/CanReorderItems は TreeView 既定が true。ノードのドラッグに「移動」と
+             表示され、ドロップするとディスクと無関係にツリー表示が並べ替わるだけなので無効化する。 -->
         <TreeView
             x:Name="FolderTree"
             Grid.Row="2"
             SelectionMode="Single"
+            CanDragItems="False"
+            CanReorderItems="False"
             Expanding="FolderTree_Expanding"
             DoubleTapped="FolderTree_DoubleTapped"
             KeyDown="FolderTree_KeyDown">

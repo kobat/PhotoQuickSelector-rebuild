@@ -2490,6 +2490,26 @@ EXIF 等**にした。評価は項目ごとの**更新日時**も併記する（
   tests＝`MetadataStoreTests.cs`／`PhotoEvaluationTests.cs`。
   `dotnet test` **180 件緑**（+7）／`BUILD SUCCEEDED`（x64 Debug）。
 
+## フォルダツリーのドラッグ並べ替えを無効化（2026-07-30）
+
+左ペインのフォルダをドラッグすると「移動」と表示される、という指摘の調査と対処。
+
+**調査結果＝実装コードは存在しない**。リポジトリ全体で `AllowDrop` / `CanDragItems` /
+`CanReorderItems` / `DragOver` / `DragItemsStarting` / `Drop` ハンドラ／`Directory.Move` はいずれも 0 件。
+`FolderNavigationView.xaml` の `TreeView` は `SelectionMode` / `Expanding` / `DoubleTapped` / `KeyDown`
+しか指定していない。**「移動」表示の正体は WinUI `TreeView` の既定挙動**（`CanDragItems`・
+`CanReorderItems` はフレームワーク既定が `true`、既定テンプレートの内部 `TreeViewList` が `AllowDrop`）で、
+ツリーの**ノード並べ替え**用。TreeView が導入された `89bbe07`（2026-06-14, Phase 2）から
+ずっとこの状態だった＝意図して付けた機能ではない。
+
+**ディスク上のフォルダは動かない**。起こりうるのは `FolderNode.Children` 内でのノード移動＝表示の乱れだけで、
+順序は永続化されず `LoadChildren()` の差分同期（パス昇順）で戻る。ただし CLAUDE.md「既知の注意点」のとおり
+WinUI TreeView は内部状態が壊れやすいので、誤操作の余地を残す意味がない。
+
+**対処**: `TreeView` に `CanDragItems="False"` `CanReorderItems="False"` を明示。
+理由は XAML 側にコメントで残した（既定 true を打ち消す指定は、無いと「なぜ書いてあるか」が読めないため）。
+変更: `Controls/FolderNavigationView.xaml` のみ。`BUILD SUCCEEDED`（x64 Debug）。
+
 ## 残タスク（記録・すべて完了済み）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**
