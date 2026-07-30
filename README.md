@@ -73,8 +73,9 @@
 
 ## インストール／起動
 
-1. [Releases](https://github.com/kobat/PhotoQuickSelector-rebuild/releases) から最新の EXE をダウンロードします。
-2. ダウンロードした EXE を実行します。
+1. [Releases](https://github.com/kobat/PhotoQuickSelector-rebuild/releases) から最新の zip をダウンロードします。
+2. zip を任意の場所へ展開します（`PhotoQuickSelector.App.exe`＋`LICENSE`＋`THIRD-PARTY-NOTICES.txt`）。
+3. `PhotoQuickSelector.App.exe` を実行します。
 
 > **メモ:** 署名なし配布のため、初回起動時に Windows SmartScreen の警告が出る場合があります。
 > その場合は「詳細情報」→「実行」で起動できます。

@@ -73,8 +73,9 @@ Review photos in a local folder with keyboard-centric controls, and cull them wi
 
 ## Install / Run
 
-1. Download the latest EXE from [Releases](https://github.com/kobat/PhotoQuickSelector-rebuild/releases).
-2. Run the downloaded EXE.
+1. Download the latest zip from [Releases](https://github.com/kobat/PhotoQuickSelector-rebuild/releases).
+2. Extract the zip anywhere you like (`PhotoQuickSelector.App.exe`, `LICENSE`, and `THIRD-PARTY-NOTICES.txt`).
+3. Run `PhotoQuickSelector.App.exe`.
 
 > **Note:** The distribution is unsigned, so Windows SmartScreen may warn you on first launch.
 > Choose "More info" → "Run anyway" to start the app.
