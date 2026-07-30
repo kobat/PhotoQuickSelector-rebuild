@@ -27,10 +27,23 @@ public sealed partial class AboutDialog : ContentDialog
         DatabaseNameText.Text = Loc.Get("About_DatabaseFileFormat", AppSettings.DatabaseFileName);
     }
 
-    /// <summary>アセンブリのバージョンを "x.y.z" 形式で返す（取得できなければ既定値）。</summary>
+    /// <summary>
+    /// アセンブリのバージョンを "x.y.z"（開発中は "x.y.z-dev"）形式で返す（取得できなければ既定値）。
+    /// csproj の &lt;Version&gt; がそのまま載るのは AssemblyInformationalVersion だけなので優先して読む
+    /// （AssemblyVersion は数値4組で、プレリリース表記が落ちる）。ビルド構成によっては
+    /// "+&lt;git sha&gt;" が付くため '+' 以降は捨てる。
+    /// </summary>
     private static string GetVersionText()
     {
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        var assembly = Assembly.GetExecutingAssembly();
+        var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(informational))
+        {
+            var plus = informational.IndexOf('+');
+            return plus < 0 ? informational : informational[..plus];
+        }
+
+        var version = assembly.GetName().Version;
         return version is null ? "1.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
 

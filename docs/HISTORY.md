@@ -2534,6 +2534,34 @@ csproj `<Version>` を 0.2.1 に更新。発行・添付は v0.2.0 で確定し�
   インストール手順を zip 前提へ修正）→ `main` へ push → `v0.2.1` タグ → `gh release create`（Pre-release・
   `PhotoQuickSelector-0.2.1-win-x64.zip` 添付）。`dotnet test` 180 件緑。
 
+## 開発中バージョンのプレリリース表記（`-dev`）（2026-07-31）
+
+**動機**: 開発中のビルドを、リリース済みの版と見分けたい（v0.2.1 リリース後に 0.2.2 へ向けて作業中、
+という状態をバージョン表示で表したい）。
+
+**バージョン文字列に英字が使えるか**の切り分け:
+
+| 箇所 | 英字 | 備考 |
+|---|---|---|
+| csproj `<Version>` | 可 | SemVer のプレリリース表記。`0.2.2-dev` でビルドできる（MSIX ツーリング下でも `BUILD SUCCEEDED`） |
+| `AssemblyVersion` / `AssemblyFileVersion` | 不可 | `<Version>` の数値部（`VersionPrefix`）だけを採る＝`0.2.2.0`。`-dev` は落ちる |
+| `AssemblyInformationalVersion` | 可 | `0.2.2-dev` がそのまま載る。**`-dev` が残るのはここだけ** |
+| `Package.appxmanifest` の `Version` | 不可 | MSIX 仕様で数値4組固定（第4フィールドは Store 予約＝0）。開発中でも数値のみ上げる |
+
+**採った方式（案A）**: csproj `<Version>` を `0.2.2-dev` とし、**リリースのコミットで `-dev` を外す**。
+SemVer の順序も `0.2.2-dev < 0.2.2` で正しい。ビルド構成（Debug/Release）に紐づける案Bも検討したが、
+「未リリースの 0.2.2 を Release ビルドした exe」が本物のリリース版と同じ表示になってしまうため見送り。
+
+**変更点**:
+- `PhotoQuickSelector.App.csproj`: `<Version>0.2.2-dev</Version>`＋
+  `<IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>`。
+  後者が無いと InformationalVersion が `0.2.2-dev+<git sha>` になり、そのまま画面に出せない。
+- `Controls/AboutDialog.xaml.cs`: `GetVersionText()` を `Assembly.GetName().Version`（＝数値のみ）から
+  `AssemblyInformationalVersionAttribute` 優先の読み取りへ。`+` 以降は捨て、属性が無ければ従来の数値表示へフォールバック。
+- `Package.appxmanifest`: `Version="0.2.2.0"`（数値のみ。ここは開発版と区別できない）。
+
+**リリース時の手順への追加**: csproj の `-dev` を外す（appxmanifest の版上げと同じコミットで行う）。
+
 ## 残タスク（記録・すべて完了済み）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**
