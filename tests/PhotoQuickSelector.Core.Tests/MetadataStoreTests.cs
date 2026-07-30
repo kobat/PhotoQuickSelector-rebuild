@@ -152,4 +152,292 @@ public sealed class MetadataStoreTests : IDisposable
         Assert.Null(e.PersistedRating);
         Assert.Equal(1, e.Rating); // EXIF フォールバックに戻る
     }
+
+    // --- 更新時刻の記録（スキーマ v2） ---
+
+    /// <summary>時刻を明示的に進められる時計。更新時刻の前後関係を決定的に検証するため。</summary>
+    private sealed class FakeTimeProvider : TimeProvider
+    {
+        private DateTimeOffset _now;
+
+        public FakeTimeProvider(DateTimeOffset start) => _now = start;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan delta) => _now += delta;
+
+        public void Set(DateTimeOffset now) => _now = now;
+    }
+
+    private static readonly DateTimeOffset T0 =
+        new(2026, 7, 30, 12, 0, 0, TimeSpan.Zero);
+
+    private MetadataStore CreateStore(FakeTimeProvider clock)
+        => new(_folder, databaseFileName: null, timeProvider: clock);
+
+    [Fact]
+    public void Save_RecordsUpdatedAtForThatFieldAndRow()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0100.JPG";
+
+        store.SaveRating(file, 3);
+
+        var r = store.LoadRecord(file);
+        Assert.NotNull(r);
+        Assert.Equal(3, r!.Rating);
+        Assert.Equal(T0, r.RatingUpdatedAt);
+        Assert.Equal(T0, r.UpdatedAt);
+    }
+
+    [Fact]
+    public void Save_LeavesUntouchedFieldsWithoutUpdatedAt()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0101.JPG";
+
+        store.SaveRating(file, 3);
+
+        var r = store.LoadRecord(file)!;
+        Assert.Null(r.FlagRating);
+        Assert.Null(r.FlagRatingUpdatedAt);
+        foreach (var label in Enum.GetValues<ColorLabel>())
+        {
+            Assert.Null(r.GetColorLabel(label));
+            Assert.Null(r.GetColorLabelUpdatedAt(label));
+        }
+    }
+
+    [Fact]
+    public void SaveSameValue_DoesNotAdvanceUpdatedAt()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0102.JPG";
+
+        store.SaveRating(file, 3);
+        clock.Advance(TimeSpan.FromHours(1));
+        store.SaveRating(file, 3); // 同じ値の押し直し＝実質の変更なし
+
+        var r = store.LoadRecord(file)!;
+        Assert.Equal(T0, r.RatingUpdatedAt);
+        Assert.Equal(T0, r.UpdatedAt);
+    }
+
+    [Fact]
+    public void SaveDifferentValue_AdvancesUpdatedAt()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0103.JPG";
+
+        store.SaveRating(file, 3);
+        clock.Advance(TimeSpan.FromHours(1));
+        store.SaveRating(file, 4);
+
+        var r = store.LoadRecord(file)!;
+        Assert.Equal(T0.AddHours(1), r.RatingUpdatedAt);
+        Assert.Equal(T0.AddHours(1), r.UpdatedAt);
+    }
+
+    [Fact]
+    public void ClearToNull_CountsAsChangeAndAdvancesUpdatedAt()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0104.JPG";
+
+        store.SaveRating(file, 5);
+        clock.Advance(TimeSpan.FromHours(1));
+        store.SaveRating(file, null); // 解除も「変更」として時刻を進める
+
+        var r = store.LoadRecord(file)!;
+        Assert.Null(r.Rating);
+        Assert.Equal(T0.AddHours(1), r.RatingUpdatedAt);
+    }
+
+    [Fact]
+    public void SaveNullOverNull_DoesNotAdvanceUpdatedAt()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0105.JPG";
+
+        store.SaveRating(file, 3); // 行を作る（flag は NULL のまま）
+        var flagUpdatedAtBefore = store.LoadRecord(file)!.FlagRatingUpdatedAt;
+        clock.Advance(TimeSpan.FromHours(1));
+        store.SaveFlagRating(file, null); // NULL → NULL は IS で等しいと判定される
+
+        var r = store.LoadRecord(file)!;
+        Assert.Null(flagUpdatedAtBefore);
+        Assert.Null(r.FlagRatingUpdatedAt);
+        Assert.Equal(T0, r.UpdatedAt); // 行単位も進まない
+    }
+
+    [Fact]
+    public void FieldUpdatedAt_AreIndependentPerField()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0106.JPG";
+
+        store.SaveRating(file, 2);
+        clock.Advance(TimeSpan.FromMinutes(10));
+        store.SaveFlagRating(file, 1);
+        clock.Advance(TimeSpan.FromMinutes(10));
+        store.SaveColorLabel(file, ColorLabel.Green, 1);
+
+        var r = store.LoadRecord(file)!;
+        Assert.Equal(T0, r.RatingUpdatedAt);
+        Assert.Equal(T0.AddMinutes(10), r.FlagRatingUpdatedAt);
+        Assert.Equal(T0.AddMinutes(20), r.GetColorLabelUpdatedAt(ColorLabel.Green));
+        Assert.Null(r.GetColorLabelUpdatedAt(ColorLabel.Red));
+        // 行単位は項目別の最大値。
+        Assert.Equal(T0.AddMinutes(20), r.UpdatedAt);
+    }
+
+    [Fact]
+    public void RowUpdatedAt_DoesNotGoBackwardsWhenClockRollsBack()
+    {
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        const string file = "DSC0107.JPG";
+
+        store.SaveRating(file, 2);
+        clock.Set(T0.AddHours(-1)); // 時計の巻き戻し
+        store.SaveFlagRating(file, 1);
+
+        var r = store.LoadRecord(file)!;
+        Assert.Equal(T0.AddHours(-1), r.FlagRatingUpdatedAt); // 項目別は実際の時刻を素直に記録
+        Assert.Equal(T0, r.UpdatedAt);                        // 行単位は後退しない
+    }
+
+    [Fact]
+    public void UpdatedAt_IsUtcWithSecondPrecision()
+    {
+        // ミリ秒とローカルオフセットを持つ時刻を与えても、UTC・秒精度で往復する。
+        var start = new DateTimeOffset(2026, 7, 30, 21, 34, 56, 789, TimeSpan.FromHours(9));
+        var clock = new FakeTimeProvider(start);
+        using var store = CreateStore(clock);
+        const string file = "DSC0108.JPG";
+
+        store.SaveRating(file, 1);
+
+        var actual = store.LoadRecord(file)!.RatingUpdatedAt;
+        Assert.NotNull(actual);
+        Assert.Equal(TimeSpan.Zero, actual!.Value.Offset);
+        Assert.Equal(0, actual.Value.Millisecond);
+        Assert.Equal(start.ToUnixTimeSeconds(), actual.Value.ToUnixTimeSeconds());
+    }
+
+    [Fact]
+    public void LoadRecord_ReturnsNull_WhenNoDatabaseOrNoRow()
+    {
+        using var store = new MetadataStore(_folder);
+
+        Assert.Null(store.LoadRecord("DSC0109.JPG")); // DB がまだ無い
+        Assert.False(store.DatabaseExists);           // 読み取りで作らない
+
+        store.SaveRating("DSC0110.JPG", 1);
+        Assert.Null(store.LoadRecord("DSC0109.JPG")); // 行が無い
+    }
+
+    [Fact]
+    public void LoadAllRecords_ReturnsAllRowsOrderedByFileName()
+    {
+        using var store = new MetadataStore(_folder);
+        Assert.Empty(store.LoadAllRecords()); // DB がまだ無い
+
+        store.SaveRating("DSC0202.JPG", 2);
+        store.SaveRating("DSC0201.JPG", 1);
+
+        var all = store.LoadAllRecords();
+        Assert.Equal(new[] { "DSC0201.JPG", "DSC0202.JPG" }, all.Select(r => r.FileName));
+        Assert.Equal(1, all[0].Rating);
+        Assert.Equal(2, all[1].Rating);
+    }
+
+    // --- スキーマ移行 / 前方互換 ---
+
+    /// <summary>
+    /// v1（更新時刻列なし）の DB を手で作る。移行と旧データの扱いを検証するため。
+    /// </summary>
+    private void CreateLegacyV1Database(string fileName, string schemaVersion = "1")
+    {
+        var path = Path.Combine(_folder, fileName);
+        using var connection = new System.Data.SQLite.SQLiteConnection(
+            new System.Data.SQLite.SQLiteConnectionStringBuilder { DataSource = path }.ToString());
+        connection.Open();
+
+        void Exec(string sql)
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            command.ExecuteNonQuery();
+        }
+
+        Exec("CREATE TABLE schema_info (key TEXT PRIMARY KEY, value TEXT)");
+        Exec($"INSERT INTO schema_info (key, value) VALUES ('schema_version', '{schemaVersion}')");
+        Exec(@"
+            CREATE TABLE image_file_metadata (
+                file_name           TEXT PRIMARY KEY,
+                rating              INTEGER,
+                flag_rating         INTEGER,
+                color_label_red     INTEGER,
+                color_label_yellow  INTEGER,
+                color_label_green   INTEGER,
+                color_label_blue    INTEGER,
+                color_label_purple  INTEGER,
+                invalid_flag        INTEGER NOT NULL DEFAULT 0
+            )");
+        Exec("INSERT INTO image_file_metadata (file_name, rating, color_label_blue) " +
+             "VALUES ('OLD0001.JPG', 4, 1)");
+    }
+
+    [Fact]
+    public void Migration_FromV1_KeepsValuesAndLeavesUpdatedAtNull()
+    {
+        CreateLegacyV1Database(MetadataStore.DefaultDatabaseFileName);
+
+        using var store = new MetadataStore(_folder);
+        var r = store.LoadRecord("OLD0001.JPG");
+
+        Assert.NotNull(r);
+        Assert.Equal(4, r!.Rating);                             // 既存の評価は保たれる
+        Assert.Equal(1, r.GetColorLabel(ColorLabel.Blue));
+        Assert.Null(r.RatingUpdatedAt);                         // いつ評価したかは不明＝NULL
+        Assert.Null(r.GetColorLabelUpdatedAt(ColorLabel.Blue));
+        Assert.Null(r.UpdatedAt);
+    }
+
+    [Fact]
+    public void Migration_FromV1_ThenEditRecordsUpdatedAtForThatFieldOnly()
+    {
+        CreateLegacyV1Database(MetadataStore.DefaultDatabaseFileName);
+
+        var clock = new FakeTimeProvider(T0);
+        using var store = CreateStore(clock);
+        store.SaveRating("OLD0001.JPG", 5);
+
+        var r = store.LoadRecord("OLD0001.JPG")!;
+        Assert.Equal(T0, r.RatingUpdatedAt);
+        Assert.Equal(T0, r.UpdatedAt);
+        Assert.Null(r.GetColorLabelUpdatedAt(ColorLabel.Blue)); // 触っていない項目は不明のまま
+    }
+
+    [Fact]
+    public void Open_FutureSchemaVersion_ThrowsAndKeepsThrowing()
+    {
+        // 将来版が書いた DB。知らない列を無視して書き込むとデータが壊れるので開かせない。
+        CreateLegacyV1Database(MetadataStore.DefaultDatabaseFileName, schemaVersion: "99");
+
+        using var store = new MetadataStore(_folder);
+
+        Assert.Throws<NotSupportedException>(() => store.LoadEvaluation("OLD0001.JPG", 0));
+        // 接続を保持していないので 2 回目も素通りせず同じように弾かれる。
+        Assert.Throws<NotSupportedException>(() => store.LoadRecord("OLD0001.JPG"));
+        Assert.Throws<NotSupportedException>(() => store.SaveRating("OLD0001.JPG", 1));
+    }
 }

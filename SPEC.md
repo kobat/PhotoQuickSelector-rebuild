@@ -111,12 +111,20 @@
 - テーブル `image_file_metadata`（PK = `file_name`）。
 - 値変更時に即時 UPDATE（トランザクション）。
 - **スキーマバージョン管理（マイグレーション機構）**を持つ（`schema_info` テーブル）。
+  DB のバージョンがアプリの対応版より新しい場合は**開かずに失敗させる**（前方互換ガード）。
 - 表示用 rating の優先順位: **永続化値があればそれを、無ければ EXIF/XMP 値**。
+- **各評価項目の更新時刻を記録**（v2）。将来の評価エクスポート／インポートで競合を項目単位に
+  解決するための下準備。
+  - 値は Unix epoch 秒（UTC）の INTEGER。列名は `{値の列名}_updated_at`。
+  - **値が実際に変わったときだけ**進める（同じ値の押し直しでは進めない）。
+  - `updated_at`（行単位）は項目別更新時刻の最大値。
+  - v2 より前に付けた評価と未変更の項目は NULL（＝いつ評価したか不明）。
 
-#### スキーマ（v1）
+#### スキーマ（v2）
 ```sql
 CREATE TABLE schema_info (key TEXT PRIMARY KEY, value TEXT);
 
+-- v1
 CREATE TABLE image_file_metadata (
     file_name           TEXT PRIMARY KEY,
     rating              INTEGER,
@@ -128,6 +136,16 @@ CREATE TABLE image_file_metadata (
     color_label_purple  INTEGER,
     invalid_flag        INTEGER NOT NULL DEFAULT 0
 );
+
+-- v2: 評価項目ごとの更新時刻＋行単位の更新時刻（いずれも Unix epoch 秒・UTC）
+ALTER TABLE image_file_metadata ADD COLUMN rating_updated_at             INTEGER;
+ALTER TABLE image_file_metadata ADD COLUMN flag_rating_updated_at        INTEGER;
+ALTER TABLE image_file_metadata ADD COLUMN color_label_red_updated_at    INTEGER;
+ALTER TABLE image_file_metadata ADD COLUMN color_label_yellow_updated_at INTEGER;
+ALTER TABLE image_file_metadata ADD COLUMN color_label_green_updated_at  INTEGER;
+ALTER TABLE image_file_metadata ADD COLUMN color_label_blue_updated_at   INTEGER;
+ALTER TABLE image_file_metadata ADD COLUMN color_label_purple_updated_at INTEGER;
+ALTER TABLE image_file_metadata ADD COLUMN updated_at                    INTEGER;
 ```
 
 ### 3-4. フィルタ
@@ -208,6 +226,7 @@ PhotoQuickSelector.slnx
 │   │     ├── MetadataReader            … MetadataExtractor を用いた抽出
 │   │     ├── PhotoEvaluation           … rating/flag/colorlabel のドメインモデル
 │   │     ├── MetadataStore             … SQLite 永続化（スキーマ移行込み・初回書き込みまで遅延作成）
+│   │     ├── EvaluationRecord          … 評価 1 行の忠実な写し（値＋更新時刻。エクスポート/インポート用）
 │   │     └── PhotoFilter / RejectMove / CopyRename / FileMove … 絞込・bat 出力の純ロジック
 │   └── PhotoQuickSelector.App/         … WinUI 3 アプリ（画面・描画・入力）
 │         ├── MainWindow / MainPage     … キー入力の集約と 3 カラム骨組み（GridSplitter + 折りたたみ）

@@ -2268,6 +2268,85 @@ finalizer 保持ではなく**生成レート飽和**と確定している。今
   `Controls/PreviewControl.xaml.cs`、`Controls/PreviewControl.Input.cs`、`shortcuts.json`（＋生成物）、
   `SPEC.md`。`BUILD SUCCEEDED`（x64 Debug・警告0）／`dotnet test` 150 件緑。**実機確認はユーザー実施待ち**。
 
+## 評価データの更新時刻の記録（スキーマ v2）（2026-07-30）
+
+**背景**: 将来「評価のエクスポート／インポート」を作りたい。別マシン間で持ち込んだときの競合を
+「後から評価した方を採る」で解けるようにするため、先に**変更時刻を記録するだけ**を入れておく
+（インポート機能はフェーズ B）。
+
+**方針（ユーザー確定）**:
+- **粒度は項目別 7 列**（rating / flag_rating / カラーラベル 5 色）**＋行単位 `updated_at`**。
+  項目別にしたのは、既存の書き込み口 `UpsertColumn(fileName, column, value)` がもともと項目単位で、
+  「ローカルでレーティング、リモートでカラーラベル」を変更した競合でも取りこぼさずマージできるから。
+  行単位 `updated_at` は項目別の最大値を持つ冗長列で、「前回エクスポート以降に変わった行」を
+  7 列見ずに拾うため。
+- **値の形式は Unix epoch 秒（UTC）の INTEGER**。DB ビューアで直接覗く用途がないので数値型。
+  同時に複数箇所から操作されるアプリではないので、同一項目がミリ秒レベルで競合することはない。
+- **既存行は NULL のまま**（＝いつ評価したか不明）。インポート時は「更新時刻が NULL の項目は上書き可」
+  で整理する。未変更の項目も NULL になるので、規則が 1 本で済む。
+- UI 表示は含めない（記録だけ）。旧アプリとの関係は文書化しない（利用者が作者のみのため）。
+
+**実装（Core のみ。App は無変更で通った）**:
+- `CurrentSchemaVersion` を 2 に。`Migrate_2()` で `ALTER TABLE ADD COLUMN ... INTEGER` を 8 本。
+  ALTER ADD COLUMN はテーブル書き換えを伴わないので既存 DB でも一瞬。既存行は NULL のまま残る。
+- 列名は `{値の列名}_updated_at`。命名規則の定義点は `MetadataStore.UpdatedAtColumn(string)` の 1 箇所。
+- 読み取りは新設の `EvaluationRecord`（全列忠実・読み取り専用ビュー）＋`LoadRecord` / `LoadAllRecords`。
+  **`PhotoEvaluation` / `LoadEvaluation` は一切触っていない**。UI に出さない 7 個の日時で表示用の
+  ドメインモデルを膨らませないため。エクスポート実装でもこの record をそのまま使える。
+- 時計は `TimeProvider`（ctor 第 3 引数・既定 `TimeProvider.System`）で注入。テストで前後関係を固定するため。
+  epoch 秒は 2038 年に int32 を溢れるので C# 側も `long`（既存の `ReadNullableInt` は流用不可）。
+
+**要点 1: 更新時刻は「値が実際に変わったときだけ」進める**。現状のコードは既に 3 の写真で `3` を押しても
+無条件に書き込む（`FlagUp` が上限で変化なしのケースも同じ）。ここで時刻を打つと、**見ただけの押し直しが
+「最新の評価」に化けて競合判定を反転させる**。upsert 1 文で条件付き更新にした:
+
+```sql
+INSERT INTO image_file_metadata (file_name, rating, rating_updated_at, updated_at)
+VALUES (@fn, @val, @now, @now)
+ON CONFLICT(file_name) DO UPDATE SET
+    rating            = @val,
+    rating_updated_at = CASE WHEN rating IS @val THEN rating_updated_at ELSE @now END,
+    updated_at        = CASE WHEN rating IS @val THEN updated_at
+                             WHEN updated_at IS NULL OR updated_at < @now THEN @now
+                             ELSE updated_at END
+```
+
+- `DO UPDATE SET` の右辺に現れる**修飾なしの列名は「更新前の行の値」**を指す。だから `rating IS @val` が
+  旧値と新値の比較になる（新値側は `excluded.rating`）。この挙動に依存しているのでテストで固定した。
+- `=` ではなく **`IS`**（NULL 安全な等価）。`=` だと NULL 同士の比較が NULL になり、未評価→未評価が
+  「変更あり」と判定されてしまう。
+- 行単位 `updated_at` は**時計が巻き戻っても後退させない**（既存値より新しいときだけ進める）。
+- 解除（値→NULL、カラーの 0）は実値の変化なので時刻が進む。これは意図どおりで、
+  「明示的に外した」がインポートで古いデータに勝てる。
+
+**要点 2: 前方互換ガードを追加**。`EnsureSchema` は `while (version < Current)` だけだったので、
+**将来版が書いた DB を古い版が黙って開き、知らない列を放置したまま値だけ書き換える**余地があった
+（v1 の版が v2 の DB を触ると時刻が嘘になるのが実例）。`version > CurrentSchemaVersion` で
+`NotSupportedException` にした。あわせて `EnsureConnection` を、**スキーマ確認に失敗した接続は
+保持せず破棄する**形に変更。保持すると次回以降 `_connection != null` の early return で判定を素通りし、
+1 回目だけ弾いて 2 回目から書き込んでしまう（テストで固定済み）。App 側は `LoadFolderAsync` の
+try/catch が拾ってステータスバーに出るのでクラッシュしない。
+
+**フェーズ B（インポート実装時）への申し送り**:
+- **`max(a,b,...)`（複数引数のスカラー版）は引数に 1 つでも NULL があると NULL を返す**（集約 `MAX()` が
+  NULL を無視するのとは挙動が違う）。項目別 7 列から最大を取るときに素朴に書くと未評価項目の NULL で
+  全行が漏れる。行単位 `updated_at` を持たせたのはこれを避ける意味もある。
+- 「更新時刻 NULL は上書き可」の帰結として、**初回インポートでは既存の全評価がインポート側に負ける**
+  （古いバックアップを取り込むと現行評価が潰れる）。逃げ道が必要なら
+  インポート UI に「更新時刻が不明な項目も上書きする」チェックを 1 つ置く。両側 NULL も同じ規則でリモート勝ち。
+- 同一性キーが `file_name` である脆さ（リネーム・別フォルダ間の衝突）。撮影日時・機種・寸法での照合は
+  画像から都度読めるので DB には持たせていない。
+- 行削除も NULL 書き戻しも起きない（解除は 0/NULL という実値の変更として記録される）ので、
+  **tombstone の設計は不要**で項目単位 LWW だけで足りる。
+- 一括評価は 1 枚ずつ別の時刻になるが、同一秒に並ぶのは**別ファイルの行**なので競合判定
+  （同一ファイルの同一項目）には影響しない。時刻を揃える対応は入れていない。
+- `invalid_flag` はアプリが書いておらず、`LoadRecord` / `LoadAllRecords` も `LoadEvaluation` と同様に
+  立っている行を「無い」ものとして除外している。
+
+- 変更/新規: `Core/EvaluationRecord.cs`（新規）、`Core/MetadataStore.cs`、
+  `tests/MetadataStoreTests.cs`。`dotnet test` **164 件緑**（+14）／`BUILD SUCCEEDED`（x64 Debug）。
+  App は署名互換（`timeProvider` は省略可）で無変更。
+
 ## 残タスク（記録・すべて完了済み）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**
