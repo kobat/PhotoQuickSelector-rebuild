@@ -35,6 +35,7 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="マネージド"
@@ -58,6 +59,14 @@
                 <TextBlock Grid.Row="1" Grid.Column="3" x:Name="WorkingSetValue" Margin="8,0,0,0"
                            MinWidth="72" TextAlignment="Right"
                            FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
+
+                <!-- GC 管轄外（プライベート − GCコミット）。GC では動かない領域なので、
+                     メモリ肥大の原因がマネージド側かネイティブ側かの切り分けに使う。 -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="ネイティブ"
+                           FontSize="11" Foreground="#E8FFFFFF" />
+                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="NativeValue" Margin="8,0,0,0"
+                           MinWidth="72" TextAlignment="Right"
+                           FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
             </Grid>
 
             <TextBlock x:Name="GcCountText" FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
@@ -73,15 +82,20 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="マネージド"
                                FontSize="11" Foreground="#FF7CE38B" />
                     <TextBlock Grid.Row="0" Grid.Column="1" x:Name="CollectManagedValue" Margin="8,0,0,0"
                                FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="WS"
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="ネイティブ"
                                FontSize="11" Foreground="#FF7CE38B" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CollectWorkingSetValue" Margin="8,0,0,0"
+                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CollectNativeValue" Margin="8,0,0,0"
+                               FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="WS"
+                               FontSize="11" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="CollectWorkingSetValue" Margin="8,0,0,0"
                                FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
                 </Grid>
             </StackPanel>

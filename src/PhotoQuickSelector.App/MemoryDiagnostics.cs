@@ -14,7 +14,21 @@ namespace PhotoQuickSelector_App;
 /// <param name="PrivateBytes">プロセスのプライベートコミット（タスクマネージャーの「コミット サイズ」）。</param>
 /// <param name="WorkingSetBytes">プロセスのワーキングセット（タスクマネージャーの「メモリ」に相当）。</param>
 public readonly record struct MemorySnapshot(
-    long ManagedBytes, long CommittedBytes, long PrivateBytes, long WorkingSetBytes);
+    long ManagedBytes, long CommittedBytes, long PrivateBytes, long WorkingSetBytes)
+{
+    /// <summary>
+    /// GC の管轄外で使っているメモリの概算（プライベート − GC コミット）。
+    /// Win2D/D3D のテクスチャ・WIC のデコードバッファ等、GC の設定やモードでは一切動かない領域を
+    /// 切り分けるための値。
+    /// <para>
+    /// あくまで概算。<see cref="PrivateBytes"/> は現在値だが <see cref="CommittedBytes"/> は
+    /// 直前の GC 時点のスナップショット（<see cref="GC.GetGCMemoryInfo(GCKind)"/> の仕様）なので、
+    /// GC がしばらく走っていないと差が過大に出る。GC 直後の値どうしで比べるのが最も正確。
+    /// 差が負になる状況（コミットの方が新しく見える）もあり得るので 0 でクランプする。
+    /// </para>
+    /// </summary>
+    public long NativeBytes => Math.Max(0, PrivateBytes - CommittedBytes);
+}
 
 /// <summary>
 /// デバッグ用のメモリ計測と強制 GC（<c>M</c> でオーバーレイ表示 / <c>Ctrl+M</c> で GC 実行）。
@@ -75,13 +89,24 @@ public static class MemoryDiagnostics
     /// ファイナライザ経由で解放されるアンマネージド資源（Win2D の CanvasBitmap 等の COM ラッパ）は
     /// 1 回の <see cref="GC.Collect()"/> では回収し切れないため、
     /// 「回収 → ファイナライザ待ち → もう一度回収」の 2 段で回す。
-    /// プレビュー用のピクセルバッファは LOH 行きの大きな byte[] なので、
-    /// 断片化ぶんも含めて減らせるよう LOH 圧縮も一度だけ有効にする。
+    /// 1 段目は浮かせるのが目的なので <see cref="GCCollectionMode.Forced"/>、
+    /// 2 段目だけ <see cref="GCCollectionMode.Aggressive"/> にする（両方 Aggressive にしても
+    /// 1 段目の decommit は 2 段目で上書きされるだけで、所要時間が伸びるだけ）。
     /// </para>
     /// <para>
-    /// 空き領域の OS への返却（decommit）は GC 1 回あたりの予算で分割実施されるため、
-    /// 1 回呼んだだけではワーキングセットは少ししか減らない（連打すると階段状に減る）。
-    /// これはランタイムの仕様であり、回収漏れではない。
+    /// <see cref="GCCollectionMode.Aggressive"/> は free list を捨てて空きリージョン/セグメントを
+    /// 積極的に OS へ返す。<see cref="GCCollectionMode.Forced"/> は「今すぐ回収しろ」だけで
+    /// 返却は GC 1 回あたりの予算で分割実施されるため、1 回押しでは WS が少ししか減らなかった
+    /// （連打で階段状に減る）。Aggressive は generation＝<see cref="GC.MaxGeneration"/> /
+    /// blocking / compacting の 3 つがすべて必須で、1 つでも欠けると
+    /// <see cref="ArgumentException"/> になる。
+    /// </para>
+    /// <para>
+    /// LOH 圧縮は <c>compacting: true</c> では効かず（そちらは SOH）、
+    /// <see cref="GCSettings.LargeObjectHeapCompactionMode"/> の指定が要る。しかもこの指定が
+    /// 効くのは次の「ブロッキング」gen2 GC なので、バックグラウンド GC では圧縮されない。
+    /// プレビュー用のピクセルバッファは LOH 行きの大きな byte[] なので、断片化ぶんも含めて
+    /// 減らせるよう一度だけ有効にする。
     /// </para>
     /// </summary>
     /// <returns>GC 前後のスナップショットと所要時間。</returns>
@@ -93,7 +118,7 @@ public static class MemoryDiagnostics
         GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
         GC.WaitForPendingFinalizers();
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 
         sw.Stop();
         return (before, Snapshot(), sw.Elapsed);

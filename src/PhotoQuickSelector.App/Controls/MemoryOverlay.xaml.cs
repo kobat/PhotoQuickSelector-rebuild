@@ -46,6 +46,7 @@ public sealed partial class MemoryOverlay : UserControl
         var (before, after, elapsed) = MemoryDiagnostics.ForceFullCollect();
         CollectHeader.Text = $"GC 実行（{elapsed.TotalMilliseconds:#,0}ms）";
         CollectManagedValue.Text = $"{MemoryDiagnostics.Mb(before.ManagedBytes)} → {MemoryDiagnostics.Mb(after.ManagedBytes)}";
+        CollectNativeValue.Text = $"{MemoryDiagnostics.Mb(before.NativeBytes)} → {MemoryDiagnostics.Mb(after.NativeBytes)}";
         CollectWorkingSetValue.Text = $"{MemoryDiagnostics.Mb(before.WorkingSetBytes)} → {MemoryDiagnostics.Mb(after.WorkingSetBytes)}";
         CollectPanel.Visibility = Visibility.Visible;
         SetShown(true);
@@ -86,6 +87,7 @@ public sealed partial class MemoryOverlay : UserControl
         CommittedValue.Text = MemoryDiagnostics.Mb(s.CommittedBytes);
         PrivateValue.Text = MemoryDiagnostics.Mb(s.PrivateBytes);
         WorkingSetValue.Text = MemoryDiagnostics.Mb(s.WorkingSetBytes);
+        NativeValue.Text = MemoryDiagnostics.Mb(s.NativeBytes);
         GcCountText.Text = $"GC回数  gen0 {GC.CollectionCount(0)} / gen1 {GC.CollectionCount(1)} / gen2 {GC.CollectionCount(2)}";
     }
 }

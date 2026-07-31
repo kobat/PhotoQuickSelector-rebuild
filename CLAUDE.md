@@ -80,7 +80,11 @@
   詳細は HISTORY.md「先読みキャッシュのバッファプール化」節）／
   **GC 設定 `System.GC.ConserveMemory`=7**（csproj の `RuntimeHostConfigurationOption`。プールで確保を減らした
   うえで、GC に圧縮・OS へのセグメント返却を促して WS の高止まりを解消。値は実機比較で選定＝5 は効果不足・
-  9 は停止が体感。詳細は HISTORY.md「GC の `System.GC.ConserveMemory` 設定」節）
+  9 は停止が体感。詳細は HISTORY.md「GC の `System.GC.ConserveMemory` 設定」節）／
+  **メモリ計測の強化**（`Ctrl+M` を `GCCollectionMode.Aggressive` 化＋`M` オーバーレイに「ネイティブ」行。
+  これで測ったところ **WS 肥大の主因は LOH ではなくネイティブ**＝確定解放できない `BitmapDecoder` 等が
+  ファイナライザ待ちで抱える分と判明〔GC 1 回でネイティブ −1,030MB／マネージドは −182MB のみ〕。
+  詳細は HISTORY.md「メモリ肥大の原因調査」節）
 - **配布**: unpackaged 自己完結 EXE（フォルダ／単一ファイルの pubxml 2 系統）・LICENSE／
   THIRD-PARTY-NOTICES 同梱・アプリアイコン・README（日英）。
   **GitHub Release へ添付する既定は単一ファイル版**（`win-x64-singlefile`＝exe＋LICENSE＋THIRD-PARTY のみ・
@@ -90,9 +94,14 @@
 - 先読みキャッシュの解凍爆弾ガード（2026-07-07。巨大宣言寸法のテスト画像での再現確認は
   未実施＝作れば `C` オーバーレイで観察可能。通常画像への無影響はビルド＋テスト 103 件緑で確認済み）。
 （バッファ再利用プール〔2026-07-31〕はユーザーが実機確認済み。ただし単体ではまだ WS が多めだったため、
-GC 設定 `System.GC.ConserveMemory`=7 を併用して解消＝2026-08-01。）
+GC 設定 `System.GC.ConserveMemory`=7 を併用〔2026-08-01〕。さらに計測の結果 WS 肥大の主因は LOH ではなく
+ネイティブ〔確定解放できない `BitmapDecoder` 等〕と判明＝同日。対応方法は検討中。）
 
 **次の候補（未着手）**:
+- **ネイティブメモリの肥大への対応**（2026-08-01 に原因特定＝確定解放できない `BitmapDecoder` 等が
+  ファイナライザ待ちでアンマネージド メモリを 1〜2GB 抱える。**対応方法は検討中**。候補＝①アイドル時の自動 GC
+  〔対症療法。実装案は HISTORY「メモリ肥大の原因調査」節の申し送りにある〕、②デコード経路で
+  `BitmapDecoder` の生存期間を短くする〔本筋〕。**着手前に HISTORY.md「メモリ肥大の原因調査」節を読むこと**）。
 - **使っていない間のキャッシュ解放**（`PreviewBitmapCache.Clear()` は実装済みだが**呼び出し元が無い**。
   プレビュー退出・フォルダ切替・ウィンドウ非アクティブでも 2GB が常駐し続け、別フォルダへ移っても
   前フォルダのぶんが残る。`Clear()` はプールも空にする実装済みなので、呼ぶ箇所を決めるだけ。
@@ -174,9 +183,11 @@ GC 設定 `System.GC.ConserveMemory`=7 を併用して解消＝2026-08-01。）
   保持0ms/フェード400ms（`AppSettings.BadgeTransient`/`BadgeHoldMs`/`BadgeFadeMs`）、詳細情報:常時・保持1000ms/
   フェード400ms（`AppSettings.FullTransient`/`FullHoldMs`/`FullFadeMs`）。保持/フェードは設定＞一般で種類別に ms 指定 /
   `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
-- `M` メモリ使用量オーバーレイの切替 / `Ctrl+M` 強制フル GC（デバッグ・両モード共通。`Controls/MemoryOverlay`＋
-  `MemoryDiagnostics`）。オーバーレイは MainPage 右下・500ms 周期の自己更新（キャッシュ一覧とは分離。理由は
-  HISTORY「メモリオーバーレイの分離」節）
+- `M` メモリ使用量オーバーレイの切替 / `Ctrl+M` 強制フル GC（両モード共通。`Controls/MemoryOverlay`＋
+  `MemoryDiagnostics`。GC は `Forced`→ファイナライザ待ち→`Aggressive` の 2 段＋LOH `CompactOnce`）。
+  オーバーレイは MainPage 右下・500ms 周期の自己更新（キャッシュ一覧とは分離。理由は
+  HISTORY「メモリオーバーレイの分離」節）。表示は マネージド／GCコミット／プライベート／WS／**ネイティブ**
+  （＝プライベート − GCコミット＝GC 管轄外）＋直近の GC 前後値（`Ctrl+M` とアイドル GC で共用）
 - プレビュー中: `E` 右パネル上段をルーペ⇄**画像情報**で切替（上段のタブクリックでも可。状態は
   `AppSettings.PreviewExifPanel` に永続化＝キー名は旧称のまま）。並びは **File → 評価（このアプリ）→ EXIF 等**。
   評価は項目ごとの値＋**更新日時**（不明は `—`／未設定は「未設定」）を表示し、評価変更では ListView を
