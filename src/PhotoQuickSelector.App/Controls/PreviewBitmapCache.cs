@@ -96,6 +96,8 @@ internal sealed class PixelFrame
 /// </para>
 /// <para>
 /// 破棄は <see cref="Trim"/>（現在窓を保護した LastUse 単独 LRU＋バイト予算 <see cref="MaxCacheBytes"/>）。
+/// 破棄した <c>byte[]</c> は <see cref="PixelBufferPool"/> へ返して次のデコードで再利用する
+/// （マネージドヒープに 200MB 級のゴミを積まないため。詳細は <see cref="PixelBufferPool"/>）。
 /// </para>
 /// UI 非依存（WinRT の imaging API のみに依存し Win2D デバイスを必要としない）なので単体テスト可能。
 /// </summary>
@@ -104,8 +106,41 @@ internal sealed class PreviewBitmapCache
     /// <summary>同時に走らせるデコードの上限（構築時に <see cref="_gate"/> のサイズを決める。変更は再構築が必要）。</summary>
     public int MaxConcurrentDecodes { get; }
 
-    /// <summary>キャッシュの合計バイト予算（既定 2GB。<see cref="Trim"/> が参照。実行中に変更可）。</summary>
-    public long MaxCacheBytes { get; set; } = 2L << 30;
+    /// <summary>
+    /// 合計バイト予算（デコード済みキャッシュ＋バッファプール）。設定の「キャッシュ容量予算」そのもので、
+    /// 常駐量はこの値で頭打ちになる。内訳は <see cref="PoolRatioPercent"/> で分割する
+    /// （<see cref="SetBudget"/>）。
+    /// </summary>
+    public long MaxTotalBytes { get; private set; }
+
+    /// <summary>合計予算のうちバッファプールへ割り当てる割合（%）。残りがデコード済みキャッシュの予算。</summary>
+    public int PoolRatioPercent { get; private set; }
+
+    /// <summary>デコード済みキャッシュの予算（＝<see cref="MaxTotalBytes"/> − プール予算）。<see cref="Trim"/> が参照。</summary>
+    public long MaxCacheBytes { get; private set; }
+
+    /// <summary>バッファプールの予算。</summary>
+    public long MaxPoolBytes => _pool.MaxBytes;
+
+    /// <summary>プールが現在抱えている本数／バイト数／ヒット・ミス回数（デバッグオーバーレイ用）。</summary>
+    public int PooledBufferCount => _pool.Count;
+    public long PooledBytes => _pool.PooledBytes;
+    public long PoolHitCount => _pool.HitCount;
+    public long PoolMissCount => _pool.MissCount;
+
+    /// <summary>
+    /// 合計予算と内訳の割合を設定する。例: 2GB・25% なら キャッシュ 1.5GB／プール 0.5GB。
+    /// 割合 0 ならプールを使わない（デコードのたびに新規確保＝プール導入前の挙動）。
+    /// </summary>
+    /// <param name="totalBytes">合計予算（キャッシュ＋プール）。</param>
+    /// <param name="poolRatioPercent">プールへ割り当てる割合（0〜90 にクランプ）。</param>
+    public void SetBudget(long totalBytes, int poolRatioPercent)
+    {
+        MaxTotalBytes = Math.Max(0, totalBytes);
+        PoolRatioPercent = Math.Clamp(poolRatioPercent, 0, 90);
+        _pool.MaxBytes = MaxTotalBytes * PoolRatioPercent / 100;
+        MaxCacheBytes = MaxTotalBytes - _pool.MaxBytes;
+    }
 
     /// <summary>
     /// デコード後ピクセル（BGRA8＝幅×高さ×4 バイト）の 1 枚あたり上限。解凍爆弾対策：JPEG はヘッダ上
@@ -140,6 +175,9 @@ internal sealed class PreviewBitmapCache
     // ゲートを取得してファイル読み込み＋デコード中のパス（ゲート順番待ちの待機中と区別する）。
     private readonly HashSet<string> _loading = new(StringComparer.OrdinalIgnoreCase);
     private readonly DecodeGate _gate;
+    private readonly PixelBufferPool _pool = new();
+    // Trim が破棄したバッファの返却待ち行列（1 ターン遅延させる理由は FlushPendingReturns の注記）。
+    private readonly List<byte[]> _pendingReturns = new();
     private int _generation; // Clear（全破棄）でキャッシュを無効化する世代
     private long _useCounter; // LastUse 採番用の単調増分カウンタ（DateTime は使わない）
 
@@ -148,6 +186,8 @@ internal sealed class PreviewBitmapCache
     {
         MaxConcurrentDecodes = Math.Max(1, maxConcurrentDecodes);
         _gate = new DecodeGate(MaxConcurrentDecodes);
+        // 実値は PreviewControl が設定から与える（ここは素の既定＝AppSettings と同値）。
+        SetBudget((long)(2.5 * (1L << 30)), 20);
     }
 
     /// <summary>キャッシュ内容（デコード済み / 読込中）が変化したときに発火する（デバッグオーバーレイ用）。</summary>
@@ -293,17 +333,49 @@ internal sealed class PreviewBitmapCache
                     // タグ無し（WINCODEC_ERR_PROPERTYNOTFOUND）等。色管理あり（従来動作）のままにする。
                 }
 
-                var pixels = await decoder.GetPixelDataAsync(
+                // ピクセルは SoftwareBitmap（アンマネージドバッファ）で受け取り、プールから借りた
+                // byte[] へ書き出す。GetPixelDataAsync + DetachPixelData は毎回「新しい」byte[] を返す
+                // 仕様でプールへ書けないため、200MB 級の LOH ゴミが積み上がる（ワーキングセット肥大の主因）。
+                // CopyToBuffer の 1 回コピーは DetachPixelData のマーシャリング（native→managed）と
+                // 同じ量・同じスレッドなので、切替時の CPU コストは従来と変わらない。
+                using var sb = await decoder.GetSoftwareBitmapAsync(
                     BitmapPixelFormat.Bgra8,
                     BitmapAlphaMode.Premultiplied,
                     new BitmapTransform(),
                     ExifOrientationMode.RespectExifOrientation,
                     colorMode);
-                var frame = new PixelFrame(
-                    pixels.DetachPixelData(),
-                    (int)decoder.OrientedPixelWidth,
-                    (int)decoder.OrientedPixelHeight);
-                if (generation != _generation) { return null; } // byte[] は GC 管理なので Dispose 不要
+
+                int width = sb.PixelWidth, height = sb.PixelHeight;
+                int size = width * height * 4;
+
+                // 表示側（SetPixelBytes / CreateFromBytes）は「幅×高さ×4 の密詰め BGRA」を期待する。
+                // 内部バッファに行パディング（Stride > 幅×4）があると CopyToBuffer の内容がずれるため、
+                // そのときだけ密詰めを保証する GetPixelDataAsync 経路へ落とす（プールは使えない）。
+                // BGRA8 は 4 バイト境界に自然に揃うため、この分岐は実際には踏まれない。
+                bool packed;
+                using (var locked = sb.LockBuffer(BitmapBufferAccessMode.Read))
+                    packed = locked.GetPlaneDescription(0).Stride == width * 4;
+
+                byte[] pixelBuffer;
+                if (packed)
+                {
+                    pixelBuffer = _pool.Rent(size);
+                    sb.CopyToBuffer(pixelBuffer.AsBuffer());
+                }
+                else
+                {
+                    var pixels = await decoder.GetPixelDataAsync(
+                        BitmapPixelFormat.Bgra8,
+                        BitmapAlphaMode.Premultiplied,
+                        new BitmapTransform(),
+                        ExifOrientationMode.RespectExifOrientation,
+                        colorMode);
+                    pixelBuffer = pixels.DetachPixelData();
+                }
+
+                var frame = new PixelFrame(pixelBuffer, width, height);
+                // 破棄が決まったバッファはプールへ戻す（まだ誰にも渡していないので即返却でよい）。
+                if (generation != _generation) { _pool.Return(pixelBuffer); return null; }
                 _cache[path] = new CacheEntry(frame, ++_useCounter);
                 return frame;
             }
@@ -341,6 +413,8 @@ internal sealed class PreviewBitmapCache
     /// </summary>
     public void Trim(IEnumerable<string> keep)
     {
+        FlushPendingReturns();
+
         var keepSet = new HashSet<string>(keep, StringComparer.OrdinalIgnoreCase);
         long total = 0;
         foreach (var entry in _cache.Values) total += entry.Frame.Bytes.Length;
@@ -358,6 +432,7 @@ internal sealed class PreviewBitmapCache
                 if (total <= MaxCacheBytes) break;
                 total -= kv.Value.Frame.Bytes.Length;
                 _cache.Remove(kv.Key);
+                _pendingReturns.Add(kv.Value.Frame.Bytes);
                 removed = true;
             }
         }
@@ -365,14 +440,42 @@ internal sealed class PreviewBitmapCache
     }
 
     /// <summary>
+    /// 前回の <see cref="Trim"/> が破棄したバッファをプールへ実際に返す。
+    /// <para>
+    /// 破棄した直後に返さないのは、<see cref="GetAsync"/> が返した <see cref="PixelFrame"/> を
+    /// 呼び出し側（<see cref="PreviewControl"/>）が GPU へ転送し終わる前にプールへ戻すと、
+    /// 次の <see cref="PixelBufferPool.Rent"/> で中身を上書きされて表示が化けるため。返却を
+    /// 「次に <see cref="Trim"/> が呼ばれるまで」＝UI スレッドの 1 ターンぶん遅らせれば、
+    /// 同期的な利用は必ず終わっている。
+    /// </para>
+    /// <para>
+    /// なお表示中の 1 枚は常に保持窓（<c>keep</c>）内で <see cref="Trim"/> の保護対象なので、
+    /// そもそも破棄候補にならない。この遅延は「追い越されたロードの継続がまだ走っている」等の
+    /// 取りこぼしに対する保険である。
+    /// </para>
+    /// </summary>
+    private void FlushPendingReturns()
+    {
+        if (_pendingReturns.Count == 0) return;
+        foreach (var bytes in _pendingReturns) _pool.Return(bytes);
+        _pendingReturns.Clear();
+    }
+
+    /// <summary>
     /// 全破棄し世代を進める。進行中の読み込みは完了時に世代不一致で自分を破棄する。
     /// キャッシュはデバイス非依存（PixelFrame＝byte[]）のため Win2D のデバイス再生成では呼ぶ必要がない
     /// （現在呼び出し元は無いが、全無効化用 API として維持）。
+    /// <para>
+    /// 全破棄はメモリを手放すのが目的なので、バッファは**プールへ返さず捨てる**（返すと
+    /// キャッシュからプールへ移動するだけで 1 バイトも解放されない）。プールの在庫も同時に空にする。
+    /// </para>
     /// </summary>
     public void Clear()
     {
         _generation++;
         _cache.Clear();
+        _pendingReturns.Clear();
+        _pool.Clear();
         Changed?.Invoke();
     }
 }

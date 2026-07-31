@@ -117,8 +117,21 @@ public sealed class AppSettings
 
     // --- 先読みキャッシュ（高度な設定） ---
 
-    /// <summary>先読みキャッシュの合計バイト予算（GB）。超過分は表示実績優先 LRU で破棄する。</summary>
-    public double CacheBudgetGB { get; set; } = 2.0;
+    /// <summary>
+    /// 先読みキャッシュの合計バイト予算（GB）。デコード済み画像とバッファ再利用プールの**合計**で、
+    /// メインメモリ常駐量はこの値で頭打ちになる。内訳は <see cref="CachePoolRatioPercent"/> で決まる。
+    /// </summary>
+    public double CacheBudgetGB { get; set; } = 2.5;
+
+    /// <summary>
+    /// <see cref="CacheBudgetGB"/> のうちバッファ再利用プールへ割り当てる割合（%）。
+    /// 例: 予算 2.5GB・20%（既定）なら デコード済みキャッシュ 2GB／プール 0.5GB。
+    /// プールはデコードのたびの巨大な <c>byte[]</c> 新規確保をなくし、マネージドヒープの肥大
+    /// （＝OS から見たメモリ使用量が予算の 2 倍以上になる問題）を抑える。0 でプール無効。
+    /// 1 枚あたりのサイズが大きいカメラほど必要な割合は大きく、予算を増やすほど必要な割合は小さくなる
+    /// （プールに要る本数は同時デコード数に比例し、予算には比例しないため）。
+    /// </summary>
+    public int CachePoolRatioPercent { get; set; } = 20;
 
     /// <summary>先読み枚数（表示中より前方＝次に進む向き）。</summary>
     public int PrefetchForward { get; set; } = 2;

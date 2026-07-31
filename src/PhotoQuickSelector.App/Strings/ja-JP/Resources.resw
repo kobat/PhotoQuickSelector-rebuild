@@ -410,6 +410,9 @@
   <data name="Settings_CacheBudgetNote.Text" xml:space="preserve">
     <value>先読みキャッシュがメインメモリに保持する合計サイズの上限です。超過分は表示実績の少ない古い画像から破棄します。</value>
   </data>
+  <data name="Settings_CachePoolRatioNote.Text" xml:space="preserve">
+    <value>上記のうちバッファ再利用プールに充てる割合 (%) です。残りがデコード済み画像の保持に使われます（例: 2.5GB・20% ならキャッシュ 2GB／プール 0.5GB）。プールはデコードのたびの大きなメモリ確保をなくし、OS から見たメモリ使用量が予算を大きく超えるのを防ぎます。予算を大きくするほど必要な割合は小さくなります。0 でプール無効。</value>
+  </data>
   <data name="Settings_PrefetchHeader.Text" xml:space="preserve">
     <value>先読み枚数</value>
   </data>

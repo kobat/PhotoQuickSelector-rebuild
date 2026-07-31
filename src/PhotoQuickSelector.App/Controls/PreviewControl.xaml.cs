@@ -234,8 +234,8 @@ public sealed partial class PreviewControl : UserControl
         _rateBudget = Math.Max(1, s.RateBudget);
         _rateWindow = TimeSpan.FromMilliseconds(Math.Clamp(s.RateWindowMs, 100, 60000));
 
-        // キャッシュのバイト予算（GB → bytes）。
-        _cache.MaxCacheBytes = (long)(Math.Max(0.1, s.CacheBudgetGB) * (1L << 30));
+        // キャッシュの合計バイト予算（GB → bytes）と、その内訳（プールの割合）。
+        _cache.SetBudget((long)(Math.Max(0.1, s.CacheBudgetGB) * (1L << 30)), s.CachePoolRatioPercent);
 
         // 「切替時のみ」オーバーレイの保持／フェード時間。
         ApplyOverlayFadeTimings(s);
@@ -252,8 +252,10 @@ public sealed partial class PreviewControl : UserControl
         if (_cache.MaxConcurrentDecodes == concurrency) return;
 
         _cache.Changed -= RefreshCacheOverlay;
-        long budget = _cache.MaxCacheBytes;
-        _cache = new PreviewBitmapCache(concurrency) { MaxCacheBytes = budget };
+        long budget = _cache.MaxTotalBytes;
+        int poolRatio = _cache.PoolRatioPercent;
+        _cache = new PreviewBitmapCache(concurrency);
+        _cache.SetBudget(budget, poolRatio);
         _cache.Changed += RefreshCacheOverlay;
         _cache.IsWanted = IsPathInWindow;
         _cache.DecodePriority = DecodePriorityOf;
@@ -724,12 +726,19 @@ public sealed partial class PreviewControl : UserControl
                 }
             }
 
-            // ヘッダ集計: デコード済み件数/合計MB/予算MB、直近デコード回数/レート予算、表示中の VRAM 目安。
+            // ヘッダ集計: デコード済み件数/合計MB/予算MB、直近デコード回数/レート予算、
+            // バッファプールの在庫と再利用率、表示中の VRAM 目安。
             var cachedItems = items.Where(i => i.State == CacheItemState.Cached).ToList();
             double totalMb = cachedItems.Sum(i => i.Bytes) / (1024.0 * 1024.0);
             double budgetMb = _cache.MaxCacheBytes / (1024.0 * 1024.0);
             string summary = $"キャッシュ {cachedItems.Count}枚 {totalMb:0}MB / {budgetMb:0}MB" +
                               $"   直近デコード {PrunedDecodeCount(DateTime.UtcNow)}/{_rateBudget}";
+            long rents = _cache.PoolHitCount + _cache.PoolMissCount;
+            double pooledMb = _cache.PooledBytes / (1024.0 * 1024.0);
+            double poolBudgetMb = _cache.MaxPoolBytes / (1024.0 * 1024.0);
+            summary += $"\nプール {_cache.PooledBufferCount}本 {pooledMb:0}MB / {poolBudgetMb:0}MB" +
+                       $"   再利用 {_cache.PoolHitCount}/{rents}" +
+                       (rents > 0 ? $"（{_cache.PoolHitCount * 100.0 / rents:0}%）" : "");
             if (_bitmap != null && _currentMeta != null)
             {
                 double vramMb = _bitmap.SizeInPixels.Width * (double)_bitmap.SizeInPixels.Height * 4 / (1024.0 * 1024.0);

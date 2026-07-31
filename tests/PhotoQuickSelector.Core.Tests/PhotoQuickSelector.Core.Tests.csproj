@@ -37,4 +37,10 @@
              Link="Linked\DecodeGate.cs" />
   </ItemGroup>
 
+  <!-- PixelBufferPool も純 C#（WinUI/WinRT 非依存）なので同じ方式でソースリンクしてテストする。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PhotoQuickSelector.App\Controls\PixelBufferPool.cs"
+             Link="Linked\PixelBufferPool.cs" />
+  </ItemGroup>
+
 </Project>

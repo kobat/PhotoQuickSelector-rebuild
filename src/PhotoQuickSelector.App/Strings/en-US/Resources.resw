@@ -410,6 +410,9 @@
   <data name="Settings_CacheBudgetNote.Text" xml:space="preserve">
     <value>Maximum total size the prefetch cache keeps in main memory. Excess is dropped starting from the least-used older images.</value>
   </data>
+  <data name="Settings_CachePoolRatioNote.Text" xml:space="preserve">
+    <value>Share of the budget above (%) reserved for the buffer reuse pool. The rest holds decoded images (for example, 2.5 GB at 20% gives a 2 GB cache and a 0.5 GB pool). The pool removes the large allocation each decode would otherwise make, keeping the memory the OS sees from growing far beyond the budget. The larger the budget, the smaller the share you need. Use 0 to disable the pool.</value>
+  </data>
   <data name="Settings_PrefetchHeader.Text" xml:space="preserve">
     <value>Prefetch count</value>
   </data>

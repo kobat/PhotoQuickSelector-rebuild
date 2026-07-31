@@ -167,6 +167,13 @@
                         <NumberBox x:Name="CacheBudgetBox" HorizontalAlignment="Left" MinWidth="160"
                                    Minimum="0.1" Maximum="64" SmallChange="0.5" LargeChange="1"
                                    SpinButtonPlacementMode="Compact" />
+                        <TextBlock x:Uid="Settings_CachePoolRatioNote"
+                                   Text="上記のうちバッファ再利用プールに充てる割合 (%) です。残りがデコード済み画像の保持に使われます（例: 2.5GB・20% ならキャッシュ 2GB／プール 0.5GB）。プールはデコードのたびの大きなメモリ確保をなくし、OS から見たメモリ使用量が予算を大きく超えるのを防ぎます。予算を大きくするほど必要な割合は小さくなります。0 でプール無効。"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <NumberBox x:Name="CachePoolRatioBox" HorizontalAlignment="Left" MinWidth="160"
+                                   Minimum="0" Maximum="90" SmallChange="5" LargeChange="10"
+                                   SpinButtonPlacementMode="Compact" />
                     </StackPanel>
 
                     <!-- 先読み枚数 -->
