@@ -77,7 +77,10 @@
   **バッファ再利用プール**（`PixelBufferPool`。予算＝キャッシュ＋プールの合計で、内訳は
   `AppSettings.CachePoolRatioPercent`。既定＝予算 2.5GB・プール 20%＝キャッシュ 2GB／プール 0.5GB。
   200MB 級 `byte[]` の毎回確保をなくしてマネージドヒープ肥大＝WS 過大を解消。
-  詳細は HISTORY.md「先読みキャッシュのバッファプール化」節）
+  詳細は HISTORY.md「先読みキャッシュのバッファプール化」節）／
+  **GC 設定 `System.GC.ConserveMemory`=7**（csproj の `RuntimeHostConfigurationOption`。プールで確保を減らした
+  うえで、GC に圧縮・OS へのセグメント返却を促して WS の高止まりを解消。値は実機比較で選定＝5 は効果不足・
+  9 は停止が体感。詳細は HISTORY.md「GC の `System.GC.ConserveMemory` 設定」節）
 - **配布**: unpackaged 自己完結 EXE（フォルダ／単一ファイルの pubxml 2 系統）・LICENSE／
   THIRD-PARTY-NOTICES 同梱・アプリアイコン・README（日英）。
   **GitHub Release へ添付する既定は単一ファイル版**（`win-x64-singlefile`＝exe＋LICENSE＋THIRD-PARTY のみ・
@@ -86,9 +89,8 @@
 **実機確認が未了の項目**:
 - 先読みキャッシュの解凍爆弾ガード（2026-07-07。巨大宣言寸法のテスト画像での再現確認は
   未実施＝作れば `C` オーバーレイで観察可能。通常画像への無影響はビルド＋テスト 103 件緑で確認済み）。
-- **バッファ再利用プール（2026-07-31）**: `M` オーバーレイで押しっぱなしナビ中の managed/WS が
-  予算前後で頭打ちになること（従来 managed 4〜5GB・WS 5〜6GB → 期待 WS 2.5〜2.8GB）、`C` オーバーレイの
-  プール再利用率（同一機種フォルダならほぼ 100%）、連写切替の体感が不変であること。
+（バッファ再利用プール〔2026-07-31〕はユーザーが実機確認済み。ただし単体ではまだ WS が多めだったため、
+GC 設定 `System.GC.ConserveMemory`=7 を併用して解消＝2026-08-01。）
 
 **次の候補（未着手）**:
 - **使っていない間のキャッシュ解放**（`PreviewBitmapCache.Clear()` は実装済みだが**呼び出し元が無い**。

@@ -123,6 +123,17 @@
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>
 
+  <!--
+    GC にヒープの圧縮・解放を積極的に行わせる（runtimeconfig.json 経由でランタイムへ渡る）。
+    値は 0（既定＝無効）〜9 で、大きいほどメモリ節約寄り・GC コスト増。
+    200MB 級の BGRA8 バッファを扱う先読みキャッシュ（PixelBufferPool でプール化済み）でも、
+    解放済みセグメントが OS へ返らず WS が高止まりするため、プールと組み合わせて使う。
+    7 は実機比較で選定（5＝削減が不足／9＝GC の停止が体感できる）。
+  -->
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
+  </ItemGroup>
+
   <!-- Publish Properties -->
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
