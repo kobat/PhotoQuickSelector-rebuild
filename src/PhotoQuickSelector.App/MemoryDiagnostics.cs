@@ -79,9 +79,12 @@ public static class MemoryDiagnostics
     /// 断片化ぶんも含めて減らせるよう LOH 圧縮も一度だけ有効にする。
     /// </para>
     /// <para>
-    /// 空き領域の OS への返却（decommit）は GC 1 回あたりの予算で分割実施されるため、
-    /// 1 回呼んだだけではワーキングセットは少ししか減らない（連打すると階段状に減る）。
-    /// これはランタイムの仕様であり、回収漏れではない。
+    /// 通常の Forced GC では空き領域の OS への返却（decommit）が GC 1 回あたりの予算で
+    /// 分割実施されるため、ワーキングセットが 1 回では減らない（連打で階段状に減る）。
+    /// 仕上げの 1 回を <see cref="GCCollectionMode.Aggressive"/>（.NET 7+）にすることで
+    /// 可能な限りの OS 返却まで 1 回で行わせる。Aggressive は
+    /// generation=MaxGeneration・blocking=true・compacting=true 以外の組み合わせだと
+    /// 例外になる点に注意。
     /// </para>
     /// </summary>
     /// <returns>GC 前後のスナップショットと所要時間。</returns>
@@ -93,7 +96,7 @@ public static class MemoryDiagnostics
         GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
         GC.WaitForPendingFinalizers();
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 
         sw.Stop();
         return (before, Snapshot(), sw.Elapsed);

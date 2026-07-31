@@ -73,7 +73,9 @@
 - **パフォーマンス**: サムネイル＝圧縮バイト常駐＋可視分デコード（容量固定 LRU）／プレビュー先読み
   キャッシュ＝BGRA8 `byte[]`（PixelFrame）保持・LRU（LastUse 単独）＋容量予算・DecodeGate（grant 時の窓分類
   優先度選択＝フォーカス→選択窓→位置窓）・レート制限・sRGB 色管理スキップ・解凍爆弾ガード（宣言寸法 1GB／
-  実ファイル 512MB 超はデコードせずスキップ）／ナビゲーター縮小ビットマップキャッシュ
+  実ファイル 512MB 超はデコードせずスキップ）／ナビゲーター縮小ビットマップキャッシュ／
+  `System.GC.ConserveMemory=7`＋`Ctrl+M` の Aggressive GC（OS から見たメモリ削減。値は実機測定で確定＝
+  HISTORY.md「OS から見たメモリ使用量の削減」節）
 - **配布**: unpackaged 自己完結 EXE（フォルダ／単一ファイルの pubxml 2 系統）・LICENSE／
   THIRD-PARTY-NOTICES 同梱・アプリアイコン・README（日英）。
   **GitHub Release へ添付する既定は単一ファイル版**（`win-x64-singlefile`＝exe＋LICENSE＋THIRD-PARTY のみ・

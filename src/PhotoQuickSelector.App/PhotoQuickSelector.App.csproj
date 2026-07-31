@@ -42,6 +42,17 @@
   </ItemGroup>
 
   <!--
+    プレビュー先読みが LOH 行きの巨大 byte[]（圧縮バイト＋BGRA ピクセル）を毎回確保するため、
+    既定の GC だとゴミ滞留と decommit の先送りでコミット/ワーキングセットがライブ量の倍近くまで育つ。
+    ConserveMemory（1〜9・大きいほどスループットを犠牲にメモリ優先）で LOH 圧縮と OS への返却を
+    平時から積極化する。7 は実機測定（2026-07-31・M オーバーレイの Committed/WS）で決めた値＝
+    5 は効果不足・9 は GC 停止が体感に出る・7 が効果と挙動のバランス良。
+  -->
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
+  </ItemGroup>
+
+  <!--
     Defining the "Msix" ProjectCapability here allows the Single-project MSIX Packaging
     Tools extension to be activated for this project even if the Windows App SDK Nuget
     package has not yet been restored.

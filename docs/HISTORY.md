@@ -2562,6 +2562,50 @@ SemVer の順序も `0.2.2-dev < 0.2.2` で正しい。ビルド構成（Debug/R
 
 **リリース時の手順への追加**: csproj の `-dev` を外す（appxmanifest の版上げと同じコミットで行う）。
 
+## OS から見たメモリ使用量の削減（GC Aggressive＋ConserveMemory）（2026-07-31）
+
+**動機**: M オーバーレイの観察で、キャッシュ予算 2GB＋その他 1GB 程度のライブ量に対し、
+マネージドは 4〜5GB・ワーキングセット（WS）は 5〜6GB まで育つ。`Ctrl+M` 1 回でマネージドは
+2.1〜2.3GB へ戻るが WS は 0.2〜0.3GB しか減らず、**連打すると階段状に 2.5〜3GB まで減る**。
+メモリの少ない環境で他アプリを圧迫する懸念への対処。
+
+**仕組みの切り分け**（3 層）:
+1. **マネージドが育つ**＝プレビュー先読みが 1 枚ごとに圧縮バイト全量＋BGRA ピクセル
+   （α1 で約 190MB）の巨大 `byte[]` を新規確保する LOH churn。追い出された後も Gen2 GC まで
+   ゴミとして滞留するため、ヒープ≒ライブ＋未回収ゴミで倍近くになる。
+2. **WS が 1 回の GC で減らない**＝GC は回収後の空きコミットを即 OS へ返さず、
+   **1 回の GC あたりの予算で分割 decommit** する（連打で階段状に減るのはこの仕様）。
+3. 他アプリ圧迫の本質は WS よりコミット（Private Bytes）だが、本アプリは GC がコミットを
+   握ったままなのでコミット自体も高く、対策の意義がある。
+
+**入れた対策**（案 1＋案 2。2026-07-31 検討の推奨順）:
+- **案 1**: `MemoryDiagnostics.ForceFullCollect` の仕上げの 1 回を
+  `GCCollectionMode.Aggressive`（.NET 7+）へ変更。Aggressive はフルブロッキング圧縮＋
+  **可能な限りの OS 返却まで 1 回で**行う（＝連打相当）。1 段目は Forced のまま
+  （ファイナライザ待ち→仕上げ、の 2 段構成は従来どおり）。Aggressive は
+  generation=MaxGeneration・blocking=true・compacting=true 以外だと例外になる。
+- **案 2**: csproj に `RuntimeHostConfigurationOption` で **`System.GC.ConserveMemory=7`**
+  （値 1〜9・大きいほどスループットを犠牲にメモリ優先）。LOH 圧縮と decommit を平時から
+  積極化し、`Ctrl+M` を押さない通常運転のピークとコミット残留を抑える狙い。
+  生成される `runtimeconfig.json` の `configProperties` に載ることを確認済み。
+  **値はユーザーの実機測定（2026-07-31）で確定**: 5＝効果不足／9＝GC 停止が体感に出る／
+  **7＝効果と挙動のバランス良**。
+
+**見送り／将来**:
+- `GCHeapHardLimit`＝ライブが上限へ迫ると OOM 例外のリスクがあり見送り。
+- `EmptyWorkingSet` 系 WS トリム＝見かけの数字が下がるだけ（コミット不変）で不採用。
+- **根本策＝LOH churn 削減**は大工事のため未着手。`DetachPixelData()` は毎回新規配列を返す
+  API なので、プール再利用には WIC `CopyPixels` の COM interop 直叩きが要る。同一カメラは
+  寸法が同じでバッファ再利用の効果は高い見込み（「縦型画像の GPU 回転」と同系統の後回し候補）。
+
+**申し送り**:
+- ConserveMemory は 5→7→9 を実機で比較して **7 に確定**（上記）。再調整するときは
+  M オーバーレイの Committed/WS を通常運転で観察し、GC 停止の体感とのバランスで決める。
+- それでも足りなければ次段は「アイドル時トリム」（ナビ停止後に 1 回だけ compacting GC）。
+  フル GC は数百 ms 級のブロッキングになり得るので発火タイミング設計が要る。
+- 変更: `MemoryDiagnostics.cs`／`PhotoQuickSelector.App.csproj` のみ。
+  `dotnet test` 180 件緑／`BUILD SUCCEEDED`（win-x64 Debug）。
+
 ## 残タスク（記録・すべて完了済み）
 - ~~プレビューのキーボード入力フォーカス問題~~ → **完了（`f54d9b4`）。** 上の「現在の進捗」参照。
 - ~~Phase 3 ステージ B 残: 右ナビゲーター／ズームプレビュー／`Ctrl+Alt+矢印`／`Ctrl+Alt+F`~~ → **完了（`993c7c2` プッシュ済み）。**
