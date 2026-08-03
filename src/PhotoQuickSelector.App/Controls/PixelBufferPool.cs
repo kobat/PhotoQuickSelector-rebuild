@@ -25,12 +25,15 @@ namespace PhotoQuickSelector_App.Controls;
 /// 縮退する）。
 /// </para>
 /// <para>
-/// 呼び出しは UI スレッドからのみ（<see cref="PreviewBitmapCache"/> と同じ前提）＝ロックなし。
+/// <see cref="Rent"/> はデコードワーカー（<see cref="WicPixelDecoder"/> を回す Task.Run スレッド）から、
+/// <see cref="Return"/>/<see cref="Clear"/> は UI スレッドから呼ばれるため、内部をロックで保護する。
+/// 統計プロパティの読み取り（デバッグオーバーレイ）は表示用途なので非ロックのまま。
 /// 純 C#（WinUI/WinRT 非依存）なので単体テスト可能。
 /// </para>
 /// </summary>
 internal sealed class PixelBufferPool
 {
+    private readonly object _lock = new();
     /// <summary>プール在籍中の 1 本。<see cref="Order"/> は単調増分カウンタによる返却順（時計に依存しない）。</summary>
     private sealed class Slot
     {
@@ -72,19 +75,23 @@ internal sealed class PixelBufferPool
     {
         if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length));
 
-        for (int i = 0; i < _slots.Count; i++)
+        lock (_lock)
         {
-            if (_slots[i].Bytes.Length != length) continue;
+            for (int i = 0; i < _slots.Count; i++)
+            {
+                if (_slots[i].Bytes.Length != length) continue;
 
-            var bytes = _slots[i].Bytes;
-            _slots.RemoveAt(i);
-            PooledBytes -= length;
-            HitCount++;
-            return bytes;
+                var bytes = _slots[i].Bytes;
+                _slots.RemoveAt(i);
+                PooledBytes -= length;
+                HitCount++;
+                return bytes;
+            }
+
+            MissCount++;
         }
 
-        MissCount++;
-        // 直後に全域を上書きするのでゼロ初期化は不要（200MB のゼロ埋めを省く）。
+        // 直後に全域を上書きするのでゼロ初期化は不要（200MB のゼロ埋めを省く）。確保はロック外。
         return GC.AllocateUninitializedArray<byte>(length);
     }
 
@@ -97,16 +104,22 @@ internal sealed class PixelBufferPool
         ArgumentNullException.ThrowIfNull(buffer);
         if (buffer.Length == 0) return;
 
-        _slots.Add(new Slot(buffer, ++_order));
-        PooledBytes += buffer.Length;
-        TrimToBudget();
+        lock (_lock)
+        {
+            _slots.Add(new Slot(buffer, ++_order));
+            PooledBytes += buffer.Length;
+            TrimToBudget();
+        }
     }
 
     /// <summary>在庫を全部捨てる（フォルダ切替・全破棄時）。カウンタは診断のため保持する。</summary>
     public void Clear()
     {
-        _slots.Clear();
-        PooledBytes = 0;
+        lock (_lock)
+        {
+            _slots.Clear();
+            PooledBytes = 0;
+        }
     }
 
     /// <summary><see cref="MaxBytes"/> 以内へ収まるまで、返却順の古いものから捨てる。</summary>

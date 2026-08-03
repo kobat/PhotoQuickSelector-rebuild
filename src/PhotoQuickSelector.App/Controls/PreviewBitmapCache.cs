@@ -2,10 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
-using Windows.Graphics.Imaging;
-using Windows.Storage.Streams;
 
 namespace PhotoQuickSelector_App.Controls;
 
@@ -56,8 +53,7 @@ internal sealed class CacheSnapshotItem
 
 /// <summary>
 /// デコード済みピクセル（BGRA8・Premultiplied・密詰め＝stride なし）＋寸法。
-/// <see cref="BitmapDecoder.GetPixelDataAsync"/> の <c>DetachPixelData()</c> は
-/// 幅×高さ×4 ちょうどの密詰め配列を返すため、そのまま
+/// <see cref="WicPixelDecoder.Decode"/> が幅×高さ×4 ちょうどの密詰め配列で返すため、そのまま
 /// <see cref="Microsoft.Graphics.Canvas.CanvasBitmap.SetPixelBytes(byte[])"/> /
 /// <c>CreateFromBytes</c> に渡せる。
 /// </summary>
@@ -99,7 +95,8 @@ internal sealed class PixelFrame
 /// 破棄した <c>byte[]</c> は <see cref="PixelBufferPool"/> へ返して次のデコードで再利用する
 /// （マネージドヒープに 200MB 級のゴミを積まないため。詳細は <see cref="PixelBufferPool"/>）。
 /// </para>
-/// UI 非依存（WinRT の imaging API のみに依存し Win2D デバイスを必要としない）なので単体テスト可能。
+/// UI 非依存（デコードは <see cref="WicPixelDecoder"/>＝WIC の COM 直接呼び出しで、Win2D デバイスを
+/// 必要としない）なので単体テスト可能。
 /// </summary>
 internal sealed class PreviewBitmapCache
 {
@@ -295,87 +292,27 @@ internal sealed class PreviewBitmapCache
                 _loading.Add(path);
                 Changed?.Invoke();
 
-                // ファイルパスを直接 CanvasBitmap.LoadAsync に渡すと、生成された CanvasBitmap が
-                // 生きている間ずっと元ファイルをロックし続ける（Win2D の既知挙動）。すると Reject 移動
-                // などの move がキャッシュ中のファイルだけ「使用中」で失敗する。バイトを読み切って
-                // メモリストリームからデコードし、元ファイルのハンドルは即座に閉じる。
-                // EXIF Orientation は WIC が適用するため、ストリーム経由でも自動回転は維持される
-                // （RespectExifOrientation で正立済みピクセルを得る＝従来の CanvasBitmap.LoadAsync の
-                // 自動回転と同じ結果）。
+                // ファイルパスを直接デコーダに渡すと元ファイルがデコード中ロックされ、Reject 移動
+                // などの move が「使用中」で失敗しうる。バイトを読み切ってメモリからデコードし、
+                // 元ファイルのハンドルは即座に閉じる。
                 // 実ファイルが異常に大きい場合は全量読み込みを行わない（null＝表示なしで既存フローに乗る）。
                 if (new FileInfo(path).Length > MaxFileBytes) { return null; }
 
                 var bytes = await File.ReadAllBytesAsync(path);
-                using var stream = new InMemoryRandomAccessStream();
-                await stream.WriteAsync(bytes.AsBuffer());
-                stream.Seek(0);
 
-                var decoder = await BitmapDecoder.CreateAsync(stream);
+                // デコードは WIC の COM 直接呼び出し（WicPixelDecoder）。WinRT の
+                // BitmapDecoder/InMemoryRandomAccessStream はデコードごとに ~20MB のネイティブを
+                // ファイナライザ待ちで滞留させ、連続ナビで GB 級に積み上がるため使わない
+                // （GC の起動側では抑えられないことを実機で確認済み。経緯は HISTORY.md）。
+                // EXIF Orientation 適用（正立化）・sRGB の色管理スキップ・解凍爆弾ガード
+                // （宣言寸法で確保前に弾く）は WicPixelDecoder 側で従来同等に行う。
+                // 同期 API のためワーカーで実行（同時実行数はゲートで既に絞られている）。
+                // ピクセルの書き出し先はプールから借りるので、200MB 級の LOH ゴミも出ない。
+                var frame = await Task.Run(() => WicPixelDecoder.Decode(bytes, MaxPixelBytesPerImage, _pool.Rent));
+                if (frame == null) { return null; }
 
-                // ヘッダ宣言寸法から必要バイト数を見積もり、上限超過は GetPixelDataAsync の全面確保前に
-                // 弾く（解凍爆弾対策）。uint 同士の乗算はオーバーフローするため long で計算する。
-                long pixelBytes = (long)decoder.OrientedPixelWidth * decoder.OrientedPixelHeight * 4;
-                if (pixelBytes > MaxPixelBytesPerImage) { return null; }
-
-                // EXIF ColorSpace（0xA001）が 1（sRGB）の画像は色管理をスキップする。sRGB→sRGB でも WIC の
-                // 色管理はデコード全体の約7割を占める。丸め差（最大 ±3/255 程度）は視覚的に知覚不能で許容。
-                // Adobe RGB（値 2 / 0xFFFF=Uncalibrated）やタグ無し・照会失敗は ColorManageToSRgb（安全側）。
-                var colorMode = ColorManagementMode.ColorManageToSRgb;
-                try
-                {
-                    const string exifColorSpaceQuery = "/app1/ifd/exif/{ushort=40961}";
-                    var props = await decoder.BitmapProperties.GetPropertiesAsync(new[] { exifColorSpaceQuery });
-                    if (props.TryGetValue(exifColorSpaceQuery, out var v) && v.Value is ushort cs && cs == 1)
-                        colorMode = ColorManagementMode.DoNotColorManage;
-                }
-                catch
-                {
-                    // タグ無し（WINCODEC_ERR_PROPERTYNOTFOUND）等。色管理あり（従来動作）のままにする。
-                }
-
-                // ピクセルは SoftwareBitmap（アンマネージドバッファ）で受け取り、プールから借りた
-                // byte[] へ書き出す。GetPixelDataAsync + DetachPixelData は毎回「新しい」byte[] を返す
-                // 仕様でプールへ書けないため、200MB 級の LOH ゴミが積み上がる（ワーキングセット肥大の主因）。
-                // CopyToBuffer の 1 回コピーは DetachPixelData のマーシャリング（native→managed）と
-                // 同じ量・同じスレッドなので、切替時の CPU コストは従来と変わらない。
-                using var sb = await decoder.GetSoftwareBitmapAsync(
-                    BitmapPixelFormat.Bgra8,
-                    BitmapAlphaMode.Premultiplied,
-                    new BitmapTransform(),
-                    ExifOrientationMode.RespectExifOrientation,
-                    colorMode);
-
-                int width = sb.PixelWidth, height = sb.PixelHeight;
-                int size = width * height * 4;
-
-                // 表示側（SetPixelBytes / CreateFromBytes）は「幅×高さ×4 の密詰め BGRA」を期待する。
-                // 内部バッファに行パディング（Stride > 幅×4）があると CopyToBuffer の内容がずれるため、
-                // そのときだけ密詰めを保証する GetPixelDataAsync 経路へ落とす（プールは使えない）。
-                // BGRA8 は 4 バイト境界に自然に揃うため、この分岐は実際には踏まれない。
-                bool packed;
-                using (var locked = sb.LockBuffer(BitmapBufferAccessMode.Read))
-                    packed = locked.GetPlaneDescription(0).Stride == width * 4;
-
-                byte[] pixelBuffer;
-                if (packed)
-                {
-                    pixelBuffer = _pool.Rent(size);
-                    sb.CopyToBuffer(pixelBuffer.AsBuffer());
-                }
-                else
-                {
-                    var pixels = await decoder.GetPixelDataAsync(
-                        BitmapPixelFormat.Bgra8,
-                        BitmapAlphaMode.Premultiplied,
-                        new BitmapTransform(),
-                        ExifOrientationMode.RespectExifOrientation,
-                        colorMode);
-                    pixelBuffer = pixels.DetachPixelData();
-                }
-
-                var frame = new PixelFrame(pixelBuffer, width, height);
                 // 破棄が決まったバッファはプールへ戻す（まだ誰にも渡していないので即返却でよい）。
-                if (generation != _generation) { _pool.Return(pixelBuffer); return null; }
+                if (generation != _generation) { _pool.Return(frame.Bytes); return null; }
                 _cache[path] = new CacheEntry(frame, ++_useCounter);
                 return frame;
             }
