@@ -60,10 +60,11 @@
                            MinWidth="72" TextAlignment="Right"
                            FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
 
-                <!-- GC 管轄外（プライベート − GCコミット）。GC では動かない領域なので、
-                     メモリ肥大の原因がマネージド側かネイティブ側かの切り分けに使う。 -->
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="ネイティブ"
-                           FontSize="11" Foreground="#E8FFFFFF" />
+                <!-- GC 管轄外の概算（プライベート − max(GCコミット, マネージド)）。GC では動かない領域なので、
+                     メモリ肥大の原因がマネージド側かネイティブ側かの切り分けに使う。ただし decommit 未了の
+                     空き領域は捕捉できず過大に出るため、確定診断は GC（Ctrl+M）直後の値どうしで比べる＝注記。 -->
+                <TextBlock Grid.Row="2" Grid.Column="0"
+                           FontSize="11" Foreground="#E8FFFFFF"><Run Text="ネイティブ" /><Run Text=" (GC直後が正)" Foreground="#8CFFFFFF" /></TextBlock>
                 <TextBlock Grid.Row="2" Grid.Column="1" x:Name="NativeValue" Margin="8,0,0,0"
                            MinWidth="72" TextAlignment="Right"
                            FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />

@@ -17,17 +17,23 @@ public readonly record struct MemorySnapshot(
     long ManagedBytes, long CommittedBytes, long PrivateBytes, long WorkingSetBytes)
 {
     /// <summary>
-    /// GC の管轄外で使っているメモリの概算（プライベート − GC コミット）。
+    /// GC の管轄外で使っているメモリの概算（プライベート − GC 管轄分）。
     /// Win2D/D3D のテクスチャ・WIC のデコードバッファ等、GC の設定やモードでは一切動かない領域を
     /// 切り分けるための値。
     /// <para>
-    /// あくまで概算。<see cref="PrivateBytes"/> は現在値だが <see cref="CommittedBytes"/> は
-    /// 直前の GC 時点のスナップショット（<see cref="GC.GetGCMemoryInfo(GCKind)"/> の仕様）なので、
-    /// GC がしばらく走っていないと差が過大に出る。GC 直後の値どうしで比べるのが最も正確。
-    /// 差が負になる状況（コミットの方が新しく見える）もあり得るので 0 でクランプする。
+    /// GC 管轄分には <see cref="CommittedBytes"/> と <see cref="ManagedBytes"/> の大きい方を使う。
+    /// <see cref="PrivateBytes"/> は現在値だが <see cref="CommittedBytes"/> は直前の GC 時点の
+    /// スナップショット（<see cref="GC.GetGCMemoryInfo(GCKind)"/> の仕様）なので、GC が走らないまま
+    /// 確保が進むと GC 管轄内の増加（未回収の LOH ゴミ等）がネイティブに化けて見える。マネージド
+    /// 現在値（未回収ゴミ込み）は現在のコミット量の下限なので、大きい方を引いて過大表示を抑える。
+    /// </para>
+    /// <para>
+    /// それでも「回収済みだが decommit 未了」の空き領域は捕捉できず過大に出るため、あくまで概算。
+    /// 確定診断は GC 直後の値どうしで比べること（オーバーレイの注記もこの前提）。
+    /// 差が負になる状況もあり得るので 0 でクランプする。
     /// </para>
     /// </summary>
-    public long NativeBytes => Math.Max(0, PrivateBytes - CommittedBytes);
+    public long NativeBytes => Math.Max(0, PrivateBytes - Math.Max(CommittedBytes, ManagedBytes));
 }
 
 /// <summary>
