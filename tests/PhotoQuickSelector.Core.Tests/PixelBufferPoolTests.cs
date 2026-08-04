@@ -143,4 +143,39 @@ public class PixelBufferPoolTests
 
         Assert.Throws<ArgumentNullException>(() => pool.Return(null!));
     }
+
+    [Fact]
+    public void TrimToBudget_DiscardsOverflow_AccumulatesDiscardedBytes()
+    {
+        var pool = new PixelBufferPool { MaxBytes = 250 };
+
+        pool.Return(new byte[100]);
+        pool.Return(new byte[100]);
+        pool.Return(new byte[100]); // 合計 300 > 250 → 最古の 1 本（100 バイト）を捨てる
+
+        Assert.Equal(100, pool.DiscardedBytes);
+    }
+
+    [Fact]
+    public void Clear_DiscardsAllInventory_AccumulatesDiscardedBytes()
+    {
+        var pool = new PixelBufferPool { MaxBytes = 1000 };
+        pool.Return(new byte[100]);
+        pool.Return(new byte[50]);
+
+        pool.Clear();
+
+        Assert.Equal(150, pool.DiscardedBytes);
+    }
+
+    [Fact]
+    public void Rent_HitOrMiss_DoesNotIncreaseDiscardedBytes()
+    {
+        var pool = new PixelBufferPool { MaxBytes = 1000 };
+        var buffer = pool.Rent(100); // miss
+        pool.Return(buffer);
+        pool.Rent(100);              // hit
+
+        Assert.Equal(0, pool.DiscardedBytes);
+    }
 }

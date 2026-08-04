@@ -78,6 +78,15 @@ public sealed partial class MainPage : Page
         Preview.ToggleFullScreenRequested += (_, _) => (App.Window as MainWindow)?.ToggleFullScreen();
         Preview.ToggleFullImageRequested += (_, _) => ToggleFullImageMode();
         Preview.IsFullScreenProvider = () => (App.Window as MainWindow)?.IsFullScreen ?? false;
+        // メモリ掃除係のアイドル完全 GC 結果をオーバーレイへ反映（勝手には開かない＝show:false。
+        // 開いていれば次回の周期更新で最新値が見える）。
+        Preview.IdleCollected += (b, a, e) =>
+            MemoryPanel.ShowCollectResult($"アイドル GC（{e.TotalMilliseconds:#,0}ms）", b, a, e, show: false);
+        // グリッド表示中もアイドル判定が働くよう、ページ全域のホイール/クリックを掃除係へ中継する
+        // （キー操作は HandleGlobalKeyDown 側で中継。handledEventsToo=true は子が Handled にした
+        // 操作もアイドル解除の材料にするため）。
+        this.AddHandler(PointerWheelChangedEvent, new PointerEventHandler((_, _) => Preview.NoteUserActivity()), true);
+        this.AddHandler(PointerPressedEvent, new PointerEventHandler((_, _) => Preview.NoteUserActivity()), true);
         // 左ペインの幅変化（ボタン/スプリッター/完全全画面/復元のいずれでも）を唯一の起点に開閉ボタンの
         // グリフ／ツールチップを追従させる。LeftNav は左カラムの子なので幅0で ActualWidth=0 になる。
         LeftNav.SizeChanged += (_, _) => StatusBar.UpdateLeftPaneGlyph(LeftNav.ActualWidth > 0);
@@ -360,6 +369,10 @@ public sealed partial class MainPage : Page
     /// </summary>
     public void HandleGlobalKeyDown(KeyRoutedEventArgs e)
     {
+        // グリッド表示中もアイドル判定が働くよう、キー操作を掃除係へ中継する（ホイール/クリックは
+        // コンストラクタの AddHandler 側）。
+        Preview.NoteUserActivity();
+
         // Ctrl+L: フィルタ ON/OFF（両モード共通、SPEC §3-7）。フライアウトは開かずトグルのみ。
         if (KeyboardModifiers.Ctrl && e.Key == Windows.System.VirtualKey.L)
         {

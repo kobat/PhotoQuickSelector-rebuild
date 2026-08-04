@@ -126,6 +126,13 @@ internal sealed class PreviewBitmapCache
     public long PoolMissCount => _pool.MissCount;
 
     /// <summary>
+    /// キャッシュ＋プールから捨てられてゴミ（LOH 行きの回収待ち <c>byte[]</c>）になった累積バイト数。
+    /// <see cref="MemoryJanitor"/> のバックグラウンド GC 閾値判定に使う（<see cref="PreviewControl"/> が
+    /// <see cref="Trim"/> のたびに差分を渡す）。
+    /// </summary>
+    public long DiscardedBytes => _pool.DiscardedBytes + _directDiscardedBytes;
+
+    /// <summary>
     /// 合計予算と内訳の割合を設定する。例: 2GB・25% なら キャッシュ 1.5GB／プール 0.5GB。
     /// 割合 0 ならプールを使わない（デコードのたびに新規確保＝プール導入前の挙動）。
     /// </summary>
@@ -177,6 +184,9 @@ internal sealed class PreviewBitmapCache
     private readonly List<byte[]> _pendingReturns = new();
     private int _generation; // Clear（全破棄）でキャッシュを無効化する世代
     private long _useCounter; // LastUse 採番用の単調増分カウンタ（DateTime は使わない）
+    // Clear がキャッシュ本体／_pendingReturns をプールを経由せず直接捨てた累積バイト数
+    // （DiscardedBytes の内訳。プール経由分は _pool.DiscardedBytes 側に乗る）。
+    private long _directDiscardedBytes;
 
     /// <param name="maxConcurrentDecodes">同時に走らせるデコード本数（1 以上にクランプ）。</param>
     public PreviewBitmapCache(int maxConcurrentDecodes = 2)
@@ -410,6 +420,8 @@ internal sealed class PreviewBitmapCache
     public void Clear()
     {
         _generation++;
+        foreach (var entry in _cache.Values) _directDiscardedBytes += entry.Frame.Bytes.Length;
+        foreach (var bytes in _pendingReturns) _directDiscardedBytes += bytes.Length;
         _cache.Clear();
         _pendingReturns.Clear();
         _pool.Clear();

@@ -44,12 +44,28 @@ public sealed partial class MemoryOverlay : UserControl
     public void ForceGarbageCollect()
     {
         var (before, after, elapsed) = MemoryDiagnostics.ForceFullCollect();
-        CollectHeader.Text = $"GC 実行（{elapsed.TotalMilliseconds:#,0}ms）";
+        ShowCollectResult($"GC 実行（{elapsed.TotalMilliseconds:#,0}ms）", before, after, elapsed, show: true);
+    }
+
+    /// <summary>
+    /// GC 前後の計測結果パネルを更新する。<see cref="ForceGarbageCollect"/>（<c>Ctrl+M</c>・常時表示）と
+    /// <see cref="PreviewControl"/> のアイドル完全 GC（<see cref="MemoryJanitor"/> 経由・
+    /// <paramref name="show"/>=false＝勝手にオーバーレイを開かない。開いていれば次回 Update で見える）
+    /// の両方から呼ぶ共通経路。
+    /// </summary>
+    /// <param name="header">結果パネルの見出し（実行種別＋所要時間）。</param>
+    /// <param name="before">GC 前のスナップショット。</param>
+    /// <param name="after">GC 後のスナップショット。</param>
+    /// <param name="elapsed">所要時間（未使用。<paramref name="header"/> に既に整形済みだが呼び出し規約として受け取る）。</param>
+    /// <param name="show">true ならオーバーレイ自体を表示状態にする（Ctrl+M 相当）。</param>
+    public void ShowCollectResult(string header, MemorySnapshot before, MemorySnapshot after, TimeSpan elapsed, bool show)
+    {
+        CollectHeader.Text = header;
         CollectManagedValue.Text = $"{MemoryDiagnostics.Mb(before.ManagedBytes)} → {MemoryDiagnostics.Mb(after.ManagedBytes)}";
         CollectNativeValue.Text = $"{MemoryDiagnostics.Mb(before.NativeBytes)} → {MemoryDiagnostics.Mb(after.NativeBytes)}";
         CollectWorkingSetValue.Text = $"{MemoryDiagnostics.Mb(before.WorkingSetBytes)} → {MemoryDiagnostics.Mb(after.WorkingSetBytes)}";
         CollectPanel.Visibility = Visibility.Visible;
-        SetShown(true);
+        if (show) SetShown(true);
         Update();
     }
 

@@ -57,6 +57,13 @@ internal sealed class PixelBufferPool
     /// <summary>現在プールが抱えている合計バイト数。</summary>
     public long PooledBytes { get; private set; }
 
+    /// <summary>
+    /// プールから捨てられ LOH のゴミになった累積バイト数（単調増加。<see cref="TrimToBudget"/> の
+    /// 上限超過分・<see cref="Clear"/> の在庫全量が積み上がる）。<see cref="MemoryJanitor"/> の
+    /// バックグラウンド GC 閾値判定に使う。
+    /// </summary>
+    public long DiscardedBytes { get; private set; }
+
     /// <summary>現在プールが抱えている本数。</summary>
     public int Count => _slots.Count;
 
@@ -117,6 +124,7 @@ internal sealed class PixelBufferPool
     {
         lock (_lock)
         {
+            DiscardedBytes += PooledBytes;
             _slots.Clear();
             PooledBytes = 0;
         }
@@ -132,6 +140,7 @@ internal sealed class PixelBufferPool
                 if (_slots[i].Order < _slots[oldest].Order) oldest = i;
 
             PooledBytes -= _slots[oldest].Bytes.Length;
+            DiscardedBytes += _slots[oldest].Bytes.Length;
             _slots.RemoveAt(oldest);
         }
     }

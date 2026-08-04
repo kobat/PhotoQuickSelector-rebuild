@@ -103,6 +103,23 @@ public sealed partial class PreviewControl : UserControl
 
     private MainViewModel? _viewModel;
 
+    // --- メモリ掃除係（2段構成 GC。背景・役割分担は MemoryJanitor の <summary> 参照）。
+    private readonly MemoryJanitor _janitor;
+    private long _reportedDiscardedBytes;                          // 前回 _janitor へ報告済みの累積捨てバイト数（ReportDiscards の差分算出用）
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _janitorTimer;
+
+    // アイドル判定の待ち時間。操作再開との衝突（ブロッキング完全 GC が操作中に当たってカクつく）を
+    // 避けつつ、放置されたら速やかに基準値へ戻すバランスで選定。
+    private static readonly TimeSpan JanitorIdleDelay = TimeSpan.FromSeconds(20);
+    // dirty 判定の周期（判定粒度＝この間隔ぶんアイドル検出が遅延しうる）。
+    private static readonly TimeSpan JanitorTickInterval = TimeSpan.FromSeconds(5);
+    // バックグラウンド GC を発行する捨てバイト累計の閾値。プール予算の既定（合計予算の20%）と同水準＝
+    // 190MB 級バッファ 2〜3 本ぶんのゴミが溜まったら流す。
+    private const long JanitorBgcThresholdBytes = 512L << 20;
+
+    /// <summary>アイドル完全 GC の前後値（<see cref="MainPage"/> がオーバーレイ表示に使う）。</summary>
+    public event Action<MemorySnapshot, MemorySnapshot, TimeSpan>? IdleCollected;
+
     /// <summary>キャッシュ中の画像（状態色付き）一覧（デバッグオーバーレイ用。C キーでトグル）。</summary>
     public ObservableCollection<CacheEntry> CachedFileNames { get; } = new();
 
@@ -138,9 +155,66 @@ public sealed partial class PreviewControl : UserControl
         // ゲート grant 時の優先度＝WindowEntries の index（フォーカス→選択窓→位置窓）。
         _cache.DecodePriority = DecodePriorityOf;
 
+        _janitor = new MemoryJanitor(
+            JanitorBgcThresholdBytes,
+            JanitorIdleDelay,
+            requestBackgroundGc: () =>
+                // バックグラウンド gen2 GC。ゴミの存在は閾値到達で確定済みなので GC 側の「見送り」判断
+                // （Optimized）は不要＝Forced で確実に発行する。ブロッキングしない（false）ので連打中でも
+                // UI を止めない（停止数 ms 級）。
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: false, compacting: false),
+            requestFullGc: () =>
+            {
+                var (before, after, elapsed) = MemoryDiagnostics.ForceFullCollect();
+                IdleCollected?.Invoke(before, after, elapsed);
+            });
+
         // Esc ではプレビューを抜けない（ユーザー要望）。プレビュー終了はダブルクリック（SPEC §2）。
         // 全画面中の Esc（通常表示へ復帰）は MainWindow 側で処理する。
     }
+
+    /// <summary>
+    /// 前回報告済みからの捨てバイト増分を <see cref="_janitor"/> へ渡す。<see cref="PreviewBitmapCache.Trim"/>
+    /// を呼んだ直後（キャッシュ在庫が動いた可能性がある箇所）で呼ぶ。dirty になったら掃除タイマーを起動する。
+    /// </summary>
+    private void ReportDiscards()
+    {
+        long total = _cache.DiscardedBytes;
+        long delta = total - _reportedDiscardedBytes;
+        _reportedDiscardedBytes = total;
+        if (delta > 0) _janitor.NoteDiscarded(delta);
+        if (_janitor.IsDirty) EnsureJanitorTimer();
+    }
+
+    /// <summary>
+    /// 掃除係のアイドル判定タイマーを起動する。dirty の間だけ回し、掃除が済んだら自分で止める
+    /// （見ていない間はコストゼロ、の既存方針＝<see cref="MemoryOverlay"/> の非表示中タイマー停止と同じ流儀）。
+    /// </summary>
+    private void EnsureJanitorTimer()
+    {
+        _janitorTimer ??= CreateJanitorTimer();
+        if (!_janitorTimer.IsRunning) _janitorTimer.Start();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateJanitorTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = JanitorTickInterval;
+        timer.IsRepeating = true;
+        timer.Tick += (s, _) =>
+        {
+            _janitor.Tick();
+            if (!_janitor.IsDirty) s.Stop();
+        };
+        return timer;
+    }
+
+    /// <summary>
+    /// グリッド表示中も含めたユーザー操作（キー/ホイール/クリック）を掃除係へ中継する
+    /// （<see cref="MainPage"/> のグローバル入力ハンドラから呼ぶ）。アイドル判定を先送りし、
+    /// 操作中にブロッキングの完全 GC が当たらないようにする。
+    /// </summary>
+    public void NoteUserActivity() => _janitor.NoteActivity();
 
     // フィルムストリップも可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
     private void FilmStrip_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
@@ -390,6 +464,7 @@ public sealed partial class PreviewControl : UserControl
     private void RequestPreviewLoad()
     {
         if (_viewModel?.IsPreviewMode != true) return;
+        _janitor.NoteActivity();
 
         // 既にデコード済み（キャッシュ在籍）ならデコード不要＝VRAM を生成しない。レート制限せず即表示する。
         // 通常のゆっくりした前後移動は settle 先読みで近傍が温まっているため、これで2枚目以降も遅延なく出る。
@@ -525,6 +600,7 @@ public sealed partial class PreviewControl : UserControl
             // 通さないと押しっぱなしナビ中に Trim が一度も走らずキャッシュが膨張する。
             // WindowPaths() は現在の FocusedPhoto 基準なので常に最新窓へ収束する。
             _cache.Trim(WindowPaths());
+            ReportDiscards();
             RefreshCacheOverlay();
             return;
         }
@@ -587,6 +663,7 @@ public sealed partial class PreviewControl : UserControl
 
         if (prefetch) _cache.Prefetch(WindowPaths());
         _cache.Trim(WindowPaths());
+        ReportDiscards();
         // 両隣が全部キャッシュ済みの移動では Changed が発火せず（ヒットは LastUse 更新のみ・
         // Trim も削除ゼロなら発火しない）、窓ラベルが古いまま残るため、ナビゲーション後に明示更新する。
         // 非表示中は RefreshCacheOverlay 冒頭のガードで即 return するのでコストなし。
