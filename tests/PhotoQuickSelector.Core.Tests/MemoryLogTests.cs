@@ -28,22 +28,24 @@ public class MemoryLogTests
             poolBytes: 200, poolCount: 1, poolHit: 5, poolMiss: 2,
             discardedBytes: 700, janitorDirty: true);
 
-        var line = MemoryLog.FormatSample(1234, s, gen0: 10, gen1: 3, gen2: 1, lohSize: 5000, lohFrag: 100, extras);
+        var line = MemoryLog.FormatSample(1234, s, gen0: 10, gen1: 3, gen2: 1, lohSize: 5000, lohFrag: 100,
+            allocatedBytes: 88888, pohSize: 640, extras);
 
         Assert.Equal(
-            "1234\tSAMPLE\t100\t150\t400\t380\t250\t10\t3\t1\t5000\t100\t900\t3\t1\t200\t1\t5\t2\t700\t1",
+            "1234\tSAMPLE\t100\t150\t400\t380\t250\t10\t3\t1\t5000\t100\t900\t3\t1\t200\t1\t5\t2\t700\t1\t88888\t640",
             line);
     }
 
     [Fact]
-    public void FormatSample_JanitorNotDirty_EndsWithZero()
+    public void FormatSample_JanitorNotDirty_EncodesDirtyAsZero()
     {
         var s = Snapshot(0, 0, 0, 0);
         var extras = new MemoryLogExtras(0, 0, 0, 0, 0, 0, 0, 0, janitorDirty: false);
 
-        var line = MemoryLog.FormatSample(0, s, 0, 0, 0, 0, 0, extras);
+        var line = MemoryLog.FormatSample(0, s, 0, 0, 0, 0, 0, 0, 0, extras);
 
-        Assert.EndsWith("\t0", line);
+        // janitorDirty は末尾ではなく allocatedBytes/pohSize の前（後付け列は末尾追加の方針）。
+        Assert.EndsWith("\t0\t0\t0", line);
     }
 
     [Fact]
@@ -54,13 +56,13 @@ public class MemoryLogTests
     }
 
     [Fact]
-    public void FormatDecode_EncodesPoolHitAsOneOrZero()
+    public void FormatDecode_EncodesPoolHitAsOneOrZero_AndAppendsFileBytes()
     {
-        var hit = MemoryLog.FormatDecode(10, "a.jpg", 199_000_000, 42.5, poolHit: true);
-        var miss = MemoryLog.FormatDecode(10, "a.jpg", 199_000_000, 42.5, poolHit: false);
+        var hit = MemoryLog.FormatDecode(10, "a.jpg", 199_000_000, 42.5, poolHit: true, fileBytes: 21_000_000);
+        var miss = MemoryLog.FormatDecode(10, "a.jpg", 199_000_000, 42.5, poolHit: false, fileBytes: 21_000_000);
 
-        Assert.Equal("10\tDECODE\ta.jpg\t199000000\t42.5\t1", hit);
-        Assert.Equal("10\tDECODE\ta.jpg\t199000000\t42.5\t0", miss);
+        Assert.Equal("10\tDECODE\ta.jpg\t199000000\t42.5\t1\t21000000", hit);
+        Assert.Equal("10\tDECODE\ta.jpg\t199000000\t42.5\t0\t21000000", miss);
     }
 
     [Fact]
@@ -168,7 +170,7 @@ public class MemoryLogTests
             log.Note("late-note", "should-not-appear");
             log.Sample(default, default);
             log.Nav("x.jpg", 1, 1);
-            log.DecodeDone("x.jpg", 1, 1.0, true);
+            log.DecodeDone("x.jpg", 1, 1.0, true, 1);
             log.Discarded(1);
             log.Gc("ctrlm", default, default, 1.0);
             Thread.Sleep(50); // 掃き出しタイマーは Stop 済みなので、待っても増えないはず

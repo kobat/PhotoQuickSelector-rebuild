@@ -3226,17 +3226,25 @@ COM interop で直接呼んで**全ネイティブ資源を `Marshal.FinalReleas
 ### TSV スキーマ（タブ区切り。数値はバイト単位の生値）
 
 - `SAMPLE`: managed, committed, private, ws, native, gen0, gen1, gen2, lohSize, lohFrag, cacheBytes,
-  cacheCount, inflightCount, poolBytes, poolCount, poolHit, poolMiss, discardedBytes, janitorDirty(1/0)
+  cacheCount, inflightCount, poolBytes, poolCount, poolHit, poolMiss, discardedBytes, janitorDirty(1/0),
+  allocatedBytes, pohSize（末尾 2 列は 2026-08-05 の後付け＝「列追加」追記参照）
   - `lohSize`/`lohFrag` は `GC.GetGCMemoryInfo().GenerationInfo[3]` の `SizeAfterBytes`/`FragmentationAfterBytes`
     ＝**直前の GC 完了時点のスナップショット**（`GCMemoryInfo` の仕様。現在値ではない＝GC が走らない間は
     更新されない）。プールミス時の LOH 変動仮説を検証するための列で、この前提込みで読むこと。
+    `pohSize`（POH＝GenerationInfo[4] の `SizeAfterBytes`）も同じく直前 GC 時点のスナップショット。
+  - `allocatedBytes` は `GC.GetTotalAllocatedBytes(precise: false)`＝プロセス起動からの**累積**確保バイト
+    （現在値・単調増加。回収されても減らない）。サンプル間の差分がアロケーションレートになり、
+    「GC 間の WS/private 増加＝新規確保の積み上がり（回収待ちゴミ）か・真のネイティブ増か」を
+    機械的に切り分けられる。
   - `cacheBytes`/`cacheCount`/`inflightCount`/`poolBytes`/`poolCount`/`poolHit`/`poolMiss`/`discardedBytes`/
     `janitorDirty` は `PreviewControl.CollectMemoryLogExtras()`（`MemoryLogExtras`）が
     `PreviewBitmapCache`/`PixelBufferPool`/`MemoryJanitor` から集める。
 - `NAV`: fileName, width, height（`FocusedPhoto` 変更時。寸法は EXIF Orientation 適用後の表示寸法＝
   `ImageMetadata.Width`/`Height`）
-- `DECODE`: fileName, bytes, elapsedMs, poolHit(1/0)（`File.ReadAllBytesAsync` 直前から
-  `WicPixelDecoder.Decode` 完了まで。I/O 込みで測ることで遅さの原因が I/O かデコードかを切り分けられる）
+- `DECODE`: fileName, bytes, elapsedMs, poolHit(1/0), fileBytes（`File.ReadAllBytesAsync` 直前から
+  `WicPixelDecoder.Decode` 完了まで。I/O 込みで測ることで遅さの原因が I/O かデコードかを切り分けられる。
+  `fileBytes`＝読み込んだ圧縮ファイルのバイト数（2026-08-05 後付け）。毎デコードの読み捨て byte[] が
+  生む LOH 負荷を定量するための列で、ピクセルの `bytes` とは別枠）
 - `DISCARD`: deltaBytes（キャッシュ/プールからの破棄＝LOH ゴミ化。`PreviewControl.ReportDiscards` の差分）
 - `GC`: kind, elapsedMs, beforeManaged, beforeNative, beforeWs, afterManaged, afterNative, afterWs
   （`kind` は `ctrlm`＝Ctrl+M の強制フル GC／`idle`＝メモリ掃除係のアイドル完全 GC／`bgc`＝メモリ掃除係の
@@ -3268,4 +3276,29 @@ COM interop で直接呼んで**全ネイティブ資源を `Marshal.FinalReleas
 - テスト: `PhotoQuickSelector.Core.Tests/MemoryLogTests.cs`。行フォーマット純関数（各レコード種別・
   タブ区切り・`bgc` の空フィールド）＋ Start/Stop ライフサイクル（ヘッダ・`rec-start`/`rec-stop`・
   多重 Start の no-op・Stop 後 no-op・Start 前 no-op）を検証。テスト計 212 件緑。
+
+### 初回ログ解析と列追加（2026-08-05）
+
+初回の実機ログ（`memlog_20260805_223744.tsv`＝左押しっぱなし→右連打・60 秒・NAV 415／DECODE 204）を
+解析した結果:
+
+- **サイズ混在地帯（プールミス・DISCARD が出る区間）ではメモリ掃除係が想定どおり機能**し、
+  WS は 3.4〜4.0GB（≒予算 2.5GB＋ネイティブ基礎 ~0.9GB＋捨てバイト閾値ぶん）で頭打ちになる。
+- 問題は**単一サイズ地帯で全プールヒットになる区間**。DISCARD が止まる＝掃除係の発火契機（捨てバイト
+  閾値）が消え、gen2 GC が自然発生（4〜8 秒間隔）のみになり、その間に回収待ちの使い捨てアロケーションが
+  積もって **WS が 4.5GB までピーク**した（自然 gen2 のたびに −300〜600MB 回復＝リークではない）。
+- 積もる正体の最有力は `PreviewBitmapCache.LoadCoreAsync` の `File.ReadAllBytesAsync`＝**毎デコードで
+  圧縮 JPEG 全体（α1 で 10〜30MB 級）を新規 byte[] へ読み捨て**る分（4.4 デコード/s で 50〜100MB/s の
+  LOH ゴミ）。これは `DiscardedBytes` に算入されず掃除係から不可視。ただしこの推定はログからの
+  状況証拠のみだったため、確証を取る目的で列を 2 つ後付けした（**既存パーサ互換のためいずれも行末尾へ追加**）:
+  - `SAMPLE` 末尾に `allocatedBytes`（`GC.GetTotalAllocatedBytes` 累積）と `pohSize`（POH サイズ）
+  - `DECODE` 末尾に `fileBytes`（読み込んだ圧縮ファイルのバイト数）
+- 検証手順: 同じ操作（単一サイズ地帯での連打）を再記録し、全ヒット区間の
+  「`allocatedBytes` の増加レート ≒ Σ`fileBytes` レート」かつ「WS 増加が allocatedBytes 増加に随伴し
+  gen2 で回復」なら読み捨て仮説が確定。対策候補は①圧縮バイト読み込みのプール化
+  （`RandomAccess.Read`＋rent。`IWICStream.InitializeFromMemory` は長さ指定なのでオーバーサイズ
+  バッファ可）②掃除係の閾値カウントへ `fileBytes` を算入、の 2 案（未着手）。
+- なお Ctrl+M 後の床は WS 3.17GB（キャッシュ 2.28GB＋マネージドその他＋ネイティブ基礎 ~0.9GB。
+  フル GC でもネイティブは 1183→1181MB とほぼ不動＝案 K 後の真のネイティブ滞留は無し）。予算に対する
+  床の高さは構造的なもので、下げるには未着手の「使っていない間のキャッシュ解放」が必要。
 

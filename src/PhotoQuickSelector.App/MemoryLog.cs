@@ -179,14 +179,19 @@ public sealed class MemoryLog
         int gen1 = GC.CollectionCount(1);
         int gen2 = GC.CollectionCount(2);
 
-        // GenerationInfo[3]（LOH）は GCMemoryInfo の仕様上「直前の GC 完了時点」のスナップショットで
-        // 現在値ではない。GC が走らない間は更新されないため、プールミス時の LOH 変動仮説を検証する際は
-        // この前提込みで読むこと（docs/HISTORY.md「メモリ時系列ログ」節）。
+        // GenerationInfo[3]（LOH）/[4]（POH）は GCMemoryInfo の仕様上「直前の GC 完了時点」の
+        // スナップショットで現在値ではない。GC が走らない間は更新されないため、プールミス時の
+        // LOH 変動仮説を検証する際はこの前提込みで読むこと（docs/HISTORY.md「メモリ時系列ログ」節）。
         var genInfo = GC.GetGCMemoryInfo().GenerationInfo;
         long lohSize = genInfo.Length > 3 ? genInfo[3].SizeAfterBytes : 0;
         long lohFrag = genInfo.Length > 3 ? genInfo[3].FragmentationAfterBytes : 0;
+        long pohSize = genInfo.Length > 4 ? genInfo[4].SizeAfterBytes : 0;
 
-        Enqueue(FormatSample(ElapsedMs, s, gen0, gen1, gen2, lohSize, lohFrag, extras));
+        // 累積アロケーションバイト（現在値・単調増加）。サンプル間の差分がアロケーションレートになり、
+        // 「GC 間の WS 増加＝新規確保の積み上がりか・真のネイティブ増か」を機械的に切り分けられる。
+        long allocated = GC.GetTotalAllocatedBytes(precise: false);
+
+        Enqueue(FormatSample(ElapsedMs, s, gen0, gen1, gen2, lohSize, lohFrag, allocated, pohSize, extras));
     }
 
     /// <summary>写真切替（<c>FocusedPhoto</c> 変更）を記録する。</summary>
@@ -196,11 +201,15 @@ public sealed class MemoryLog
         Enqueue(FormatNav(ElapsedMs, fileName, width, height));
     }
 
-    /// <summary>プレビューのフルデコード完了を記録する（<see cref="Controls.PreviewBitmapCache"/> から）。</summary>
-    public void DecodeDone(string fileName, long bytes, double elapsedMs, bool poolHit)
+    /// <summary>
+    /// プレビューのフルデコード完了を記録する（<see cref="Controls.PreviewBitmapCache"/> から）。
+    /// <paramref name="fileBytes"/> は読み込んだ圧縮ファイルのバイト数（読み捨て byte[] の LOH 負荷を
+    /// 定量するための列。ピクセルの <paramref name="bytes"/> と別枠）。
+    /// </summary>
+    public void DecodeDone(string fileName, long bytes, double elapsedMs, bool poolHit, long fileBytes)
     {
         if (!_isRecording) return;
-        Enqueue(FormatDecode(ElapsedMs, fileName, bytes, elapsedMs, poolHit));
+        Enqueue(FormatDecode(ElapsedMs, fileName, bytes, elapsedMs, poolHit, fileBytes));
     }
 
     /// <summary>キャッシュ/プールからの破棄（LOH ゴミ化）を記録する。</summary>
@@ -286,25 +295,29 @@ public sealed class MemoryLog
 
     // --- 行フォーマット（static な純関数。ホストが積む行と同じものをテストが直接検証できるよう internal で公開） ---
 
-    /// <summary>SAMPLE 行を組み立てる（列は docs/HISTORY.md「メモリ時系列ログ」節のスキーマ参照）。</summary>
+    /// <summary>
+    /// SAMPLE 行を組み立てる（列は docs/HISTORY.md「メモリ時系列ログ」節のスキーマ参照）。
+    /// 後から足した列（allocatedBytes/pohSize）は既存 TSV のパーサを壊さないよう末尾へ追加する。
+    /// </summary>
     internal static string FormatSample(
         long elapsedMs, MemorySnapshot s, int gen0, int gen1, int gen2, long lohSize, long lohFrag,
-        in MemoryLogExtras extras) => string.Join('\t',
+        long allocatedBytes, long pohSize, in MemoryLogExtras extras) => string.Join('\t',
             elapsedMs, "SAMPLE",
             s.ManagedBytes, s.CommittedBytes, s.PrivateBytes, s.WorkingSetBytes, s.NativeBytes,
             gen0, gen1, gen2, lohSize, lohFrag,
             extras.CacheBytes, extras.CacheCount, extras.InflightCount,
             extras.PoolBytes, extras.PoolCount, extras.PoolHit, extras.PoolMiss,
-            extras.DiscardedBytes, extras.JanitorDirty ? 1 : 0);
+            extras.DiscardedBytes, extras.JanitorDirty ? 1 : 0,
+            allocatedBytes, pohSize);
 
     /// <summary>NAV 行を組み立てる。</summary>
     internal static string FormatNav(long elapsedMs, string fileName, int width, int height) =>
         string.Join('\t', elapsedMs, "NAV", fileName, width, height);
 
-    /// <summary>DECODE 行を組み立てる。</summary>
-    internal static string FormatDecode(long elapsedMs, string fileName, long bytes, double decodeElapsedMs, bool poolHit) =>
+    /// <summary>DECODE 行を組み立てる（fileBytes は後付け列のため末尾）。</summary>
+    internal static string FormatDecode(long elapsedMs, string fileName, long bytes, double decodeElapsedMs, bool poolHit, long fileBytes) =>
         string.Join('\t', elapsedMs, "DECODE", fileName, bytes,
-            decodeElapsedMs.ToString("0.###", CultureInfo.InvariantCulture), poolHit ? 1 : 0);
+            decodeElapsedMs.ToString("0.###", CultureInfo.InvariantCulture), poolHit ? 1 : 0, fileBytes);
 
     /// <summary>DISCARD 行を組み立てる。</summary>
     internal static string FormatDiscard(long elapsedMs, long deltaBytes) =>

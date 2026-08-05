@@ -344,7 +344,7 @@ internal sealed class PreviewBitmapCache
                     WicPixelDecoder.Decode(bytes, MaxPixelBytesPerImage, len => _pool.Rent(len, out poolHit)));
                 decodeSw.Stop();
                 if (frame == null) { return null; }
-                MemoryLog.Current.DecodeDone(Path.GetFileName(path), frame.Bytes.Length, decodeSw.Elapsed.TotalMilliseconds, poolHit);
+                MemoryLog.Current.DecodeDone(Path.GetFileName(path), frame.Bytes.Length, decodeSw.Elapsed.TotalMilliseconds, poolHit, bytes.Length);
 
                 // 破棄が決まったバッファはプールへ戻す（まだ誰にも渡していないので即返却でよい）。
                 if (generation != _generation) { _pool.Return(frame.Bytes); return null; }
