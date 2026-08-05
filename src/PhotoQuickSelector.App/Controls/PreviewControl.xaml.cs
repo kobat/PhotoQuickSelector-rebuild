@@ -103,7 +103,7 @@ public sealed partial class PreviewControl : UserControl
 
     private MainViewModel? _viewModel;
 
-    // --- メモリ掃除係（2段構成 GC。背景・役割分担は MemoryJanitor の <summary> 参照）。
+    // --- メモリ掃除係（3段構成 GC。背景・役割分担は MemoryJanitor の <summary> 参照）。
     private readonly MemoryJanitor _janitor;
     private long _reportedDiscardedBytes;                          // 前回 _janitor へ報告済みの累積捨てバイト数（ReportDiscards の差分算出用）
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _janitorTimer;
@@ -168,12 +168,27 @@ public sealed partial class PreviewControl : UserControl
                 GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: false, compacting: false);
                 MemoryLog.Current.Gc("bgc", before, null, 0);
             },
+            requestBlockingGc: () =>
+            {
+                // 背景 gen2 が回収で速度負けした時だけ当たるブロッキング gen2。Aggressive や LOH 圧縮は
+                // やらない（アイドル完全 GC の役目）。停止は ~100-250ms 級で、ミス連発中＝ナビが遅い
+                // 時間帯にしか発火しないため体感への影響は小さい。
+                var before = MemoryDiagnostics.Snapshot();
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: false);
+                sw.Stop();
+                MemoryLog.Current.Gc("blk", before, MemoryDiagnostics.Snapshot(), sw.Elapsed.TotalMilliseconds);
+            },
             requestFullGc: () =>
             {
                 var (before, after, elapsed) = MemoryDiagnostics.ForceFullCollect();
                 MemoryLog.Current.Gc("idle", before, after, elapsed.TotalMilliseconds);
                 IdleCollected?.Invoke(before, after, elapsed);
-            });
+            },
+            // 回収待ちマネージドゴミの概算＝総マネージドヒープ − 生きていることが確実な常駐分
+            // （キャッシュ＋プール＋デコード中貸出）。サムネイル等の他のライブ分（実測 ~100-300MB）は
+            // 誤差として乗るが、閾値側（AppSettings.BlockingGcThresholdMB）で吸収する前提。
+            garbageBytes: () => Math.Max(0, GC.GetTotalMemory(forceFullCollection: false) - _cache.ResidentBytes));
 
         // Esc ではプレビューを抜けない（ユーザー要望）。プレビュー終了はダブルクリック（SPEC §2）。
         // 全画面中の Esc（通常表示へ復帰）は MainWindow 側で処理する。
@@ -335,6 +350,9 @@ public sealed partial class PreviewControl : UserControl
 
         // キャッシュの合計バイト予算（GB → bytes）と、その内訳（プールの割合）。
         _cache.SetBudget((long)(Math.Max(0.1, s.CacheBudgetGB) * (1L << 30)), s.CachePoolRatioPercent);
+
+        // 背景 gen2 GC が速度負けしたときのブロッキング gen2 の閾値（MB → bytes）。0 以下で無効。
+        _janitor.BlockingGcThresholdBytes = (long)Math.Max(0, s.BlockingGcThresholdMB) << 20;
 
         // 「切替時のみ」オーバーレイの保持／フェード時間。
         ApplyOverlayFadeTimings(s);

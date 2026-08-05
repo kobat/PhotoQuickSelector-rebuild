@@ -174,6 +174,13 @@
                         <NumberBox x:Name="CachePoolRatioBox" HorizontalAlignment="Left" MinWidth="160"
                                    Minimum="0" Maximum="90" SmallChange="5" LargeChange="10"
                                    SpinButtonPlacementMode="Compact" />
+                        <TextBlock x:Uid="Settings_BlockingGcNote"
+                                   Text="緊急メモリ回収のしきい値 (MB) です。回収待ちの不要メモリがこの量を超えると、表示を一瞬止めて即時回収します。メモリ使用量はおおむね「キャッシュ容量予算＋この値」で頭打ちになります。0 で無効。"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <NumberBox x:Name="BlockingGcBox" HorizontalAlignment="Left" MinWidth="160"
+                                   Minimum="0" Maximum="8192" SmallChange="128" LargeChange="512"
+                                   SpinButtonPlacementMode="Compact" />
                     </StackPanel>
 
                     <!-- 先読み枚数 -->

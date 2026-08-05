@@ -133,6 +133,16 @@ public sealed class AppSettings
     /// </summary>
     public int CachePoolRatioPercent { get; set; } = 20;
 
+    /// <summary>
+    /// メモリ掃除係のブロッキング gen2 GC を発行する、回収待ちの不要メモリ（概算）のバイト閾値（MB）。
+    /// 概算がこの量を超えたら（＝背景 GC がバーストに速度負けしている事実そのもの）ブロッキングで回収し、
+    /// メモリ使用量を「キャッシュ容量予算＋この閾値」水準で頭打ちにする。捨てバイトが閾値の半分たまる
+    /// ごとにしか再発火しない再武装ガード付き（概算の推定誤差だけで連打されるのを防ぐ）。発行中は UI が
+    /// 止まる（~100〜250ms 級）ため、カクつきが気になる場合は大きく、メモリを厳しく抑えたい場合は小さく
+    /// する。0 以下で無効（背景 GC とアイドル GC のみ）。
+    /// </summary>
+    public int BlockingGcThresholdMB { get; set; } = 512;
+
     /// <summary>先読み枚数（表示中より前方＝次に進む向き）。</summary>
     public int PrefetchForward { get; set; } = 2;
 

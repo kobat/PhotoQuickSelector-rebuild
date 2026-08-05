@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PhotoQuickSelector_App.Controls;
@@ -151,6 +152,14 @@ internal sealed class PreviewBitmapCache
     public int InflightCount => _inflight.Count;
 
     /// <summary>
+    /// マネージドヒープ上で"生きている"ことが確実なピクセルバッファの合計バイト数
+    /// （キャッシュ在籍＋プール在籍＋デコード中に貸出中＝<see cref="_inflightPixelBytes"/>）。
+    /// <see cref="MemoryJanitor"/> のブロッキング段が「回収待ちゴミの概算＝GetTotalMemory − この値」を
+    /// 出すための分母側（<see cref="PreviewControl"/> が生成時に渡す）。
+    /// </summary>
+    public long ResidentBytes => CachedBytes + PooledBytes + Interlocked.Read(ref _inflightPixelBytes);
+
+    /// <summary>
     /// 合計予算と内訳の割合を設定する。例: 2GB・25% なら キャッシュ 1.5GB／プール 0.5GB。
     /// 割合 0 ならプールを使わない（デコードのたびに新規確保＝プール導入前の挙動）。
     /// </summary>
@@ -205,6 +214,9 @@ internal sealed class PreviewBitmapCache
     // Clear がキャッシュ本体／_pendingReturns をプールを経由せず直接捨てた累積バイト数
     // （DiscardedBytes の内訳。プール経由分は _pool.DiscardedBytes 側に乗る）。
     private long _directDiscardedBytes;
+    // プールから Rent 済みでまだキャッシュ/プールに戻っていない（デコード中に貸出中の）バッファの合計。
+    // Rent はワーカースレッド（Task.Run 内）で走るため Interlocked で操作する（ResidentBytes 用）。
+    private long _inflightPixelBytes;
 
     /// <param name="maxConcurrentDecodes">同時に走らせるデコード本数（1 以上にクランプ）。</param>
     public PreviewBitmapCache(int maxConcurrentDecodes = 2)
@@ -339,17 +351,40 @@ internal sealed class PreviewBitmapCache
                 // （宣言寸法で確保前に弾く）は WicPixelDecoder 側で従来同等に行う。
                 // 同期 API のためワーカーで実行（同時実行数はゲートで既に絞られている）。
                 // ピクセルの書き出し先はプールから借りるので、200MB 級の LOH ゴミも出ない。
+                // Rent が返した瞬間から「貸出中」とみなし _inflightPixelBytes へ計上する（ResidentBytes の
+                // 一部＝ゴミ量概算の分母側）。Rent はワーカースレッド（Task.Run 内）で走るため Interlocked。
+                // rentedBytes はこの呼び出しローカルの変数なので、同時デコード（ゲートで最大 2 本）間で
+                // 混線しない。
+                long rentedBytes = 0;
                 bool poolHit = false;
-                var frame = await Task.Run(() =>
-                    WicPixelDecoder.Decode(bytes, MaxPixelBytesPerImage, len => _pool.Rent(len, out poolHit)));
-                decodeSw.Stop();
-                if (frame == null) { return null; }
-                MemoryLog.Current.DecodeDone(Path.GetFileName(path), frame.Bytes.Length, decodeSw.Elapsed.TotalMilliseconds, poolHit, bytes.Length);
+                PixelFrame? frame;
+                try
+                {
+                    frame = await Task.Run(() =>
+                        WicPixelDecoder.Decode(bytes, MaxPixelBytesPerImage, len =>
+                        {
+                            var buf = _pool.Rent(len, out poolHit);
+                            rentedBytes = buf.Length;
+                            Interlocked.Add(ref _inflightPixelBytes, rentedBytes);
+                            return buf;
+                        }));
+                    decodeSw.Stop();
+                    if (frame == null) { return null; }
+                    MemoryLog.Current.DecodeDone(Path.GetFileName(path), frame.Bytes.Length, decodeSw.Elapsed.TotalMilliseconds, poolHit, bytes.Length);
 
-                // 破棄が決まったバッファはプールへ戻す（まだ誰にも渡していないので即返却でよい）。
-                if (generation != _generation) { _pool.Return(frame.Bytes); return null; }
-                _cache[path] = new CacheEntry(frame, ++_useCounter);
-                return frame;
+                    // 破棄が決まったバッファはプールへ戻す（まだ誰にも渡していないので即返却でよい）。
+                    if (generation != _generation) { _pool.Return(frame.Bytes); return null; }
+                    _cache[path] = new CacheEntry(frame, ++_useCounter);
+                    return frame;
+                }
+                finally
+                {
+                    // 結末（キャッシュ入り／プール返却／frame==null／例外＝Decode 内 COMException で
+                    // rentBuffer 済みのまま失敗）のいずれでも貸出を解消する。キャッシュ入りの場合は
+                    // 代入直後にここへ来るため CachedBytes と一瞬二重計上になるが、ゴミ量概算を安全側
+                    // （過小評価しない）に倒すため許容する。
+                    if (rentedBytes > 0) Interlocked.Add(ref _inflightPixelBytes, -rentedBytes);
+                }
             }
             finally
             {

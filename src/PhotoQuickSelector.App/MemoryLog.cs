@@ -221,7 +221,8 @@ public sealed class MemoryLog
 
     /// <summary>
     /// GC 実行を記録する。<paramref name="kind"/> は <c>ctrlm</c>（Ctrl+M の強制フル GC）／
-    /// <c>idle</c>（メモリ掃除係のアイドル完全 GC）／<c>bgc</c>（メモリ掃除係の背景 gen2 GC）。
+    /// <c>idle</c>（メモリ掃除係のアイドル完全 GC）／<c>bgc</c>（メモリ掃除係の背景 gen2 GC）／
+    /// <c>blk</c>（メモリ掃除係のブロッキング gen2 GC＝背景 gen2 が速度負けした時の保険段）。
     /// <c>bgc</c> は非ブロッキング発行で前後値を取らないため <paramref name="after"/> は null でよい
     /// （出力では after 側の 3 列を空文字にする）。
     /// </summary>

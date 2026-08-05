@@ -249,6 +249,7 @@ public sealed partial class PhotoStatusBar : UserControl
             s.FullFadeMs = dialog.FullFadeMs;
             s.CacheBudgetGB = dialog.CacheBudgetGB;
             s.CachePoolRatioPercent = dialog.CachePoolRatioPercent;
+            s.BlockingGcThresholdMB = dialog.BlockingGcThresholdMB;
             s.PrefetchForward = dialog.PrefetchForward;
             s.PrefetchBackward = dialog.PrefetchBackward;
             s.MaxConcurrentDecodes = dialog.MaxConcurrentDecodes;

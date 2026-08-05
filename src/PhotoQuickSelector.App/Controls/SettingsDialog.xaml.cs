@@ -52,6 +52,7 @@ public sealed partial class SettingsDialog : ContentDialog
 
     public double CacheBudgetGB => Val(CacheBudgetBox, Defaults.CacheBudgetGB);
     public int CachePoolRatioPercent => (int)System.Math.Round(Val(CachePoolRatioBox, Defaults.CachePoolRatioPercent));
+    public int BlockingGcThresholdMB => (int)System.Math.Round(Val(BlockingGcBox, Defaults.BlockingGcThresholdMB));
     public int PrefetchForward => (int)System.Math.Round(Val(PrefetchForwardBox, Defaults.PrefetchForward));
     public int PrefetchBackward => (int)System.Math.Round(Val(PrefetchBackwardBox, Defaults.PrefetchBackward));
     public int MaxConcurrentDecodes => (int)System.Math.Round(Val(ConcurrencyBox, Defaults.MaxConcurrentDecodes));
@@ -76,6 +77,7 @@ public sealed partial class SettingsDialog : ContentDialog
         FullFadeBox.Value = settings.FullFadeMs;
         CacheBudgetBox.Value = settings.CacheBudgetGB;
         CachePoolRatioBox.Value = settings.CachePoolRatioPercent;
+        BlockingGcBox.Value = settings.BlockingGcThresholdMB;
         PrefetchForwardBox.Value = settings.PrefetchForward;
         PrefetchBackwardBox.Value = settings.PrefetchBackward;
         ConcurrencyBox.Value = settings.MaxConcurrentDecodes;
@@ -148,6 +150,7 @@ public sealed partial class SettingsDialog : ContentDialog
     {
         CacheBudgetBox.Value = Defaults.CacheBudgetGB;
         CachePoolRatioBox.Value = Defaults.CachePoolRatioPercent;
+        BlockingGcBox.Value = Defaults.BlockingGcThresholdMB;
     }
 
     private void ResetPrefetch_Click(object sender, RoutedEventArgs e)
