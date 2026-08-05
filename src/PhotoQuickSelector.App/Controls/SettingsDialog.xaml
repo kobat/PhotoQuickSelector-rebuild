@@ -175,7 +175,7 @@
                                    Minimum="0" Maximum="90" SmallChange="5" LargeChange="10"
                                    SpinButtonPlacementMode="Compact" />
                         <TextBlock x:Uid="Settings_BlockingGcNote"
-                                   Text="緊急メモリ回収のしきい値 (MB) です。回収待ちの不要メモリがこの量を超えると、表示を一瞬止めて即時回収します。メモリ使用量はおおむね「キャッシュ容量予算＋この値」で頭打ちになります。0 で無効。"
+                                   Text="緊急メモリ回収のしきい値 (MB) です。回収待ちの不要メモリ（未回収のゴミと、回収済みでもまだ OS へ返却されていない分）の合計がこの量を超えると、表示を一瞬（0.1〜0.3 秒程度）止めて即時回収します。連続閲覧中に通常のメモリ使用量へ一時的に上乗せされる分を、おおむねこの量までに抑えます。小さくするほどメモリは抑えられますが、引っかかりの頻度が増えます。0 で無効。"
                                    TextWrapping="Wrap"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <NumberBox x:Name="BlockingGcBox" HorizontalAlignment="Left" MinWidth="160"

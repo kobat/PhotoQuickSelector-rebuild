@@ -170,14 +170,16 @@ public sealed partial class PreviewControl : UserControl
             },
             requestBlockingGc: () =>
             {
-                // 背景 gen2 が回収で速度負けした時だけ当たるブロッキング gen2。Aggressive や LOH 圧縮は
-                // やらない（アイドル完全 GC の役目）。停止は ~100-250ms 級で、ミス連発中＝ナビが遅い
-                // 時間帯にしか発火しないため体感への影響は小さい。
+                // 背景 gen2 が回収で速度負けした時だけ当たるブロッキング gen2。空きリージョンの decommit
+                // まで同期させるため常に Aggressive（圧縮込み）。停止 ~140〜300ms 実測。軽量な素の Forced を
+                // 先に試す 2 段方式は採らない（Forced 後の返却予定ページはどの計測にも写らず WS 高止まりを
+                // 取りこぼす＝実測で確定。経緯は HISTORY.md「メモリ掃除係のブロッキング段」節）。
+                // ファイナライザ待ちはやらない（WinRT 滞留は案 K で解消済み。取り残しはアイドル完全 GC の役目）。
                 var before = MemoryDiagnostics.Snapshot();
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: false);
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
                 sw.Stop();
-                MemoryLog.Current.Gc("blk", before, MemoryDiagnostics.Snapshot(), sw.Elapsed.TotalMilliseconds);
+                MemoryLog.Current.Gc("agr", before, MemoryDiagnostics.Snapshot(), sw.Elapsed.TotalMilliseconds);
             },
             requestFullGc: () =>
             {
@@ -185,10 +187,20 @@ public sealed partial class PreviewControl : UserControl
                 MemoryLog.Current.Gc("idle", before, after, elapsed.TotalMilliseconds);
                 IdleCollected?.Invoke(before, after, elapsed);
             },
-            // 回収待ちマネージドゴミの概算＝総マネージドヒープ − 生きていることが確実な常駐分
-            // （キャッシュ＋プール＋デコード中貸出）。サムネイル等の他のライブ分（実測 ~100-300MB）は
-            // 誤差として乗るが、閾値側（AppSettings.BlockingGcThresholdMB）で吸収する前提。
-            garbageBytes: () => Math.Max(0, GC.GetTotalMemory(forceFullCollection: false) - _cache.ResidentBytes));
+            // 回収待ちメモリの概算＝ゴミ（総マネージドヒープ − 生きていることが確実な常駐分＝キャッシュ＋
+            // プール＋デコード中貸出）＋在庫（直近 GC 完了時点の総コミット − 総マネージドヒープ＝回収済みだが
+            // OS 未返却の分）。ゴミ側の誤差（サムネイル等の他ライブ分 ~100-300MB）・在庫側の鮮度
+            // （TotalCommittedBytes は GC が走らない間は更新されず高止まりして見える）は、いずれも閾値側
+            // （AppSettings.BlockingGcThresholdMB）と再武装ガードで吸収する前提。
+            pendingBytes: () =>
+            {
+                long resident = _cache.ResidentBytes;
+                long managed = GC.GetTotalMemory(forceFullCollection: false);
+                long committed = GC.GetGCMemoryInfo().TotalCommittedBytes;
+                return new PendingMemoryEstimate(
+                    GarbageBytes: Math.Max(0, managed - resident),
+                    InventoryBytes: Math.Max(0, committed - managed));
+            });
 
         // Esc ではプレビューを抜けない（ユーザー要望）。プレビュー終了はダブルクリック（SPEC §2）。
         // 全画面中の Esc（通常表示へ復帰）は MainWindow 側で処理する。

@@ -3,6 +3,19 @@ using System;
 namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
+/// 回収待ちメモリの概算（メモリ掃除係のブロッキング段の判定材料。ホストが計測して渡す）。
+/// </summary>
+/// <param name="GarbageBytes">未回収の不要マネージドメモリ（<c>GC.GetTotalMemory(false) − 生きていることが
+/// 確実な常駐分</c>）。gen2 GC が確保のバーストに速度負けしているときに増える。</param>
+/// <param name="InventoryBytes">回収済みだが OS へ未返却の分（<c>GC.GetGCMemoryInfo().TotalCommittedBytes −
+/// GC.GetTotalMemory(false)</c>）。gen2 GC は走ったが decommit（OS への返却）が追いついていないときに増える。</param>
+internal readonly record struct PendingMemoryEstimate(long GarbageBytes, long InventoryBytes)
+{
+    /// <summary>判定に使う合計（ゴミ＋在庫）。</summary>
+    public long TotalBytes => GarbageBytes + InventoryBytes;
+}
+
+/// <summary>
 /// 3段構成のメモリ掃除係。<see cref="PixelBufferPool"/>／<see cref="PreviewBitmapCache"/> はバイト長
 /// 完全一致でしか在庫を再利用できないため、画像サイズ混在フォルダでは再利用ミスが連発し、破棄された
 /// 200MB 級 <c>byte[]</c> が LOH のゴミとして gen2 GC まで残留する（decommit も遅延し、ワーキングセットが
@@ -17,13 +30,19 @@ namespace PhotoQuickSelector_App.Controls;
 ///   </item>
 ///   <item>
 ///   ブロッキング gen2 GC（<see cref="NoteDiscarded"/>／<see cref="Tick"/>）: 上の背景 GC が確保のバーストに
-///   速度負けし、回収待ちのマネージドゴミの実測概算（<see cref="_garbageBytes"/>。ホストは
-///   <c>GC.GetTotalMemory(false) − （キャッシュ在籍＋プール在籍＋デコード中に貸出中のバッファ）</c>で渡す）が
-///   閾値（<see cref="BlockingGcThresholdBytes"/>）を超えたときだけ発行する保険段。
-///   落とし穴: 判定を捨てバイト量や gen2 完了カウントで代用してはいけない。背景 gen2 の発行・完了は
-///   どちらも捨てバイト量に連動するため「回収が追いついているか」の情報を持たず（発行済み GC は開始
-///   時点に存在したゴミしか回収できない）、実測ゴミ量だけが速度負けの事実を直接表す
+///   速度負けしたときだけ発行する保険段。判定は<b>ゴミ＋在庫の合計</b>（<see cref="_pendingBytes"/> が返す
+///   <see cref="PendingMemoryEstimate.TotalBytes"/>）が閾値（<see cref="BlockingGcThresholdBytes"/>）以上か。
+///   単純な「ゴミ量」だけで判定すると、実際に解放される量（ゴミの回収＋在庫の返却）と発動条件が乖離して
+///   直感的でない（実測: 閾値 512MB 設定で 1.2GB 解放される、等）ため合算にした。
+///   発行する GC は<b>常に Aggressive</b>（ホストが配線。OS への返却まで同期・停止 ~140〜300ms 実測）。
+///   軽量な素の Forced を先に試す 2 段方式は採らない: ブロッキング Forced の完了後、返却予定のページは
+///   <c>TotalCommittedBytes</c> から同期的に除外される一方で実返却は数秒遅れ、その間どの計測（Mng/Comm）
+///   にも写らない＝在庫として検出できず、WS 高止まりを取りこぼすことが実測で確定したため
 ///   （経緯は HISTORY.md「メモリ掃除係のブロッキング段」節）。
+///   落とし穴: 在庫（<see cref="PendingMemoryEstimate.InventoryBytes"/>）の元になる
+///   <c>GC.GetGCMemoryInfo().TotalCommittedBytes</c> は直近 GC 完了時点のスナップショットで、GC が走らない
+///   間は更新されない＝実態より高止まりして見えることがある。過大判定は再武装ガードと閾値側の余裕で吸収する
+///   前提。
 ///   発火判定は捨てが起きた瞬間（<see cref="NoteDiscarded"/>）だけでなく 5 秒周期の <see cref="Tick"/> でも
 ///   試みる（バーストが止まった直後、誰も新たな捨てバイトを記録しないまま残債が数秒滞留するのを掃くため）。
 ///   再武装ガード（<see cref="_discardedSinceBlockingGc"/> が閾値の半分たまるまで再発火しない）は、
@@ -50,7 +69,7 @@ internal sealed class MemoryJanitor
     private readonly Action _requestBackgroundGc;
     private readonly Action _requestBlockingGc;
     private readonly Action _requestFullGc;
-    private readonly Func<long> _garbageBytes;
+    private readonly Func<PendingMemoryEstimate> _pendingBytes;
     private readonly Func<DateTime> _clock;
 
     private long _discardedSinceBgc;
@@ -61,12 +80,12 @@ internal sealed class MemoryJanitor
     /// <param name="backgroundGcThresholdBytes">この量の捨てバイトが溜まるたびにバックグラウンド GC を1回発行する。</param>
     /// <param name="idleDelay">最終活動からこの時間ノー操作が続いたら、dirty ならアイドル完全 GC を発行する。</param>
     /// <param name="requestBackgroundGc">バックグラウンド gen2 GC を要求するコールバック。</param>
-    /// <param name="requestBlockingGc">背景 GC が速度負けしたときだけ発行するブロッキング gen2 GC を要求するコールバック。</param>
+    /// <param name="requestBlockingGc">OS への返却まで行うブロッキング gen2 GC（Aggressive）を
+    /// 要求するコールバック。</param>
     /// <param name="requestFullGc">ブロッキングの完全 GC を要求するコールバック。</param>
-    /// <param name="garbageBytes">回収待ちマネージドゴミの概算バイト数の取得元（ホスト実装は
-    /// <c>GC.GetTotalMemory(false) − 生きていることが確実な常駐分</c>）。ブロッキング段の判定にのみ使い、
+    /// <param name="pendingBytes">回収待ちメモリ（ゴミ＋在庫）の概算の取得元。ブロッキング段の判定にのみ使い、
     /// 捨てバイト条件（<see cref="_discardedSinceBlockingGc"/> が閾値の半分以上）が成立したときだけ呼ぶ
-    /// （毎回 GetTotalMemory を呼ばないための順序）。</param>
+    /// （毎回 GetTotalMemory 等を呼ばないための順序）。</param>
     /// <param name="clock">現在時刻の取得元。省略時は <see cref="DateTime.UtcNow"/>（テストでは差し替えて時間経過を制御する）。</param>
     public MemoryJanitor(
         long backgroundGcThresholdBytes,
@@ -74,7 +93,7 @@ internal sealed class MemoryJanitor
         Action requestBackgroundGc,
         Action requestBlockingGc,
         Action requestFullGc,
-        Func<long> garbageBytes,
+        Func<PendingMemoryEstimate> pendingBytes,
         Func<DateTime>? clock = null)
     {
         _backgroundGcThresholdBytes = backgroundGcThresholdBytes;
@@ -82,7 +101,7 @@ internal sealed class MemoryJanitor
         _requestBackgroundGc = requestBackgroundGc;
         _requestBlockingGc = requestBlockingGc;
         _requestFullGc = requestFullGc;
-        _garbageBytes = garbageBytes;
+        _pendingBytes = pendingBytes;
         _clock = clock ?? (() => DateTime.UtcNow);
         _lastActivity = _clock();
     }
@@ -91,10 +110,10 @@ internal sealed class MemoryJanitor
     public bool IsDirty { get; private set; }
 
     /// <summary>
-    /// ブロッキング gen2 GC を発行する、回収待ちマネージドゴミ（概算）のバイト閾値。既定 0＝無効。
-    /// 捨てバイト累計が閾値の半分に達し（再武装ガード）、かつそのときの実測ゴミ量
-    /// （<see cref="_garbageBytes"/>）がこの値以上なら発行する。詳細はクラス <see cref="MemoryJanitor"/> の
-    /// <summary> 参照。
+    /// ブロッキング gen2 GC を発行する、回収待ちメモリ（ゴミ＋在庫の合計・概算）のバイト閾値。既定 0＝無効。
+    /// 捨てバイト累計が閾値の半分に達し（再武装ガード）、かつそのときの実測合計
+    /// （<see cref="_pendingBytes"/> の <see cref="PendingMemoryEstimate.TotalBytes"/>）がこの値以上なら
+    /// 発行する。詳細はクラス <see cref="MemoryJanitor"/> の <summary> 参照。
     /// </summary>
     public long BlockingGcThresholdBytes { get; set; }
 
@@ -126,14 +145,14 @@ internal sealed class MemoryJanitor
 
     /// <summary>
     /// ブロッキング gen2 GC の発火条件を判定し、満たしていれば発行する。閾値無効・再武装ガード未達なら
-    /// <see cref="_garbageBytes"/> を呼ばずに false を返す（早期 return の順序で「捨てバイト条件成立時だけ
+    /// <see cref="_pendingBytes"/> を呼ばずに false を返す（早期 return の順序で「捨てバイト条件成立時だけ
     /// 実測を取る」を保証する）。
     /// </summary>
     private bool TryBlockingGc()
     {
         if (BlockingGcThresholdBytes <= 0) return false;
         if (_discardedSinceBlockingGc < BlockingGcThresholdBytes / 2) return false;
-        if (_garbageBytes() < BlockingGcThresholdBytes) return false;
+        if (_pendingBytes().TotalBytes < BlockingGcThresholdBytes) return false;
 
         _requestBlockingGc();
         _discardedSinceBlockingGc = 0;
