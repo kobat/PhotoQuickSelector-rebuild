@@ -381,15 +381,17 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        // M / Ctrl+M: メモリオーバーレイのトグル / 強制フル GC（デバッグ。両モード共通）。
-        // 表示先が MainPage 側なのでプレビューへ委譲する前に処理する。
+        // M / Ctrl+M / Ctrl+Shift+M: メモリオーバーレイのトグル / 強制フル GC / メモリ時系列ログの録画トグル
+        // （デバッグ。両モード共通）。表示先が MainPage 側なのでプレビューへ委譲する前に処理する。
         if (e.Key == Windows.System.VirtualKey.M)
         {
-            // 2 つの割り当てを持つので修飾子は厳密に見る（Ctrl+Shift+M 等では発火させない）。
+            // 3 つの割り当てを持つので修飾子は厳密に見る（Ctrl+Alt+M 等では発火させない）。
             bool ctrlOnly = KeyboardModifiers.Ctrl && !KeyboardModifiers.Shift && !KeyboardModifiers.Alt;
-            if (ctrlOnly || KeyboardModifiers.None)
+            bool ctrlShiftOnly = KeyboardModifiers.Ctrl && KeyboardModifiers.Shift && !KeyboardModifiers.Alt;
+            if (ctrlOnly || ctrlShiftOnly || KeyboardModifiers.None)
             {
-                if (ctrlOnly) MemoryPanel.ForceGarbageCollect();
+                if (ctrlShiftOnly) ToggleMemoryLogRecording();
+                else if (ctrlOnly) MemoryPanel.ForceGarbageCollect();
                 else MemoryPanel.Toggle();
                 e.Handled = true;
                 return;
@@ -441,5 +443,42 @@ public sealed partial class MainPage : Page
                 e.Handled = true;
             }
         }
+    }
+
+    // --- メモリ時系列ログ（Ctrl+Shift+M。デバッグ。docs/HISTORY.md「メモリ時系列ログ」節） ---
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _memoryLogTimer;
+    private static readonly TimeSpan MemoryLogSampleInterval = TimeSpan.FromMilliseconds(250);
+
+    /// <summary>
+    /// 記録中でなければ <see cref="AppSettings.LogsFolder"/> へ開始し 250ms サンプリングタイマーを起動、
+    /// 記録中なら停止する。開始時はオーバーレイを表示状態にして録画中であることを分かるようにする。
+    /// </summary>
+    private void ToggleMemoryLogRecording()
+    {
+        if (MemoryLog.Current.IsRecording)
+        {
+            _memoryLogTimer?.Stop();
+            MemoryLog.Current.Stop();
+            return;
+        }
+
+        MemoryLog.Current.Start(AppSettings.LogsFolder);
+        _memoryLogTimer ??= CreateMemoryLogTimer();
+        _memoryLogTimer.Start();
+        MemoryPanel.EnsureShown();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateMemoryLogTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = MemoryLogSampleInterval;
+        timer.IsRepeating = true;
+        timer.Tick += (_, _) =>
+        {
+            var extras = Preview.CollectMemoryLogExtras();
+            MemoryLog.Current.Sample(MemoryDiagnostics.Snapshot(), extras);
+        };
+        return timer;
     }
 }

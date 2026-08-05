@@ -21,6 +21,11 @@
             Background="#A6000000" IsHitTestVisible="False"
             Visibility="Collapsed">
         <StackPanel Spacing="3">
+            <!-- メモリ時系列ログ（Ctrl+Shift+M）の録画中インジケーター。非録画中は Collapsed（Update 側で切替）。
+                 オーバーレイ本体と同じ非表示中コストゼロの方針に乗るため、専用タイマーは持たずここで一緒に更新する。 -->
+            <TextBlock x:Name="RecIndicatorText" FontSize="11" FontWeight="SemiBold" Foreground="#FFFF6B6B"
+                       Visibility="Collapsed" />
+
             <!-- GC の実行方法をその場で分かるようにヘッダへ併記する（区切りの空白は Run のテキストに含める。
                  要素間の改行/インデントに頼ると空白の有無が処理系任せになるため） -->
             <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="#BFFFFFFF"><Run Text="メモリ" /><Run Text=" (Ctrl+MでGC)" Foreground="#8CFFFFFF" /></TextBlock>

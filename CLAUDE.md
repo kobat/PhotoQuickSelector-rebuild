@@ -91,7 +91,10 @@
   **メモリ掃除係**（`Controls/MemoryJanitor`＝2026-08-04。プールミスで捨てた累積 512MB で背景 gen2 GC・
   最終操作から 20 秒のアイドルで `Ctrl+M` 相当の完全 GC〔結果はオーバーレイに「アイドル GC」表示〕。
   プールミスの LOH ゴミを連打中は頭打ちに・アイドルで基準値へ戻す。プール割合の既定は据え置き
-  〔サイズ混在では完全一致プールの拡大は構造的に効かないため〕。詳細は HISTORY.md「メモリ掃除係」節）
+  〔サイズ混在では完全一致プールの拡大は構造的に効かないため〕。詳細は HISTORY.md「メモリ掃除係」節）／
+  **メモリ時系列ログ**（`MemoryLog`＝2026-08-05。`Ctrl+Shift+M` で操作イベント＋250ms周期のメモリ
+  サンプルを TSV へ記録〔設定フォルダ配下 `logs\`〕。オーバーレイの目視・スクショに代わり推移と操作の
+  因果を後から機械的に追える。詳細は HISTORY.md「メモリ時系列ログ」節）
 - **配布**: unpackaged 自己完結 EXE（フォルダ／単一ファイルの pubxml 2 系統）・LICENSE／
   THIRD-PARTY-NOTICES 同梱・アプリアイコン・README（日英）。
   **GitHub Release へ添付する既定は単一ファイル版**（`win-x64-singlefile`＝exe＋LICENSE＋THIRD-PARTY のみ・
@@ -194,11 +197,14 @@ GC 設定 `System.GC.ConserveMemory`=7 を併用〔2026-08-01〕。さらに計�
   保持0ms/フェード400ms（`AppSettings.BadgeTransient`/`BadgeHoldMs`/`BadgeFadeMs`）、詳細情報:常時・保持1000ms/
   フェード400ms（`AppSettings.FullTransient`/`FullHoldMs`/`FullFadeMs`）。保持/フェードは設定＞一般で種類別に ms 指定 /
   `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
-- `M` メモリ使用量オーバーレイの切替 / `Ctrl+M` 強制フル GC（両モード共通。`Controls/MemoryOverlay`＋
-  `MemoryDiagnostics`。GC は `Forced`→ファイナライザ待ち→`Aggressive` の 2 段＋LOH `CompactOnce`）。
+- `M` メモリ使用量オーバーレイの切替 / `Ctrl+M` 強制フル GC / `Ctrl+Shift+M` メモリ時系列ログの記録
+  開始/停止（いずれも両モード共通。`Controls/MemoryOverlay`＋`MemoryDiagnostics`。GC は `Forced`→
+  ファイナライザ待ち→`Aggressive` の 2 段＋LOH `CompactOnce`）。
   オーバーレイは MainPage 右下・500ms 周期の自己更新（キャッシュ一覧とは分離。理由は
   HISTORY「メモリオーバーレイの分離」節）。表示は マネージド／GCコミット／プライベート／WS／**ネイティブ**
-  （＝プライベート − GCコミット＝GC 管轄外）＋直近の GC 前後値（`Ctrl+M` とアイドル GC で共用）
+  （＝プライベート − GCコミット＝GC 管轄外）＋直近の GC 前後値（`Ctrl+M` とアイドル GC で共用）。
+  `Ctrl+Shift+M` は `MemoryLog`（TSV 出力・詳細は HISTORY「メモリ時系列ログ」節）を開始/停止し、
+  記録中はオーバーレイに「● REC」を表示
 - プレビュー中: `E` 右パネル上段をルーペ⇄**画像情報**で切替（上段のタブクリックでも可。状態は
   `AppSettings.PreviewExifPanel` に永続化＝キー名は旧称のまま）。並びは **File → 評価（このアプリ）→ EXIF 等**。
   評価は項目ごとの値＋**更新日時**（不明は `—`／未設定は「未設定」）を表示し、評価変更では ListView を

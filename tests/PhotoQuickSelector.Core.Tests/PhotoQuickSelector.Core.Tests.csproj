@@ -49,4 +49,13 @@
              Link="Linked\MemoryJanitor.cs" />
   </ItemGroup>
 
+  <!-- MemoryLog（メモリ時系列ログ）も純 C#（WinUI/WinRT 非依存）なので同じ方式でソースリンクしてテストする。
+       MemorySnapshot の定義元である MemoryDiagnostics.cs も併せてリンクする。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PhotoQuickSelector.App\MemoryDiagnostics.cs"
+             Link="Linked\MemoryDiagnostics.cs" />
+    <Compile Include="..\..\src\PhotoQuickSelector.App\MemoryLog.cs"
+             Link="Linked\MemoryLog.cs" />
+  </ItemGroup>
+
 </Project>

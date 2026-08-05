@@ -78,7 +78,16 @@ internal sealed class PixelBufferPool
     /// 呼び出し側が全域を上書きすること）、無ければ新規確保する。
     /// </summary>
     /// <param name="length">必要なバイト長（幅×高さ×4）。</param>
-    public byte[] Rent(int length)
+    public byte[] Rent(int length) => Rent(length, out _);
+
+    /// <summary>
+    /// <see cref="Rent(int)"/> と同じだが、在庫を再利用できたか（ヒット）を <paramref name="reused"/> で返す。
+    /// メモリ時系列ログ（<see cref="MemoryLog"/>）がデコードごとの poolHit/miss を記録するために追加した
+    /// オーバーロードで、Hit/MissCount の更新ロジック自体は変更していない。
+    /// </summary>
+    /// <param name="length">必要なバイト長（幅×高さ×4）。</param>
+    /// <param name="reused">在庫を再利用できたら true、新規確保したら false。</param>
+    public byte[] Rent(int length, out bool reused)
     {
         if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length));
 
@@ -92,12 +101,14 @@ internal sealed class PixelBufferPool
                 _slots.RemoveAt(i);
                 PooledBytes -= length;
                 HitCount++;
+                reused = true;
                 return bytes;
             }
 
             MissCount++;
         }
 
+        reused = false;
         // 直後に全域を上書きするのでゼロ初期化は不要（200MB のゼロ埋めを省く）。確保はロック外。
         return GC.AllocateUninitializedArray<byte>(length);
     }

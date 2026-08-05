@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -131,6 +132,23 @@ internal sealed class PreviewBitmapCache
     /// <see cref="Trim"/> のたびに差分を渡す）。
     /// </summary>
     public long DiscardedBytes => _pool.DiscardedBytes + _directDiscardedBytes;
+
+    /// <summary>先読みキャッシュ（デコード済み在籍分）の合計バイト数（メモリ時系列ログ用）。</summary>
+    public long CachedBytes
+    {
+        get
+        {
+            long total = 0;
+            foreach (var entry in _cache.Values) total += entry.Frame.Bytes.Length;
+            return total;
+        }
+    }
+
+    /// <summary>先読みキャッシュの在籍件数（メモリ時系列ログ用）。</summary>
+    public int CachedCount => _cache.Count;
+
+    /// <summary>読込中/待機中（inflight）の件数（メモリ時系列ログ用）。</summary>
+    public int InflightCount => _inflight.Count;
 
     /// <summary>
     /// 合計予算と内訳の割合を設定する。例: 2GB・25% なら キャッシュ 1.5GB／プール 0.5GB。
@@ -308,6 +326,9 @@ internal sealed class PreviewBitmapCache
                 // 実ファイルが異常に大きい場合は全量読み込みを行わない（null＝表示なしで既存フローに乗る）。
                 if (new FileInfo(path).Length > MaxFileBytes) { return null; }
 
+                // メモリ時系列ログ（MemoryLog）の DECODE 行用計測。File.ReadAllBytesAsync 直前から
+                // Decode 完了までを測ることで、遅さの原因が I/O かデコードかを後から切り分けられる。
+                var decodeSw = Stopwatch.StartNew();
                 var bytes = await File.ReadAllBytesAsync(path);
 
                 // デコードは WIC の COM 直接呼び出し（WicPixelDecoder）。WinRT の
@@ -318,8 +339,12 @@ internal sealed class PreviewBitmapCache
                 // （宣言寸法で確保前に弾く）は WicPixelDecoder 側で従来同等に行う。
                 // 同期 API のためワーカーで実行（同時実行数はゲートで既に絞られている）。
                 // ピクセルの書き出し先はプールから借りるので、200MB 級の LOH ゴミも出ない。
-                var frame = await Task.Run(() => WicPixelDecoder.Decode(bytes, MaxPixelBytesPerImage, _pool.Rent));
+                bool poolHit = false;
+                var frame = await Task.Run(() =>
+                    WicPixelDecoder.Decode(bytes, MaxPixelBytesPerImage, len => _pool.Rent(len, out poolHit)));
+                decodeSw.Stop();
                 if (frame == null) { return null; }
+                MemoryLog.Current.DecodeDone(Path.GetFileName(path), frame.Bytes.Length, decodeSw.Elapsed.TotalMilliseconds, poolHit);
 
                 // 破棄が決まったバッファはプールへ戻す（まだ誰にも渡していないので即返却でよい）。
                 if (generation != _generation) { _pool.Return(frame.Bytes); return null; }

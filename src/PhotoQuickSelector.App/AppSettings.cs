@@ -267,6 +267,17 @@ public sealed class AppSettings
         }
     }
 
+    /// <summary>
+    /// メモリ時系列ログ（<see cref="MemoryLog"/>。<c>Ctrl+Shift+M</c>）の出力先フォルダ。
+    /// 設定フォルダ（<see cref="SettingsFolderName"/>）配下の <c>logs\</c>＝Debug/Release で
+    /// 親フォルダが分かれる既存の分離にそのまま乗る。<see cref="SettingsPath"/> と同じ素のパスを使う
+    /// （packaged 実行では実体が MSIX 仮想化でリダイレクトされる点も settings.json と同じ）。
+    /// </summary>
+    internal static string LogsFolder => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        SettingsFolderName,
+        "logs");
+
     /// <summary>設定を読み込む。ファイルが無い／壊れている場合は既定値を返す。</summary>
     public static AppSettings Load()
     {

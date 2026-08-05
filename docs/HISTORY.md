@@ -3185,3 +3185,87 @@ COM interop で直接呼んで**全ネイティブ資源を `Marshal.FinalReleas
 - ~~パッケージング: 素の自己完結 EXE の publish 構成を組み込み＋発行確認~~ → **完了（2026-06-20）。** 上の「現在の進捗」参照。
   pubxml 2 系統（フォルダ／単一ファイル）＋`Publish.ps1`。実発行・起動確認済み（コミット済み）。
 
+## メモリ時系列ログ（2026-08-05）
+
+### 目的
+
+メモリオーバーレイ（`M`）は目視・スクショでしか推移を追えず、「いつ・何をしたら・どれだけ増減したか」の
+因果が残らない。連続ナビ中の LOH 変動やアイドル GC の効き具合を後から機械的に分析できるよう、操作イベント
+＋ 250ms 周期のメモリサンプルを TSV に時系列記録するデバッグ用ロガー `MemoryLog`（`Ctrl+Shift+M`）を追加した。
+
+### 使い方
+
+- プレビュー中・グリッド表示中どちらでも `Ctrl+Shift+M` で記録を開始/停止する（トグル）。
+- 開始すると `AppSettings.LogsFolder`（設定フォルダ配下の `logs\`。Debug/Release で親フォルダが分かれる
+  既存の分離＝`PhotoQuickSelector.Dev`/`PhotoQuickSelector` にそのまま乗る）に
+  `memlog_yyyyMMdd_HHmmss.tsv` が作られる。
+- 開始と同時にメモリオーバーレイを表示状態にし（非表示なら開く。表示中は何もしない）、
+  オーバーレイ上部に「● REC \<ファイル名\>」を出して記録中であることを分かるようにする。
+- 停止すると記録終了。`MemoryLog.CurrentFilePath` は停止後も直近ファイルを指したままなので、
+  次に `M` でオーバーレイを開けば場所を確認できる（UI 側では現状ファイルパスの表示はしていない。
+  必要ならエクスプローラで `logs\` を直接開く）。
+
+### 設計・実装
+
+- `src/PhotoQuickSelector.App/MemoryLog.cs`（`MemoryDiagnostics.cs` と同階層・同 namespace）に
+  **WinUI/WinRT 非依存の純 C#** で実装（`DispatcherQueue` は使わない）。250ms 周期のサンプリングは
+  ホスト（`MainPage`）が `DispatcherQueueTimer` で駆動し `MemoryLog.Sample` を呼ぶだけで、
+  `MemoryLog` 自身はタイマーを持たない＝xUnit からソースリンクしてテストできる
+  （`PreviewViewport`/`DecodeGate`/`PixelBufferPool`/`MemoryJanitor` と同じ方式。
+  `MemorySnapshot` 定義元の `MemoryDiagnostics.cs` も併せてリンク）。
+- インスタンスクラス＋アプリ共用の `MemoryLog.Current`（テストは `new MemoryLog()` で独立させる）。
+- 各記録メソッド（`Sample`/`Nav`/`DecodeDone`/`Discarded`/`Gc`/`Note`）は非記録中は即 return の no-op で、
+  行文字列を組んで `ConcurrentQueue<string>` へ積むだけ（ロックなし・任意スレッドから呼んでよい）。
+  書き出しは 500ms 周期の `System.Threading.Timer` がキューを drain して `StreamWriter` へ書く
+  （ライター本体の開閉／書き込みだけ最小限のロックで保護）。行フォーマットは `FormatSample` 等の
+  static な純関数に分離してあり、テストはこれを直接呼んで検証する。
+- 全行の1列目＝`Start()` からの経過 ms（`Stopwatch` 起点）。2列目＝レコード種別。ヘッダはアプリバージョン
+  （`AboutDialog` と同じ取得方法＝`AssemblyInformationalVersionAttribute`）・ビルド構成・開始時刻・
+  サンプル周期を `#` 始まりの1行で書く。
+
+### TSV スキーマ（タブ区切り。数値はバイト単位の生値）
+
+- `SAMPLE`: managed, committed, private, ws, native, gen0, gen1, gen2, lohSize, lohFrag, cacheBytes,
+  cacheCount, inflightCount, poolBytes, poolCount, poolHit, poolMiss, discardedBytes, janitorDirty(1/0)
+  - `lohSize`/`lohFrag` は `GC.GetGCMemoryInfo().GenerationInfo[3]` の `SizeAfterBytes`/`FragmentationAfterBytes`
+    ＝**直前の GC 完了時点のスナップショット**（`GCMemoryInfo` の仕様。現在値ではない＝GC が走らない間は
+    更新されない）。プールミス時の LOH 変動仮説を検証するための列で、この前提込みで読むこと。
+  - `cacheBytes`/`cacheCount`/`inflightCount`/`poolBytes`/`poolCount`/`poolHit`/`poolMiss`/`discardedBytes`/
+    `janitorDirty` は `PreviewControl.CollectMemoryLogExtras()`（`MemoryLogExtras`）が
+    `PreviewBitmapCache`/`PixelBufferPool`/`MemoryJanitor` から集める。
+- `NAV`: fileName, width, height（`FocusedPhoto` 変更時。寸法は EXIF Orientation 適用後の表示寸法＝
+  `ImageMetadata.Width`/`Height`）
+- `DECODE`: fileName, bytes, elapsedMs, poolHit(1/0)（`File.ReadAllBytesAsync` 直前から
+  `WicPixelDecoder.Decode` 完了まで。I/O 込みで測ることで遅さの原因が I/O かデコードかを切り分けられる）
+- `DISCARD`: deltaBytes（キャッシュ/プールからの破棄＝LOH ゴミ化。`PreviewControl.ReportDiscards` の差分）
+- `GC`: kind, elapsedMs, beforeManaged, beforeNative, beforeWs, afterManaged, afterNative, afterWs
+  （`kind` は `ctrlm`＝Ctrl+M の強制フル GC／`idle`＝メモリ掃除係のアイドル完全 GC／`bgc`＝メモリ掃除係の
+  背景 gen2 GC。`bgc` は非ブロッキング発行で前後値を取らないため after 側 3 列は空文字）
+- `NOTE`: kind, detail（`rec-start`/`rec-stop`/`folder`/`preview-enter`/`preview-exit` 等）
+
+### フック地点
+
+- `MainPage.HandleGlobalKeyDown`: `Ctrl+Shift+M` トグル（`M`/`Ctrl+M` と同じキーで修飾子違い。
+  3 つの割り当てを厳密に判定＝`Ctrl+Alt+M` 等では発火しない）。250ms `DispatcherQueueTimer` の
+  起動/停止・`MemoryLog.Current.Start`/`Stop` 呼び出し・開始時のオーバーレイ表示（`EnsureShown`）。
+- `PreviewBitmapCache.LoadCoreAsync`: デコード計測＋ `DecodeDone`。`PixelBufferPool.Rent` に
+  `out bool reused` オーバーロードを追加（既存 `Rent(int)` はそちらへ委譲・Hit/MissCount のロジックは不変）し、
+  poolHit をクロージャで拾う。
+- `PreviewBitmapCache`: `CachedBytes`/`CachedCount`/`InflightCount` プロパティを追加
+  （`CollectMemoryLogExtras` 用）。
+- `PreviewControl.ReportDiscards`: 破棄差分を `Discarded` へ。
+- `PreviewControl` コンストラクタ（`MemoryJanitor` の `requestBackgroundGc`/`requestFullGc`）:
+  `Gc("bgc", ...)`/`Gc("idle", ...)`。
+- `PreviewControl.OnViewModelPropertyChanged`（`FocusedPhoto` case）: `Nav(...)`。
+- `PreviewControl.CollectMemoryLogExtras()`: 新規追加（`MainPage` の 250ms タイマーから呼ぶ）。
+- `MemoryOverlay.ForceGarbageCollect`: `Gc("ctrlm", ...)`。`MemoryOverlay.Update`: REC インジケーター表示。
+  `EnsureShown()` を新規追加（非表示なら表示、表示中は何もしない＝`Toggle()` と使い分け）。
+- `MainViewModel.LoadFolderAsync`: フォルダ読み込み完了直後（`SetStatusPath` の次）で `Note("folder", ...)`。
+- `MainViewModel.EnterPreview`/`ExitPreview`: `Note("preview-enter")`/`Note("preview-exit")`。
+- `AppSettings.LogsFolder`: 新規追加（`internal static`。`SettingsPath` と同じ素の
+  `%LOCALAPPDATA%\{SettingsFolderName}\logs`。packaged 実行では settings.json と同様に MSIX 仮想化で
+  リダイレクトされる）。
+- テスト: `PhotoQuickSelector.Core.Tests/MemoryLogTests.cs`。行フォーマット純関数（各レコード種別・
+  タブ区切り・`bgc` の空フィールド）＋ Start/Stop ライフサイクル（ヘッダ・`rec-start`/`rec-stop`・
+  多重 Start の no-op・Stop 後 no-op・Start 前 no-op）を検証。テスト計 212 件緑。
+

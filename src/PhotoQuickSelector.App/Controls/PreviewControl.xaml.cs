@@ -159,13 +159,19 @@ public sealed partial class PreviewControl : UserControl
             JanitorBgcThresholdBytes,
             JanitorIdleDelay,
             requestBackgroundGc: () =>
+            {
                 // バックグラウンド gen2 GC。ゴミの存在は閾値到達で確定済みなので GC 側の「見送り」判断
                 // （Optimized）は不要＝Forced で確実に発行する。ブロッキングしない（false）ので連打中でも
-                // UI を止めない（停止数 ms 級）。
-                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: false, compacting: false),
+                // UI を止めない（停止数 ms 級）。非ブロッキングで前後値が取れないため、メモリログには
+                // 発行直前のスナップショットのみ「before」として記録する（after は空欄＝kind=bgc の規約）。
+                var before = MemoryDiagnostics.Snapshot();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: false, compacting: false);
+                MemoryLog.Current.Gc("bgc", before, null, 0);
+            },
             requestFullGc: () =>
             {
                 var (before, after, elapsed) = MemoryDiagnostics.ForceFullCollect();
+                MemoryLog.Current.Gc("idle", before, after, elapsed.TotalMilliseconds);
                 IdleCollected?.Invoke(before, after, elapsed);
             });
 
@@ -182,7 +188,11 @@ public sealed partial class PreviewControl : UserControl
         long total = _cache.DiscardedBytes;
         long delta = total - _reportedDiscardedBytes;
         _reportedDiscardedBytes = total;
-        if (delta > 0) _janitor.NoteDiscarded(delta);
+        if (delta > 0)
+        {
+            _janitor.NoteDiscarded(delta);
+            MemoryLog.Current.Discarded(delta);
+        }
         if (_janitor.IsDirty) EnsureJanitorTimer();
     }
 
@@ -215,6 +225,21 @@ public sealed partial class PreviewControl : UserControl
     /// 操作中にブロッキングの完全 GC が当たらないようにする。
     /// </summary>
     public void NoteUserActivity() => _janitor.NoteActivity();
+
+    /// <summary>
+    /// メモリ時系列ログ（<see cref="MemoryLog"/>）の SAMPLE 行に添える先読みキャッシュ／プール／
+    /// 掃除係の統計をまとめる（<see cref="MainPage"/> の 250ms サンプリングタイマーから呼ぶ）。
+    /// </summary>
+    public MemoryLogExtras CollectMemoryLogExtras() => new(
+        cacheBytes: _cache.CachedBytes,
+        cacheCount: _cache.CachedCount,
+        inflightCount: _cache.InflightCount,
+        poolBytes: _cache.PooledBytes,
+        poolCount: _cache.PooledBufferCount,
+        poolHit: _cache.PoolHitCount,
+        poolMiss: _cache.PoolMissCount,
+        discardedBytes: _cache.DiscardedBytes,
+        janitorDirty: _janitor.IsDirty);
 
     // フィルムストリップも可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
     private void FilmStrip_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
@@ -394,6 +419,9 @@ public sealed partial class PreviewControl : UserControl
                 // 情報オーバーレイの「切替時のみ」表示: 焦点の写真切替は毎回トリガ。評価変更の監視対象も付け替える。
                 SubscribeOverlayWatchedPhoto(_viewModel?.FocusedPhoto);
                 RestartOverlayFade();
+                // メモリ時系列ログの NAV 行。寸法は EXIF Orientation 適用後の表示寸法（Meta.Width/Height）。
+                if (_viewModel?.FocusedPhoto is { } navPhoto)
+                    MemoryLog.Current.Nav(navPhoto.Meta.FileName, navPhoto.Meta.Width, navPhoto.Meta.Height);
                 break;
             case nameof(MainViewModel.IsPreviewMode):
                 if (_viewModel?.IsPreviewMode == true)

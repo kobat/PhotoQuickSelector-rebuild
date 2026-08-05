@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -38,12 +39,23 @@ public sealed partial class MemoryOverlay : UserControl
     public void Toggle() => SetShown(!IsShown);
 
     /// <summary>
+    /// 非表示なら表示状態にする（表示中は何もしない）。<c>Ctrl+Shift+M</c> の録画開始フィードバック用
+    /// （録画の有無に関わらず結果が見えた方がよい <see cref="ForceGarbageCollect"/> と違い、
+    /// 録画開始は「既に見ている状態を邪魔しない」ほうが自然なので Toggle ではなくこちらを使う）。
+    /// </summary>
+    public void EnsureShown()
+    {
+        if (!IsShown) Toggle();
+    }
+
+    /// <summary>
     /// 強制フル GC を実行し、前後の値を表示する（<c>Ctrl+M</c>）。
     /// 結果が見えないと意味がないので、非表示なら同時に表示する。
     /// </summary>
     public void ForceGarbageCollect()
     {
         var (before, after, elapsed) = MemoryDiagnostics.ForceFullCollect();
+        MemoryLog.Current.Gc("ctrlm", before, after, elapsed.TotalMilliseconds);
         ShowCollectResult($"GC 実行（{elapsed.TotalMilliseconds:#,0}ms）", before, after, elapsed, show: true);
     }
 
@@ -105,5 +117,17 @@ public sealed partial class MemoryOverlay : UserControl
         WorkingSetValue.Text = MemoryDiagnostics.Mb(s.WorkingSetBytes);
         NativeValue.Text = MemoryDiagnostics.Mb(s.NativeBytes);
         GcCountText.Text = $"GC回数  gen0 {GC.CollectionCount(0)} / gen1 {GC.CollectionCount(1)} / gen2 {GC.CollectionCount(2)}";
+
+        // メモリ時系列ログ（Ctrl+Shift+M）の録画中インジケーター。オーバーレイ非表示中はこの Update
+        // 自体が呼ばれない（タイマー停止中）ので、録画開始時に MainPage が EnsureShown() で表示させる。
+        if (MemoryLog.Current.IsRecording)
+        {
+            RecIndicatorText.Text = $"● REC {Path.GetFileName(MemoryLog.Current.CurrentFilePath)}";
+            RecIndicatorText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            RecIndicatorText.Visibility = Visibility.Collapsed;
+        }
     }
 }
