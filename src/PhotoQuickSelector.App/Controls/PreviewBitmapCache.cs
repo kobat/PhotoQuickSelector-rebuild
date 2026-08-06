@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading;
 using System.Threading.Tasks;
-using Windows.Graphics.Imaging;
-using Windows.Storage.Streams;
 
 namespace PhotoQuickSelector_App.Controls;
 
@@ -56,8 +55,7 @@ internal sealed class CacheSnapshotItem
 
 /// <summary>
 /// デコード済みピクセル（BGRA8・Premultiplied・密詰め＝stride なし）＋寸法。
-/// <see cref="BitmapDecoder.GetPixelDataAsync"/> の <c>DetachPixelData()</c> は
-/// 幅×高さ×4 ちょうどの密詰め配列を返すため、そのまま
+/// <see cref="WicPixelDecoder.Decode"/> が幅×高さ×4 ちょうどの密詰め配列で返すため、そのまま
 /// <see cref="Microsoft.Graphics.Canvas.CanvasBitmap.SetPixelBytes(byte[])"/> /
 /// <c>CreateFromBytes</c> に渡せる。
 /// </summary>
@@ -96,16 +94,84 @@ internal sealed class PixelFrame
 /// </para>
 /// <para>
 /// 破棄は <see cref="Trim"/>（現在窓を保護した LastUse 単独 LRU＋バイト予算 <see cref="MaxCacheBytes"/>）。
+/// 破棄した <c>byte[]</c> は <see cref="PixelBufferPool"/> へ返して次のデコードで再利用する
+/// （マネージドヒープに 200MB 級のゴミを積まないため。詳細は <see cref="PixelBufferPool"/>）。
 /// </para>
-/// UI 非依存（WinRT の imaging API のみに依存し Win2D デバイスを必要としない）なので単体テスト可能。
+/// UI 非依存（デコードは <see cref="WicPixelDecoder"/>＝WIC の COM 直接呼び出しで、Win2D デバイスを
+/// 必要としない）なので単体テスト可能。
 /// </summary>
 internal sealed class PreviewBitmapCache
 {
     /// <summary>同時に走らせるデコードの上限（構築時に <see cref="_gate"/> のサイズを決める。変更は再構築が必要）。</summary>
     public int MaxConcurrentDecodes { get; }
 
-    /// <summary>キャッシュの合計バイト予算（既定 2GB。<see cref="Trim"/> が参照。実行中に変更可）。</summary>
-    public long MaxCacheBytes { get; set; } = 2L << 30;
+    /// <summary>
+    /// 合計バイト予算（デコード済みキャッシュ＋バッファプール）。設定の「キャッシュ容量予算」そのもので、
+    /// 常駐量はこの値で頭打ちになる。内訳は <see cref="PoolRatioPercent"/> で分割する
+    /// （<see cref="SetBudget"/>）。
+    /// </summary>
+    public long MaxTotalBytes { get; private set; }
+
+    /// <summary>合計予算のうちバッファプールへ割り当てる割合（%）。残りがデコード済みキャッシュの予算。</summary>
+    public int PoolRatioPercent { get; private set; }
+
+    /// <summary>デコード済みキャッシュの予算（＝<see cref="MaxTotalBytes"/> − プール予算）。<see cref="Trim"/> が参照。</summary>
+    public long MaxCacheBytes { get; private set; }
+
+    /// <summary>バッファプールの予算。</summary>
+    public long MaxPoolBytes => _pool.MaxBytes;
+
+    /// <summary>プールが現在抱えている本数／バイト数／ヒット・ミス回数（デバッグオーバーレイ用）。</summary>
+    public int PooledBufferCount => _pool.Count;
+    public long PooledBytes => _pool.PooledBytes;
+    public long PoolHitCount => _pool.HitCount;
+    public long PoolMissCount => _pool.MissCount;
+
+    /// <summary>
+    /// キャッシュ＋プールから捨てられてゴミ（LOH 行きの回収待ち <c>byte[]</c>）になった累積バイト数。
+    /// <see cref="MemoryJanitor"/> のバックグラウンド GC 閾値判定に使う（<see cref="PreviewControl"/> が
+    /// <see cref="Trim"/> のたびに差分を渡す）。
+    /// </summary>
+    public long DiscardedBytes => _pool.DiscardedBytes + _directDiscardedBytes;
+
+    /// <summary>先読みキャッシュ（デコード済み在籍分）の合計バイト数（メモリ時系列ログ用）。</summary>
+    public long CachedBytes
+    {
+        get
+        {
+            long total = 0;
+            foreach (var entry in _cache.Values) total += entry.Frame.Bytes.Length;
+            return total;
+        }
+    }
+
+    /// <summary>先読みキャッシュの在籍件数（メモリ時系列ログ用）。</summary>
+    public int CachedCount => _cache.Count;
+
+    /// <summary>読込中/待機中（inflight）の件数（メモリ時系列ログ用）。</summary>
+    public int InflightCount => _inflight.Count;
+
+    /// <summary>
+    /// マネージドヒープ上で"生きている"ことが確実なピクセルバッファの合計バイト数
+    /// （キャッシュ在籍＋プール在籍＋デコード中に貸出中＝<see cref="_inflightPixelBytes"/>）。
+    /// <see cref="MemoryJanitor"/> のブロッキング段が「回収待ちゴミの概算＝GetTotalMemory − この値」を
+    /// 出すための分母側（<see cref="PreviewControl"/> が生成時に渡す）。
+    /// </summary>
+    public long ResidentBytes => CachedBytes + PooledBytes + Interlocked.Read(ref _inflightPixelBytes);
+
+    /// <summary>
+    /// 合計予算と内訳の割合を設定する。例: 2GB・25% なら キャッシュ 1.5GB／プール 0.5GB。
+    /// 割合 0 ならプールを使わない（デコードのたびに新規確保＝プール導入前の挙動）。
+    /// </summary>
+    /// <param name="totalBytes">合計予算（キャッシュ＋プール）。</param>
+    /// <param name="poolRatioPercent">プールへ割り当てる割合（0〜90 にクランプ）。</param>
+    public void SetBudget(long totalBytes, int poolRatioPercent)
+    {
+        MaxTotalBytes = Math.Max(0, totalBytes);
+        PoolRatioPercent = Math.Clamp(poolRatioPercent, 0, 90);
+        _pool.MaxBytes = MaxTotalBytes * PoolRatioPercent / 100;
+        MaxCacheBytes = MaxTotalBytes - _pool.MaxBytes;
+    }
 
     /// <summary>
     /// デコード後ピクセル（BGRA8＝幅×高さ×4 バイト）の 1 枚あたり上限。解凍爆弾対策：JPEG はヘッダ上
@@ -140,14 +206,25 @@ internal sealed class PreviewBitmapCache
     // ゲートを取得してファイル読み込み＋デコード中のパス（ゲート順番待ちの待機中と区別する）。
     private readonly HashSet<string> _loading = new(StringComparer.OrdinalIgnoreCase);
     private readonly DecodeGate _gate;
+    private readonly PixelBufferPool _pool = new();
+    // Trim が破棄したバッファの返却待ち行列（1 ターン遅延させる理由は FlushPendingReturns の注記）。
+    private readonly List<byte[]> _pendingReturns = new();
     private int _generation; // Clear（全破棄）でキャッシュを無効化する世代
     private long _useCounter; // LastUse 採番用の単調増分カウンタ（DateTime は使わない）
+    // Clear がキャッシュ本体／_pendingReturns をプールを経由せず直接捨てた累積バイト数
+    // （DiscardedBytes の内訳。プール経由分は _pool.DiscardedBytes 側に乗る）。
+    private long _directDiscardedBytes;
+    // プールから Rent 済みでまだキャッシュ/プールに戻っていない（デコード中に貸出中の）バッファの合計。
+    // Rent はワーカースレッド（Task.Run 内）で走るため Interlocked で操作する（ResidentBytes 用）。
+    private long _inflightPixelBytes;
 
     /// <param name="maxConcurrentDecodes">同時に走らせるデコード本数（1 以上にクランプ）。</param>
     public PreviewBitmapCache(int maxConcurrentDecodes = 2)
     {
         MaxConcurrentDecodes = Math.Max(1, maxConcurrentDecodes);
         _gate = new DecodeGate(MaxConcurrentDecodes);
+        // 実値は PreviewControl が設定から与える（ここは素の既定＝AppSettings と同値）。
+        SetBudget((long)(2.5 * (1L << 30)), 20);
     }
 
     /// <summary>キャッシュ内容（デコード済み / 読込中）が変化したときに発火する（デバッグオーバーレイ用）。</summary>
@@ -255,57 +332,59 @@ internal sealed class PreviewBitmapCache
                 _loading.Add(path);
                 Changed?.Invoke();
 
-                // ファイルパスを直接 CanvasBitmap.LoadAsync に渡すと、生成された CanvasBitmap が
-                // 生きている間ずっと元ファイルをロックし続ける（Win2D の既知挙動）。すると Reject 移動
-                // などの move がキャッシュ中のファイルだけ「使用中」で失敗する。バイトを読み切って
-                // メモリストリームからデコードし、元ファイルのハンドルは即座に閉じる。
-                // EXIF Orientation は WIC が適用するため、ストリーム経由でも自動回転は維持される
-                // （RespectExifOrientation で正立済みピクセルを得る＝従来の CanvasBitmap.LoadAsync の
-                // 自動回転と同じ結果）。
+                // ファイルパスを直接デコーダに渡すと元ファイルがデコード中ロックされ、Reject 移動
+                // などの move が「使用中」で失敗しうる。バイトを読み切ってメモリからデコードし、
+                // 元ファイルのハンドルは即座に閉じる。
                 // 実ファイルが異常に大きい場合は全量読み込みを行わない（null＝表示なしで既存フローに乗る）。
                 if (new FileInfo(path).Length > MaxFileBytes) { return null; }
 
+                // メモリ時系列ログ（MemoryLog）の DECODE 行用計測。File.ReadAllBytesAsync 直前から
+                // Decode 完了までを測ることで、遅さの原因が I/O かデコードかを後から切り分けられる。
+                var decodeSw = Stopwatch.StartNew();
                 var bytes = await File.ReadAllBytesAsync(path);
-                using var stream = new InMemoryRandomAccessStream();
-                await stream.WriteAsync(bytes.AsBuffer());
-                stream.Seek(0);
 
-                var decoder = await BitmapDecoder.CreateAsync(stream);
-
-                // ヘッダ宣言寸法から必要バイト数を見積もり、上限超過は GetPixelDataAsync の全面確保前に
-                // 弾く（解凍爆弾対策）。uint 同士の乗算はオーバーフローするため long で計算する。
-                long pixelBytes = (long)decoder.OrientedPixelWidth * decoder.OrientedPixelHeight * 4;
-                if (pixelBytes > MaxPixelBytesPerImage) { return null; }
-
-                // EXIF ColorSpace（0xA001）が 1（sRGB）の画像は色管理をスキップする。sRGB→sRGB でも WIC の
-                // 色管理はデコード全体の約7割を占める。丸め差（最大 ±3/255 程度）は視覚的に知覚不能で許容。
-                // Adobe RGB（値 2 / 0xFFFF=Uncalibrated）やタグ無し・照会失敗は ColorManageToSRgb（安全側）。
-                var colorMode = ColorManagementMode.ColorManageToSRgb;
+                // デコードは WIC の COM 直接呼び出し（WicPixelDecoder）。WinRT の
+                // BitmapDecoder/InMemoryRandomAccessStream はデコードごとに ~20MB のネイティブを
+                // ファイナライザ待ちで滞留させ、連続ナビで GB 級に積み上がるため使わない
+                // （GC の起動側では抑えられないことを実機で確認済み。経緯は HISTORY.md）。
+                // EXIF Orientation 適用（正立化）・sRGB の色管理スキップ・解凍爆弾ガード
+                // （宣言寸法で確保前に弾く）は WicPixelDecoder 側で従来同等に行う。
+                // 同期 API のためワーカーで実行（同時実行数はゲートで既に絞られている）。
+                // ピクセルの書き出し先はプールから借りるので、200MB 級の LOH ゴミも出ない。
+                // Rent が返した瞬間から「貸出中」とみなし _inflightPixelBytes へ計上する（ResidentBytes の
+                // 一部＝ゴミ量概算の分母側）。Rent はワーカースレッド（Task.Run 内）で走るため Interlocked。
+                // rentedBytes はこの呼び出しローカルの変数なので、同時デコード（ゲートで最大 2 本）間で
+                // 混線しない。
+                long rentedBytes = 0;
+                bool poolHit = false;
+                PixelFrame? frame;
                 try
                 {
-                    const string exifColorSpaceQuery = "/app1/ifd/exif/{ushort=40961}";
-                    var props = await decoder.BitmapProperties.GetPropertiesAsync(new[] { exifColorSpaceQuery });
-                    if (props.TryGetValue(exifColorSpaceQuery, out var v) && v.Value is ushort cs && cs == 1)
-                        colorMode = ColorManagementMode.DoNotColorManage;
-                }
-                catch
-                {
-                    // タグ無し（WINCODEC_ERR_PROPERTYNOTFOUND）等。色管理あり（従来動作）のままにする。
-                }
+                    frame = await Task.Run(() =>
+                        WicPixelDecoder.Decode(bytes, MaxPixelBytesPerImage, len =>
+                        {
+                            var buf = _pool.Rent(len, out poolHit);
+                            rentedBytes = buf.Length;
+                            Interlocked.Add(ref _inflightPixelBytes, rentedBytes);
+                            return buf;
+                        }));
+                    decodeSw.Stop();
+                    if (frame == null) { return null; }
+                    MemoryLog.Current.DecodeDone(Path.GetFileName(path), frame.Bytes.Length, decodeSw.Elapsed.TotalMilliseconds, poolHit, bytes.Length);
 
-                var pixels = await decoder.GetPixelDataAsync(
-                    BitmapPixelFormat.Bgra8,
-                    BitmapAlphaMode.Premultiplied,
-                    new BitmapTransform(),
-                    ExifOrientationMode.RespectExifOrientation,
-                    colorMode);
-                var frame = new PixelFrame(
-                    pixels.DetachPixelData(),
-                    (int)decoder.OrientedPixelWidth,
-                    (int)decoder.OrientedPixelHeight);
-                if (generation != _generation) { return null; } // byte[] は GC 管理なので Dispose 不要
-                _cache[path] = new CacheEntry(frame, ++_useCounter);
-                return frame;
+                    // 破棄が決まったバッファはプールへ戻す（まだ誰にも渡していないので即返却でよい）。
+                    if (generation != _generation) { _pool.Return(frame.Bytes); return null; }
+                    _cache[path] = new CacheEntry(frame, ++_useCounter);
+                    return frame;
+                }
+                finally
+                {
+                    // 結末（キャッシュ入り／プール返却／frame==null／例外＝Decode 内 COMException で
+                    // rentBuffer 済みのまま失敗）のいずれでも貸出を解消する。キャッシュ入りの場合は
+                    // 代入直後にここへ来るため CachedBytes と一瞬二重計上になるが、ゴミ量概算を安全側
+                    // （過小評価しない）に倒すため許容する。
+                    if (rentedBytes > 0) Interlocked.Add(ref _inflightPixelBytes, -rentedBytes);
+                }
             }
             finally
             {
@@ -341,6 +420,8 @@ internal sealed class PreviewBitmapCache
     /// </summary>
     public void Trim(IEnumerable<string> keep)
     {
+        FlushPendingReturns();
+
         var keepSet = new HashSet<string>(keep, StringComparer.OrdinalIgnoreCase);
         long total = 0;
         foreach (var entry in _cache.Values) total += entry.Frame.Bytes.Length;
@@ -358,6 +439,7 @@ internal sealed class PreviewBitmapCache
                 if (total <= MaxCacheBytes) break;
                 total -= kv.Value.Frame.Bytes.Length;
                 _cache.Remove(kv.Key);
+                _pendingReturns.Add(kv.Value.Frame.Bytes);
                 removed = true;
             }
         }
@@ -365,14 +447,44 @@ internal sealed class PreviewBitmapCache
     }
 
     /// <summary>
+    /// 前回の <see cref="Trim"/> が破棄したバッファをプールへ実際に返す。
+    /// <para>
+    /// 破棄した直後に返さないのは、<see cref="GetAsync"/> が返した <see cref="PixelFrame"/> を
+    /// 呼び出し側（<see cref="PreviewControl"/>）が GPU へ転送し終わる前にプールへ戻すと、
+    /// 次の <see cref="PixelBufferPool.Rent"/> で中身を上書きされて表示が化けるため。返却を
+    /// 「次に <see cref="Trim"/> が呼ばれるまで」＝UI スレッドの 1 ターンぶん遅らせれば、
+    /// 同期的な利用は必ず終わっている。
+    /// </para>
+    /// <para>
+    /// なお表示中の 1 枚は常に保持窓（<c>keep</c>）内で <see cref="Trim"/> の保護対象なので、
+    /// そもそも破棄候補にならない。この遅延は「追い越されたロードの継続がまだ走っている」等の
+    /// 取りこぼしに対する保険である。
+    /// </para>
+    /// </summary>
+    private void FlushPendingReturns()
+    {
+        if (_pendingReturns.Count == 0) return;
+        foreach (var bytes in _pendingReturns) _pool.Return(bytes);
+        _pendingReturns.Clear();
+    }
+
+    /// <summary>
     /// 全破棄し世代を進める。進行中の読み込みは完了時に世代不一致で自分を破棄する。
     /// キャッシュはデバイス非依存（PixelFrame＝byte[]）のため Win2D のデバイス再生成では呼ぶ必要がない
     /// （現在呼び出し元は無いが、全無効化用 API として維持）。
+    /// <para>
+    /// 全破棄はメモリを手放すのが目的なので、バッファは**プールへ返さず捨てる**（返すと
+    /// キャッシュからプールへ移動するだけで 1 バイトも解放されない）。プールの在庫も同時に空にする。
+    /// </para>
     /// </summary>
     public void Clear()
     {
         _generation++;
+        foreach (var entry in _cache.Values) _directDiscardedBytes += entry.Frame.Bytes.Length;
+        foreach (var bytes in _pendingReturns) _directDiscardedBytes += bytes.Length;
         _cache.Clear();
+        _pendingReturns.Clear();
+        _pool.Clear();
         Changed?.Invoke();
     }
 }

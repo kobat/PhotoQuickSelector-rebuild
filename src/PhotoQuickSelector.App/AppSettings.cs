@@ -117,8 +117,43 @@ public sealed class AppSettings
 
     // --- 先読みキャッシュ（高度な設定） ---
 
-    /// <summary>先読みキャッシュの合計バイト予算（GB）。超過分は表示実績優先 LRU で破棄する。</summary>
-    public double CacheBudgetGB { get; set; } = 2.0;
+    /// <summary>
+    /// 先読みキャッシュの合計バイト予算（GB）。デコード済み画像とバッファ再利用プールの**合計**で、
+    /// メインメモリ常駐量はこの値で頭打ちになる。内訳は <see cref="CachePoolRatioPercent"/> で決まる。
+    /// </summary>
+    public double CacheBudgetGB { get; set; } = 2.5;
+
+    /// <summary>
+    /// <see cref="CacheBudgetGB"/> のうちバッファ再利用プールへ割り当てる割合（%）。
+    /// 例: 予算 2.5GB・20%（既定）なら デコード済みキャッシュ 2GB／プール 0.5GB。
+    /// プールはデコードのたびの巨大な <c>byte[]</c> 新規確保をなくし、マネージドヒープの肥大
+    /// （＝OS から見たメモリ使用量が予算の 2 倍以上になる問題）を抑える。0 でプール無効。
+    /// 1 枚あたりのサイズが大きいカメラほど必要な割合は大きく、予算を増やすほど必要な割合は小さくなる
+    /// （プールに要る本数は同時デコード数に比例し、予算には比例しないため）。
+    /// </summary>
+    public int CachePoolRatioPercent { get; set; } = 20;
+
+    /// <summary>
+    /// メモリ掃除係のブロッキング gen2 GC（Aggressive＝OS への返却込み）を発行する、回収待ちの
+    /// 不要メモリ（概算）のバイト閾値（MB）。概算＝未回収のゴミ＋回収済みでも OS 未返却の分（在庫）の
+    /// 合計。この合計が閾値を超えたら緊急回収し、連続閲覧中に通常水準（キャッシュ予算＋ネイティブ基礎
+    /// ~0.9GB）へ一時的に上乗せされる分をおおむね閾値程度に抑える（瞬間値は判定の離散性で数百 MB
+    /// 上振れし得る＝完全な頭打ち保証ではない）。捨てバイトが閾値の半分たまるごとにしか再発火しない
+    /// 再武装ガード付き（概算の推定誤差だけで連打されるのを防ぐ）。発行中は UI が止まる
+    /// （~140〜300ms 実測）ため、カクつきが気になる場合は大きく、メモリを厳しく抑えたい場合は小さくする。
+    /// 0 以下で無効（背景 GC とアイドル GC のみ）。
+    /// </summary>
+    public int BlockingGcThresholdMB { get; set; } = 512;
+
+    /// <summary>
+    /// マネージドヒープ（GC）コミットの絶対上限（GB。<c>System.GC.HeapHardLimit</c>）。起動時と
+    /// 設定保存時に <see cref="MemoryDiagnostics.TryApplyHeapHardLimit"/>（<see cref="GC.RefreshMemoryLimit"/>）
+    /// で適用する。適用直前に <see cref="HeapHardLimitPolicy.ClampGB"/> で「キャッシュ予算＋1GB」を
+    /// 下限にクランプし、設定画面からクラッシュ必至の組み合わせ（上限がキャッシュ予算を下回る）を
+    /// 作れないようにする。csproj の <c>RuntimeHostConfigurationOption</c>（3758096384＝3.5GiB）は
+    /// この設定が適用されるまでの起動直後の初期値兼フォールバック。
+    /// </summary>
+    public double HeapHardLimitGB { get; set; } = 3.5;
 
     /// <summary>先読み枚数（表示中より前方＝次に進む向き）。</summary>
     public int PrefetchForward { get; set; } = 2;
@@ -253,6 +288,17 @@ public sealed class AppSettings
             }
         }
     }
+
+    /// <summary>
+    /// メモリ時系列ログ（<see cref="MemoryLog"/>。<c>Ctrl+Shift+M</c>）の出力先フォルダ。
+    /// 設定フォルダ（<see cref="SettingsFolderName"/>）配下の <c>logs\</c>＝Debug/Release で
+    /// 親フォルダが分かれる既存の分離にそのまま乗る。<see cref="SettingsPath"/> と同じ素のパスを使う
+    /// （packaged 実行では実体が MSIX 仮想化でリダイレクトされる点も settings.json と同じ）。
+    /// </summary>
+    internal static string LogsFolder => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        SettingsFolderName,
+        "logs");
 
     /// <summary>設定を読み込む。ファイルが無い／壊れている場合は既定値を返す。</summary>
     public static AppSettings Load()

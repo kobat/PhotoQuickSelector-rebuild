@@ -103,6 +103,23 @@ public sealed partial class PreviewControl : UserControl
 
     private MainViewModel? _viewModel;
 
+    // --- メモリ掃除係（3段構成 GC。背景・役割分担は MemoryJanitor の <summary> 参照）。
+    private readonly MemoryJanitor _janitor;
+    private long _reportedDiscardedBytes;                          // 前回 _janitor へ報告済みの累積捨てバイト数（ReportDiscards の差分算出用）
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _janitorTimer;
+
+    // アイドル判定の待ち時間。操作再開との衝突（ブロッキング完全 GC が操作中に当たってカクつく）を
+    // 避けつつ、放置されたら速やかに基準値へ戻すバランスで選定。
+    private static readonly TimeSpan JanitorIdleDelay = TimeSpan.FromSeconds(20);
+    // dirty 判定の周期（判定粒度＝この間隔ぶんアイドル検出が遅延しうる）。
+    private static readonly TimeSpan JanitorTickInterval = TimeSpan.FromSeconds(5);
+    // バックグラウンド GC を発行する捨てバイト累計の閾値。プール予算の既定（合計予算の20%）と同水準＝
+    // 190MB 級バッファ 2〜3 本ぶんのゴミが溜まったら流す。
+    private const long JanitorBgcThresholdBytes = 512L << 20;
+
+    /// <summary>アイドル完全 GC の前後値（<see cref="MainPage"/> がオーバーレイ表示に使う）。</summary>
+    public event Action<MemorySnapshot, MemorySnapshot, TimeSpan>? IdleCollected;
+
     /// <summary>キャッシュ中の画像（状態色付き）一覧（デバッグオーバーレイ用。C キーでトグル）。</summary>
     public ObservableCollection<CacheEntry> CachedFileNames { get; } = new();
 
@@ -138,9 +155,118 @@ public sealed partial class PreviewControl : UserControl
         // ゲート grant 時の優先度＝WindowEntries の index（フォーカス→選択窓→位置窓）。
         _cache.DecodePriority = DecodePriorityOf;
 
+        _janitor = new MemoryJanitor(
+            JanitorBgcThresholdBytes,
+            JanitorIdleDelay,
+            requestBackgroundGc: () =>
+            {
+                // バックグラウンド gen2 GC。ゴミの存在は閾値到達で確定済みなので GC 側の「見送り」判断
+                // （Optimized）は不要＝Forced で確実に発行する。ブロッキングしない（false）ので連打中でも
+                // UI を止めない（停止数 ms 級）。非ブロッキングで前後値が取れないため、メモリログには
+                // 発行直前のスナップショットのみ「before」として記録する（after は空欄＝kind=bgc の規約）。
+                var before = MemoryDiagnostics.Snapshot();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: false, compacting: false);
+                MemoryLog.Current.Gc("bgc", before, null, 0);
+            },
+            requestBlockingGc: () =>
+            {
+                // 背景 gen2 が回収で速度負けした時だけ当たるブロッキング gen2。空きリージョンの decommit
+                // まで同期させるため常に Aggressive（圧縮込み）。停止 ~140〜300ms 実測。軽量な素の Forced を
+                // 先に試す 2 段方式は採らない（Forced 後の返却予定ページはどの計測にも写らず WS 高止まりを
+                // 取りこぼす＝実測で確定。経緯は HISTORY.md「メモリ掃除係のブロッキング段」節）。
+                // ファイナライザ待ちはやらない（WinRT 滞留は案 K で解消済み。取り残しはアイドル完全 GC の役目）。
+                var before = MemoryDiagnostics.Snapshot();
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
+                sw.Stop();
+                MemoryLog.Current.Gc("agr", before, MemoryDiagnostics.Snapshot(), sw.Elapsed.TotalMilliseconds);
+            },
+            requestFullGc: () =>
+            {
+                var (before, after, elapsed) = MemoryDiagnostics.ForceFullCollect();
+                MemoryLog.Current.Gc("idle", before, after, elapsed.TotalMilliseconds);
+                IdleCollected?.Invoke(before, after, elapsed);
+            },
+            // 回収待ちメモリの概算＝ゴミ（総マネージドヒープ − 生きていることが確実な常駐分＝キャッシュ＋
+            // プール＋デコード中貸出）＋在庫（直近 GC 完了時点の総コミット − 総マネージドヒープ＝回収済みだが
+            // OS 未返却の分）。ゴミ側の誤差（サムネイル等の他ライブ分 ~100-300MB）・在庫側の鮮度
+            // （TotalCommittedBytes は GC が走らない間は更新されず高止まりして見える）は、いずれも閾値側
+            // （AppSettings.BlockingGcThresholdMB）と再武装ガードで吸収する前提。
+            pendingBytes: () =>
+            {
+                long resident = _cache.ResidentBytes;
+                long managed = GC.GetTotalMemory(forceFullCollection: false);
+                long committed = GC.GetGCMemoryInfo().TotalCommittedBytes;
+                return new PendingMemoryEstimate(
+                    GarbageBytes: Math.Max(0, managed - resident),
+                    InventoryBytes: Math.Max(0, committed - managed));
+            });
+
         // Esc ではプレビューを抜けない（ユーザー要望）。プレビュー終了はダブルクリック（SPEC §2）。
         // 全画面中の Esc（通常表示へ復帰）は MainWindow 側で処理する。
     }
+
+    /// <summary>
+    /// 前回報告済みからの捨てバイト増分を <see cref="_janitor"/> へ渡す。<see cref="PreviewBitmapCache.Trim"/>
+    /// を呼んだ直後（キャッシュ在庫が動いた可能性がある箇所）で呼ぶ。dirty になったら掃除タイマーを起動する。
+    /// </summary>
+    private void ReportDiscards()
+    {
+        long total = _cache.DiscardedBytes;
+        long delta = total - _reportedDiscardedBytes;
+        _reportedDiscardedBytes = total;
+        if (delta > 0)
+        {
+            _janitor.NoteDiscarded(delta);
+            MemoryLog.Current.Discarded(delta);
+        }
+        if (_janitor.IsDirty) EnsureJanitorTimer();
+    }
+
+    /// <summary>
+    /// 掃除係のアイドル判定タイマーを起動する。dirty の間だけ回し、掃除が済んだら自分で止める
+    /// （見ていない間はコストゼロ、の既存方針＝<see cref="MemoryOverlay"/> の非表示中タイマー停止と同じ流儀）。
+    /// </summary>
+    private void EnsureJanitorTimer()
+    {
+        _janitorTimer ??= CreateJanitorTimer();
+        if (!_janitorTimer.IsRunning) _janitorTimer.Start();
+    }
+
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateJanitorTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = JanitorTickInterval;
+        timer.IsRepeating = true;
+        timer.Tick += (s, _) =>
+        {
+            _janitor.Tick();
+            if (!_janitor.IsDirty) s.Stop();
+        };
+        return timer;
+    }
+
+    /// <summary>
+    /// グリッド表示中も含めたユーザー操作（キー/ホイール/クリック）を掃除係へ中継する
+    /// （<see cref="MainPage"/> のグローバル入力ハンドラから呼ぶ）。アイドル判定を先送りし、
+    /// 操作中にブロッキングの完全 GC が当たらないようにする。
+    /// </summary>
+    public void NoteUserActivity() => _janitor.NoteActivity();
+
+    /// <summary>
+    /// メモリ時系列ログ（<see cref="MemoryLog"/>）の SAMPLE 行に添える先読みキャッシュ／プール／
+    /// 掃除係の統計をまとめる（<see cref="MainPage"/> の 250ms サンプリングタイマーから呼ぶ）。
+    /// </summary>
+    public MemoryLogExtras CollectMemoryLogExtras() => new(
+        cacheBytes: _cache.CachedBytes,
+        cacheCount: _cache.CachedCount,
+        inflightCount: _cache.InflightCount,
+        poolBytes: _cache.PooledBytes,
+        poolCount: _cache.PooledBufferCount,
+        poolHit: _cache.PoolHitCount,
+        poolMiss: _cache.PoolMissCount,
+        discardedBytes: _cache.DiscardedBytes,
+        janitorDirty: _janitor.IsDirty);
 
     // フィルムストリップも可視コンテナの分だけサムネイルをデコード/破棄（メモリは枚数に依存しない）。
     private void FilmStrip_ContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
@@ -234,8 +360,11 @@ public sealed partial class PreviewControl : UserControl
         _rateBudget = Math.Max(1, s.RateBudget);
         _rateWindow = TimeSpan.FromMilliseconds(Math.Clamp(s.RateWindowMs, 100, 60000));
 
-        // キャッシュのバイト予算（GB → bytes）。
-        _cache.MaxCacheBytes = (long)(Math.Max(0.1, s.CacheBudgetGB) * (1L << 30));
+        // キャッシュの合計バイト予算（GB → bytes）と、その内訳（プールの割合）。
+        _cache.SetBudget((long)(Math.Max(0.1, s.CacheBudgetGB) * (1L << 30)), s.CachePoolRatioPercent);
+
+        // 背景 gen2 GC が速度負けしたときのブロッキング gen2 の閾値（MB → bytes）。0 以下で無効。
+        _janitor.BlockingGcThresholdBytes = (long)Math.Max(0, s.BlockingGcThresholdMB) << 20;
 
         // 「切替時のみ」オーバーレイの保持／フェード時間。
         ApplyOverlayFadeTimings(s);
@@ -252,8 +381,10 @@ public sealed partial class PreviewControl : UserControl
         if (_cache.MaxConcurrentDecodes == concurrency) return;
 
         _cache.Changed -= RefreshCacheOverlay;
-        long budget = _cache.MaxCacheBytes;
-        _cache = new PreviewBitmapCache(concurrency) { MaxCacheBytes = budget };
+        long budget = _cache.MaxTotalBytes;
+        int poolRatio = _cache.PoolRatioPercent;
+        _cache = new PreviewBitmapCache(concurrency);
+        _cache.SetBudget(budget, poolRatio);
         _cache.Changed += RefreshCacheOverlay;
         _cache.IsWanted = IsPathInWindow;
         _cache.DecodePriority = DecodePriorityOf;
@@ -318,6 +449,9 @@ public sealed partial class PreviewControl : UserControl
                 // 情報オーバーレイの「切替時のみ」表示: 焦点の写真切替は毎回トリガ。評価変更の監視対象も付け替える。
                 SubscribeOverlayWatchedPhoto(_viewModel?.FocusedPhoto);
                 RestartOverlayFade();
+                // メモリ時系列ログの NAV 行。寸法は EXIF Orientation 適用後の表示寸法（Meta.Width/Height）。
+                if (_viewModel?.FocusedPhoto is { } navPhoto)
+                    MemoryLog.Current.Nav(navPhoto.Meta.FileName, navPhoto.Meta.Width, navPhoto.Meta.Height);
                 break;
             case nameof(MainViewModel.IsPreviewMode):
                 if (_viewModel?.IsPreviewMode == true)
@@ -388,6 +522,7 @@ public sealed partial class PreviewControl : UserControl
     private void RequestPreviewLoad()
     {
         if (_viewModel?.IsPreviewMode != true) return;
+        _janitor.NoteActivity();
 
         // 既にデコード済み（キャッシュ在籍）ならデコード不要＝VRAM を生成しない。レート制限せず即表示する。
         // 通常のゆっくりした前後移動は settle 先読みで近傍が温まっているため、これで2枚目以降も遅延なく出る。
@@ -523,6 +658,7 @@ public sealed partial class PreviewControl : UserControl
             // 通さないと押しっぱなしナビ中に Trim が一度も走らずキャッシュが膨張する。
             // WindowPaths() は現在の FocusedPhoto 基準なので常に最新窓へ収束する。
             _cache.Trim(WindowPaths());
+            ReportDiscards();
             RefreshCacheOverlay();
             return;
         }
@@ -585,6 +721,7 @@ public sealed partial class PreviewControl : UserControl
 
         if (prefetch) _cache.Prefetch(WindowPaths());
         _cache.Trim(WindowPaths());
+        ReportDiscards();
         // 両隣が全部キャッシュ済みの移動では Changed が発火せず（ヒットは LastUse 更新のみ・
         // Trim も削除ゼロなら発火しない）、窓ラベルが古いまま残るため、ナビゲーション後に明示更新する。
         // 非表示中は RefreshCacheOverlay 冒頭のガードで即 return するのでコストなし。
@@ -724,12 +861,19 @@ public sealed partial class PreviewControl : UserControl
                 }
             }
 
-            // ヘッダ集計: デコード済み件数/合計MB/予算MB、直近デコード回数/レート予算、表示中の VRAM 目安。
+            // ヘッダ集計: デコード済み件数/合計MB/予算MB、直近デコード回数/レート予算、
+            // バッファプールの在庫と再利用率、表示中の VRAM 目安。
             var cachedItems = items.Where(i => i.State == CacheItemState.Cached).ToList();
             double totalMb = cachedItems.Sum(i => i.Bytes) / (1024.0 * 1024.0);
             double budgetMb = _cache.MaxCacheBytes / (1024.0 * 1024.0);
             string summary = $"キャッシュ {cachedItems.Count}枚 {totalMb:0}MB / {budgetMb:0}MB" +
                               $"   直近デコード {PrunedDecodeCount(DateTime.UtcNow)}/{_rateBudget}";
+            long rents = _cache.PoolHitCount + _cache.PoolMissCount;
+            double pooledMb = _cache.PooledBytes / (1024.0 * 1024.0);
+            double poolBudgetMb = _cache.MaxPoolBytes / (1024.0 * 1024.0);
+            summary += $"\nプール {_cache.PooledBufferCount}本 {pooledMb:0}MB / {poolBudgetMb:0}MB" +
+                       $"   再利用 {_cache.PoolHitCount}/{rents}" +
+                       (rents > 0 ? $"（{_cache.PoolHitCount * 100.0 / rents:0}%）" : "");
             if (_bitmap != null && _currentMeta != null)
             {
                 double vramMb = _bitmap.SizeInPixels.Width * (double)_bitmap.SizeInPixels.Height * 4 / (1024.0 * 1024.0);

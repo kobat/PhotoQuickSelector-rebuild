@@ -704,10 +704,15 @@ public partial class MainViewModel : ObservableObject
             FocusedPhoto = Photos[0];
         if (FocusedPhoto == null) return;
         IsPreviewMode = true;
+        MemoryLog.Current.Note("preview-enter");
     }
 
     /// <summary>プレビューからサムネイル一覧へ戻る（フィルムストリップのダブルクリック。Esc では抜けない）。</summary>
-    public void ExitPreview() => IsPreviewMode = false;
+    public void ExitPreview()
+    {
+        IsPreviewMode = false;
+        MemoryLog.Current.Note("preview-exit");
+    }
 
     /// <summary>
     /// 次の写真へ。選択集合があるときはメンバー内で焦点を進める／無いときは絞込ビュー内で前後移動。
@@ -1054,6 +1059,8 @@ public partial class MainViewModel : ObservableObject
             ApplyFilter();
             // 枚数はフィルタボタンの件数表示（FilteredCountText）と重複するため、ここでは開いているフォルダのパスのみ表示する。
             SetStatusPath(folderPath);
+            // メモリ時系列ログの collapse 点（読み込み完了。フォルダ切替がメモリ推移に与える影響を追う目印）。
+            MemoryLog.Current.Note("folder", folderPath);
 
             // 選択の復元: 指定ファイルが絞込結果に在れば選択する（消えた/絞り込みで外れた場合は下のフォールバック）。
             if (restoreSelectedFile != null)

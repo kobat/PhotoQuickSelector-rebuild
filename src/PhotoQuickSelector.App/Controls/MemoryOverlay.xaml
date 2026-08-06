@@ -21,6 +21,11 @@
             Background="#A6000000" IsHitTestVisible="False"
             Visibility="Collapsed">
         <StackPanel Spacing="3">
+            <!-- メモリ時系列ログ（Ctrl+Shift+M）の録画中インジケーター。非録画中は Collapsed（Update 側で切替）。
+                 オーバーレイ本体と同じ非表示中コストゼロの方針に乗るため、専用タイマーは持たずここで一緒に更新する。 -->
+            <TextBlock x:Name="RecIndicatorText" FontSize="11" FontWeight="SemiBold" Foreground="#FFFF6B6B"
+                       Visibility="Collapsed" />
+
             <!-- GC の実行方法をその場で分かるようにヘッダへ併記する（区切りの空白は Run のテキストに含める。
                  要素間の改行/インデントに頼ると空白の有無が処理系任せになるため） -->
             <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="#BFFFFFFF"><Run Text="メモリ" /><Run Text=" (Ctrl+MでGC)" Foreground="#8CFFFFFF" /></TextBlock>
@@ -33,6 +38,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -58,6 +64,15 @@
                 <TextBlock Grid.Row="1" Grid.Column="3" x:Name="WorkingSetValue" Margin="8,0,0,0"
                            MinWidth="72" TextAlignment="Right"
                            FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
+
+                <!-- GC 管轄外の概算（プライベート − max(GCコミット, マネージド)）。GC では動かない領域なので、
+                     メモリ肥大の原因がマネージド側かネイティブ側かの切り分けに使う。ただし decommit 未了の
+                     空き領域は捕捉できず過大に出るため、確定診断は GC（Ctrl+M）直後の値どうしで比べる＝注記。 -->
+                <TextBlock Grid.Row="2" Grid.Column="0"
+                           FontSize="11" Foreground="#E8FFFFFF"><Run Text="ネイティブ" /><Run Text=" (GC直後が正)" Foreground="#8CFFFFFF" /></TextBlock>
+                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="NativeValue" Margin="8,0,0,0"
+                           MinWidth="72" TextAlignment="Right"
+                           FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
             </Grid>
 
             <TextBlock x:Name="GcCountText" FontSize="11" FontFamily="Consolas" Foreground="#E8FFFFFF" />
@@ -73,15 +88,20 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="マネージド"
                                FontSize="11" Foreground="#FF7CE38B" />
                     <TextBlock Grid.Row="0" Grid.Column="1" x:Name="CollectManagedValue" Margin="8,0,0,0"
                                FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="WS"
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="ネイティブ"
                                FontSize="11" Foreground="#FF7CE38B" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CollectWorkingSetValue" Margin="8,0,0,0"
+                    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="CollectNativeValue" Margin="8,0,0,0"
+                               FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="WS"
+                               FontSize="11" Foreground="#FF7CE38B" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="CollectWorkingSetValue" Margin="8,0,0,0"
                                FontSize="11" FontFamily="Consolas" Foreground="#FF7CE38B" />
                 </Grid>
             </StackPanel>

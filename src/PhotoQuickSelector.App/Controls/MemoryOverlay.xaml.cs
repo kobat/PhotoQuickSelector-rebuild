@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -38,17 +39,45 @@ public sealed partial class MemoryOverlay : UserControl
     public void Toggle() => SetShown(!IsShown);
 
     /// <summary>
+    /// 非表示なら表示状態にする（表示中は何もしない）。<c>Ctrl+Shift+M</c> の録画開始フィードバック用
+    /// （録画の有無に関わらず結果が見えた方がよい <see cref="ForceGarbageCollect"/> と違い、
+    /// 録画開始は「既に見ている状態を邪魔しない」ほうが自然なので Toggle ではなくこちらを使う）。
+    /// </summary>
+    public void EnsureShown()
+    {
+        if (!IsShown) Toggle();
+    }
+
+    /// <summary>
     /// 強制フル GC を実行し、前後の値を表示する（<c>Ctrl+M</c>）。
     /// 結果が見えないと意味がないので、非表示なら同時に表示する。
     /// </summary>
     public void ForceGarbageCollect()
     {
         var (before, after, elapsed) = MemoryDiagnostics.ForceFullCollect();
-        CollectHeader.Text = $"GC 実行（{elapsed.TotalMilliseconds:#,0}ms）";
+        MemoryLog.Current.Gc("ctrlm", before, after, elapsed.TotalMilliseconds);
+        ShowCollectResult($"GC 実行（{elapsed.TotalMilliseconds:#,0}ms）", before, after, elapsed, show: true);
+    }
+
+    /// <summary>
+    /// GC 前後の計測結果パネルを更新する。<see cref="ForceGarbageCollect"/>（<c>Ctrl+M</c>・常時表示）と
+    /// <see cref="PreviewControl"/> のアイドル完全 GC（<see cref="MemoryJanitor"/> 経由・
+    /// <paramref name="show"/>=false＝勝手にオーバーレイを開かない。開いていれば次回 Update で見える）
+    /// の両方から呼ぶ共通経路。
+    /// </summary>
+    /// <param name="header">結果パネルの見出し（実行種別＋所要時間）。</param>
+    /// <param name="before">GC 前のスナップショット。</param>
+    /// <param name="after">GC 後のスナップショット。</param>
+    /// <param name="elapsed">所要時間（未使用。<paramref name="header"/> に既に整形済みだが呼び出し規約として受け取る）。</param>
+    /// <param name="show">true ならオーバーレイ自体を表示状態にする（Ctrl+M 相当）。</param>
+    public void ShowCollectResult(string header, MemorySnapshot before, MemorySnapshot after, TimeSpan elapsed, bool show)
+    {
+        CollectHeader.Text = header;
         CollectManagedValue.Text = $"{MemoryDiagnostics.Mb(before.ManagedBytes)} → {MemoryDiagnostics.Mb(after.ManagedBytes)}";
+        CollectNativeValue.Text = $"{MemoryDiagnostics.Mb(before.NativeBytes)} → {MemoryDiagnostics.Mb(after.NativeBytes)}";
         CollectWorkingSetValue.Text = $"{MemoryDiagnostics.Mb(before.WorkingSetBytes)} → {MemoryDiagnostics.Mb(after.WorkingSetBytes)}";
         CollectPanel.Visibility = Visibility.Visible;
-        SetShown(true);
+        if (show) SetShown(true);
         Update();
     }
 
@@ -86,6 +115,19 @@ public sealed partial class MemoryOverlay : UserControl
         CommittedValue.Text = MemoryDiagnostics.Mb(s.CommittedBytes);
         PrivateValue.Text = MemoryDiagnostics.Mb(s.PrivateBytes);
         WorkingSetValue.Text = MemoryDiagnostics.Mb(s.WorkingSetBytes);
+        NativeValue.Text = MemoryDiagnostics.Mb(s.NativeBytes);
         GcCountText.Text = $"GC回数  gen0 {GC.CollectionCount(0)} / gen1 {GC.CollectionCount(1)} / gen2 {GC.CollectionCount(2)}";
+
+        // メモリ時系列ログ（Ctrl+Shift+M）の録画中インジケーター。オーバーレイ非表示中はこの Update
+        // 自体が呼ばれない（タイマー停止中）ので、録画開始時に MainPage が EnsureShown() で表示させる。
+        if (MemoryLog.Current.IsRecording)
+        {
+            RecIndicatorText.Text = $"● REC {Path.GetFileName(MemoryLog.Current.CurrentFilePath)}";
+            RecIndicatorText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            RecIndicatorText.Visibility = Visibility.Collapsed;
+        }
     }
 }

@@ -51,12 +51,15 @@ public partial class App : Application
     /// 空（自動）のときは何も設定しない＝OS の表示言語に追従。
     /// PrimaryLanguageOverride は一度設定するとプロセス内で解除不可（""/null は 0x80070057）だが、
     /// プロセスをまたいで永続化はされないため「毎起動ここで設定 or 触らない」で完結する（検証済み）。
+    /// ついでに <see cref="AppSettings.HeapHardLimitGB"/> も起動直後（ヒープがまだ小さく失敗しない
+    /// タイミング）に適用する＝設定読み込みを1回で済ませる。
     /// </summary>
     private static void ApplyLanguageOverride()
     {
         try
         {
-            var tag = AppSettings.Load().Language switch
+            var settings = AppSettings.Load();
+            var tag = settings.Language switch
             {
                 "ja" => "ja-JP",
                 "en" => "en-US",
@@ -64,10 +67,13 @@ public partial class App : Application
             };
             if (tag != null)
                 Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = tag;
+
+            MemoryDiagnostics.TryApplyHeapHardLimit(
+                HeapHardLimitPolicy.ClampGB(settings.HeapHardLimitGB, settings.CacheBudgetGB));
         }
         catch
         {
-            // 言語設定の失敗でアプリを起動不能にしない（既定＝OS 言語で続行）
+            // 言語設定・ハードリミット適用の失敗でアプリを起動不能にしない（既定のまま続行）
         }
     }
 

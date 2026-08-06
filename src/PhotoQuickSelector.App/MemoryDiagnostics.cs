@@ -14,7 +14,27 @@ namespace PhotoQuickSelector_App;
 /// <param name="PrivateBytes">プロセスのプライベートコミット（タスクマネージャーの「コミット サイズ」）。</param>
 /// <param name="WorkingSetBytes">プロセスのワーキングセット（タスクマネージャーの「メモリ」に相当）。</param>
 public readonly record struct MemorySnapshot(
-    long ManagedBytes, long CommittedBytes, long PrivateBytes, long WorkingSetBytes);
+    long ManagedBytes, long CommittedBytes, long PrivateBytes, long WorkingSetBytes)
+{
+    /// <summary>
+    /// GC の管轄外で使っているメモリの概算（プライベート − GC 管轄分）。
+    /// Win2D/D3D のテクスチャ・WIC のデコードバッファ等、GC の設定やモードでは一切動かない領域を
+    /// 切り分けるための値。
+    /// <para>
+    /// GC 管轄分には <see cref="CommittedBytes"/> と <see cref="ManagedBytes"/> の大きい方を使う。
+    /// <see cref="PrivateBytes"/> は現在値だが <see cref="CommittedBytes"/> は直前の GC 時点の
+    /// スナップショット（<see cref="GC.GetGCMemoryInfo(GCKind)"/> の仕様）なので、GC が走らないまま
+    /// 確保が進むと GC 管轄内の増加（未回収の LOH ゴミ等）がネイティブに化けて見える。マネージド
+    /// 現在値（未回収ゴミ込み）は現在のコミット量の下限なので、大きい方を引いて過大表示を抑える。
+    /// </para>
+    /// <para>
+    /// それでも「回収済みだが decommit 未了」の空き領域は捕捉できず過大に出るため、あくまで概算。
+    /// 確定診断は GC 直後の値どうしで比べること（オーバーレイの注記もこの前提）。
+    /// 差が負になる状況もあり得るので 0 でクランプする。
+    /// </para>
+    /// </summary>
+    public long NativeBytes => Math.Max(0, PrivateBytes - Math.Max(CommittedBytes, ManagedBytes));
+}
 
 /// <summary>
 /// デバッグ用のメモリ計測と強制 GC（<c>M</c> でオーバーレイ表示 / <c>Ctrl+M</c> で GC 実行）。
@@ -75,13 +95,24 @@ public static class MemoryDiagnostics
     /// ファイナライザ経由で解放されるアンマネージド資源（Win2D の CanvasBitmap 等の COM ラッパ）は
     /// 1 回の <see cref="GC.Collect()"/> では回収し切れないため、
     /// 「回収 → ファイナライザ待ち → もう一度回収」の 2 段で回す。
-    /// プレビュー用のピクセルバッファは LOH 行きの大きな byte[] なので、
-    /// 断片化ぶんも含めて減らせるよう LOH 圧縮も一度だけ有効にする。
+    /// 1 段目は浮かせるのが目的なので <see cref="GCCollectionMode.Forced"/>、
+    /// 2 段目だけ <see cref="GCCollectionMode.Aggressive"/> にする（両方 Aggressive にしても
+    /// 1 段目の decommit は 2 段目で上書きされるだけで、所要時間が伸びるだけ）。
     /// </para>
     /// <para>
-    /// 空き領域の OS への返却（decommit）は GC 1 回あたりの予算で分割実施されるため、
-    /// 1 回呼んだだけではワーキングセットは少ししか減らない（連打すると階段状に減る）。
-    /// これはランタイムの仕様であり、回収漏れではない。
+    /// <see cref="GCCollectionMode.Aggressive"/> は free list を捨てて空きリージョン/セグメントを
+    /// 積極的に OS へ返す。<see cref="GCCollectionMode.Forced"/> は「今すぐ回収しろ」だけで
+    /// 返却は GC 1 回あたりの予算で分割実施されるため、1 回押しでは WS が少ししか減らなかった
+    /// （連打で階段状に減る）。Aggressive は generation＝<see cref="GC.MaxGeneration"/> /
+    /// blocking / compacting の 3 つがすべて必須で、1 つでも欠けると
+    /// <see cref="ArgumentException"/> になる。
+    /// </para>
+    /// <para>
+    /// LOH 圧縮は <c>compacting: true</c> では効かず（そちらは SOH）、
+    /// <see cref="GCSettings.LargeObjectHeapCompactionMode"/> の指定が要る。しかもこの指定が
+    /// 効くのは次の「ブロッキング」gen2 GC なので、バックグラウンド GC では圧縮されない。
+    /// プレビュー用のピクセルバッファは LOH 行きの大きな byte[] なので、断片化ぶんも含めて
+    /// 減らせるよう一度だけ有効にする。
     /// </para>
     /// </summary>
     /// <returns>GC 前後のスナップショットと所要時間。</returns>
@@ -93,7 +124,7 @@ public static class MemoryDiagnostics
         GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
         GC.WaitForPendingFinalizers();
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
 
         sw.Stop();
         return (before, Snapshot(), sw.Elapsed);
@@ -104,4 +135,42 @@ public static class MemoryDiagnostics
     /// Grid の列で行うため、ここでは空白の詰め物を入れない。
     /// </summary>
     public static string Mb(long bytes) => $"{bytes / (1024.0 * 1024.0):#,0}MB";
+
+    /// <summary>
+    /// マネージドヒープのハードリミット（<c>System.GC.HeapHardLimit</c>）を実行中に変更する
+    /// （.NET 8+ の <see cref="GC.RefreshMemoryLimit"/>）。呼び出し元は事前に
+    /// <see cref="HeapHardLimitPolicy.ClampGB"/> でクランプ済みの値を渡すこと（ここでは検証しない）。
+    /// <para>
+    /// 上げ方向は即時有効。下げ方向は現在のヒープコミットが新上限を超えていると
+    /// <see cref="InvalidOperationException"/> になるため、一度フル GC（<see cref="ForceFullCollect"/>）
+    /// して収縮させてから 1 回だけ再試行する。それでも失敗する場合は false を返す
+    /// （値自体は呼び出し元が settings へ保存済みなので、次回起動時の初期適用では成功する設計）。
+    /// </para>
+    /// </summary>
+    /// <param name="limitGB">新しいハードリミット（GB）。</param>
+    /// <returns>適用に成功したか。</returns>
+    public static bool TryApplyHeapHardLimit(double limitGB)
+    {
+        var bytes = HeapHardLimitPolicy.ToBytes(limitGB);
+        try
+        {
+            AppContext.SetData("GCHeapHardLimit", bytes);
+            GC.RefreshMemoryLimit();
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            ForceFullCollect();
+            try
+            {
+                AppContext.SetData("GCHeapHardLimit", bytes);
+                GC.RefreshMemoryLimit();
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
+    }
 }

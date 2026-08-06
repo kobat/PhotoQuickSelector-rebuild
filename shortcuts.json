@@ -54,7 +54,9 @@
         { "keys": "M",
           "description": { "ja": "メモリ使用量オーバーレイの切替（デバッグ）", "en": "Toggle the memory usage overlay (debug)" } },
         { "keys": "Ctrl+M",
-          "description": { "ja": "強制 GC を実行し前後のメモリ使用量を表示（デバッグ）", "en": "Force a full GC and show memory usage before/after (debug)" } }
+          "description": { "ja": "強制 GC を実行し前後のメモリ使用量を表示（デバッグ）", "en": "Force a full GC and show memory usage before/after (debug)" } },
+        { "keys": "Ctrl+Shift+M",
+          "description": { "ja": "メモリ時系列ログの記録を開始/停止（デバッグ）", "en": "Start/stop the memory timeline log (debug)" } }
       ]
     },
     {

@@ -37,4 +37,32 @@
              Link="Linked\DecodeGate.cs" />
   </ItemGroup>
 
+  <!-- PixelBufferPool も純 C#（WinUI/WinRT 非依存）なので同じ方式でソースリンクしてテストする。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PhotoQuickSelector.App\Controls\PixelBufferPool.cs"
+             Link="Linked\PixelBufferPool.cs" />
+  </ItemGroup>
+
+  <!-- MemoryJanitor も純 C#（WinUI/WinRT 非依存）なので同じ方式でソースリンクしてテストする。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PhotoQuickSelector.App\Controls\MemoryJanitor.cs"
+             Link="Linked\MemoryJanitor.cs" />
+  </ItemGroup>
+
+  <!-- MemoryLog（メモリ時系列ログ）も純 C#（WinUI/WinRT 非依存）なので同じ方式でソースリンクしてテストする。
+       MemorySnapshot の定義元である MemoryDiagnostics.cs も併せてリンクする。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PhotoQuickSelector.App\MemoryDiagnostics.cs"
+             Link="Linked\MemoryDiagnostics.cs" />
+    <Compile Include="..\..\src\PhotoQuickSelector.App\MemoryLog.cs"
+             Link="Linked\MemoryLog.cs" />
+  </ItemGroup>
+
+  <!-- HeapHardLimitPolicy も純 C#（WinUI/WinRT 非依存）なので同じ方式でソースリンクしてテストする。
+       MemoryDiagnostics.cs が参照するため、リンクしないと上のビルドが通らない。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PhotoQuickSelector.App\HeapHardLimitPolicy.cs"
+             Link="Linked\HeapHardLimitPolicy.cs" />
+  </ItemGroup>
+
 </Project>

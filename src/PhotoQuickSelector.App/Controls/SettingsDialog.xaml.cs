@@ -51,6 +51,9 @@ public sealed partial class SettingsDialog : ContentDialog
     public int FullFadeMs => (int)System.Math.Round(Val(FullFadeBox, Defaults.FullFadeMs));
 
     public double CacheBudgetGB => Val(CacheBudgetBox, Defaults.CacheBudgetGB);
+    public int CachePoolRatioPercent => (int)System.Math.Round(Val(CachePoolRatioBox, Defaults.CachePoolRatioPercent));
+    public int BlockingGcThresholdMB => (int)System.Math.Round(Val(BlockingGcBox, Defaults.BlockingGcThresholdMB));
+    public double HeapHardLimitGB => Val(HeapLimitBox, Defaults.HeapHardLimitGB);
     public int PrefetchForward => (int)System.Math.Round(Val(PrefetchForwardBox, Defaults.PrefetchForward));
     public int PrefetchBackward => (int)System.Math.Round(Val(PrefetchBackwardBox, Defaults.PrefetchBackward));
     public int MaxConcurrentDecodes => (int)System.Math.Round(Val(ConcurrencyBox, Defaults.MaxConcurrentDecodes));
@@ -74,6 +77,9 @@ public sealed partial class SettingsDialog : ContentDialog
         FullHoldBox.Value = settings.FullHoldMs;
         FullFadeBox.Value = settings.FullFadeMs;
         CacheBudgetBox.Value = settings.CacheBudgetGB;
+        CachePoolRatioBox.Value = settings.CachePoolRatioPercent;
+        BlockingGcBox.Value = settings.BlockingGcThresholdMB;
+        HeapLimitBox.Value = settings.HeapHardLimitGB;
         PrefetchForwardBox.Value = settings.PrefetchForward;
         PrefetchBackwardBox.Value = settings.PrefetchBackward;
         ConcurrencyBox.Value = settings.MaxConcurrentDecodes;
@@ -142,8 +148,13 @@ public sealed partial class SettingsDialog : ContentDialog
         FullFadeBox.Value = Defaults.FullFadeMs;
     }
 
-    private void ResetCache_Click(object sender, RoutedEventArgs e) =>
+    private void ResetCache_Click(object sender, RoutedEventArgs e)
+    {
         CacheBudgetBox.Value = Defaults.CacheBudgetGB;
+        CachePoolRatioBox.Value = Defaults.CachePoolRatioPercent;
+        BlockingGcBox.Value = Defaults.BlockingGcThresholdMB;
+        HeapLimitBox.Value = Defaults.HeapHardLimitGB;
+    }
 
     private void ResetPrefetch_Click(object sender, RoutedEventArgs e)
     {

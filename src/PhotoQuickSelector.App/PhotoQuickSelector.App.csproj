@@ -123,6 +123,29 @@
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>
 
+  <!--
+    GC にヒープの圧縮・解放を積極的に行わせる（runtimeconfig.json 経由でランタイムへ渡る）。
+    値は 0（既定＝無効）〜9 で、大きいほどメモリ節約寄り・GC コスト増。
+    200MB 級の BGRA8 バッファを扱う先読みキャッシュ（PixelBufferPool でプール化済み）でも、
+    解放済みセグメントが OS へ返らず WS が高止まりするため、プールと組み合わせて使う。
+    7 は実機比較で選定（5＝削減が不足／9＝GC の停止が体感できる）。
+
+    HeapHardLimit＝マネージドヒープ（SOH+LOH+POH）のコミット量の上限（単位＝バイト）。
+    上限に近づくとランタイムがブロッキング圧縮 GC を強制するため、プールミス時の LOH バーストが
+    上限を超えて WS ピークになることが原理的になくなる。GC しても収まらない確保は
+    OutOfMemoryException＝クラッシュなので、値は「キャッシュ＋プール予算 2.5GB＋同時デコード
+    2 本×約 200MB＋サムネイル圧縮バイト常駐＋余裕」を包含する 3.5GiB（実機 3 本比較で確定。
+    大きいほど良いではなく、常駐量に対し適度に窮屈な方が自発 GC が勤勉になり停止が短い）。
+    キャッシュ予算との整合は HeapHardLimitPolicy.ClampGB（下限＝予算+1GB）が機械的に保証する。
+
+    起動後は AppSettings.HeapHardLimitGB を GC.RefreshMemoryLimit で適用するため、
+    この値は起動直後〜適用までの初期値兼フォールバック（HeapHardLimitPolicy.cs 参照）。
+  -->
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
+    <RuntimeHostConfigurationOption Include="System.GC.HeapHardLimit" Value="3758096384" />
+  </ItemGroup>
+
   <!-- Publish Properties -->
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
