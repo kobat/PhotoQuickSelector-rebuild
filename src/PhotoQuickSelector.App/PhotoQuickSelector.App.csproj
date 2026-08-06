@@ -134,8 +134,9 @@
     上限に近づくとランタイムがブロッキング圧縮 GC を強制するため、プールミス時の LOH バーストが
     上限を超えて WS ピークになることが原理的になくなる。GC しても収まらない確保は
     OutOfMemoryException＝クラッシュなので、値は「キャッシュ＋プール予算 2.5GB＋同時デコード
-    2 本×約 200MB＋サムネイル圧縮バイト常駐＋余裕」を包含する 3.5GiB（暫定・実機の連打テストで調整）。
-    キャッシュ予算（AppSettings.CacheBudgetGB）を上げる場合はこの値も連動して見直すこと。
+    2 本×約 200MB＋サムネイル圧縮バイト常駐＋余裕」を包含する 3.5GiB（実機 3 本比較で確定。
+    大きいほど良いではなく、常駐量に対し適度に窮屈な方が自発 GC が勤勉になり停止が短い）。
+    キャッシュ予算との整合は HeapHardLimitPolicy.ClampGB（下限＝予算+1GB）が機械的に保証する。
 
     起動後は AppSettings.HeapHardLimitGB を GC.RefreshMemoryLimit で適用するため、
     この値は起動直後〜適用までの初期値兼フォールバック（HeapHardLimitPolicy.cs 参照）。
