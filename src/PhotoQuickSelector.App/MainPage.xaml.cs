@@ -383,6 +383,8 @@ public sealed partial class MainPage : Page
 
         // M / Ctrl+M / Ctrl+Shift+M: メモリオーバーレイのトグル / 強制フル GC / メモリ時系列ログの録画トグル
         // （デバッグ。両モード共通）。表示先が MainPage 側なのでプレビューへ委譲する前に処理する。
+        // Ctrl 系はオーバーレイ表示中のみ有効（誤爆で GC 停止やログ記録が走らないよう M をデバッグモードの
+        // 入口にする）。ゲートで弾いた場合もキーは消費し、他ハンドラへ漏らさない。
         if (e.Key == Windows.System.VirtualKey.M)
         {
             // 3 つの割り当てを持つので修飾子は厳密に見る（Ctrl+Alt+M 等では発火させない）。
@@ -390,9 +392,21 @@ public sealed partial class MainPage : Page
             bool ctrlShiftOnly = KeyboardModifiers.Ctrl && KeyboardModifiers.Shift && !KeyboardModifiers.Alt;
             if (ctrlOnly || ctrlShiftOnly || KeyboardModifiers.None)
             {
-                if (ctrlShiftOnly) ToggleMemoryLogRecording();
-                else if (ctrlOnly) MemoryPanel.ForceGarbageCollect();
-                else MemoryPanel.Toggle();
+                if (ctrlShiftOnly)
+                {
+                    if (MemoryPanel.IsShown) ToggleMemoryLogRecording();
+                }
+                else if (ctrlOnly)
+                {
+                    if (MemoryPanel.IsShown) MemoryPanel.ForceGarbageCollect();
+                }
+                else
+                {
+                    MemoryPanel.Toggle();
+                    // 非表示化と同時に記録も停止する（● REC が見えないまま記録が続く状態を作らない）。
+                    if (!MemoryPanel.IsShown && MemoryLog.Current.IsRecording)
+                        ToggleMemoryLogRecording();
+                }
                 e.Handled = true;
                 return;
             }

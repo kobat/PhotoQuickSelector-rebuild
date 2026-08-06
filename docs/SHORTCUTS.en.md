@@ -32,7 +32,8 @@
 | `Shift+G` | Toggle the composition grid reference (image ⇄ canvas) |
 | `C` | Toggle the prefetch cache overlay (debug) |
 | `M` | Toggle the memory usage overlay (debug) |
-| `Ctrl+M` | Force a full GC and show memory usage before/after (debug) |
+| `Ctrl+M` | Force a full GC and show memory usage before/after (debug; only while the overlay is shown) |
+| `Ctrl+Shift+M` | Start/stop the memory timeline log (debug; only while the overlay is shown — hiding it with M stops recording) |
 
 ## Navigation
 

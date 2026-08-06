@@ -217,7 +217,9 @@ GC 設定 `System.GC.ConserveMemory`=7 を併用〔2026-08-01〕。さらに計�
   `C` 先読みキャッシュ一覧オーバーレイ（デバッグ・初期非表示）
 - `M` メモリ使用量オーバーレイの切替 / `Ctrl+M` 強制フル GC / `Ctrl+Shift+M` メモリ時系列ログの記録
   開始/停止（いずれも両モード共通。`Controls/MemoryOverlay`＋`MemoryDiagnostics`。GC は `Forced`→
-  ファイナライザ待ち→`Aggressive` の 2 段＋LOH `CompactOnce`）。
+  ファイナライザ待ち→`Aggressive` の 2 段＋LOH `CompactOnce`。**Ctrl 系はオーバーレイ表示中のみ有効**＝
+  誤爆防止ゲート・非表示中は何もしない。記録中に `M` で隠すと記録も停止＝「見えないまま記録」を作らない。
+  2026-08-06）。
   オーバーレイは MainPage 右下・500ms 周期の自己更新（キャッシュ一覧とは分離。理由は
   HISTORY「メモリオーバーレイの分離」節）。表示は マネージド／GCコミット／プライベート／WS／**ネイティブ**
   （＝プライベート − max(GCコミット, マネージド現在値)＝GC 管轄外。GC の合間はマネージド伸長分の

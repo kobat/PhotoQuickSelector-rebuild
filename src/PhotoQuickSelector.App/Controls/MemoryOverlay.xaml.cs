@@ -8,7 +8,8 @@ namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
 /// メモリ使用量のデバッグオーバーレイ。<c>M</c> で表示/非表示、<c>Ctrl+M</c> で強制 GC を実行して
-/// 前後の値を出す（キー処理は <see cref="MainPage.HandleGlobalKeyDown"/>）。
+/// 前後の値を出す（キー処理は <see cref="MainPage.HandleGlobalKeyDown"/>。<c>Ctrl+M</c>／<c>Ctrl+Shift+M</c> は
+/// 誤爆防止のため表示中のみ有効＝ゲートは MainPage 側）。
 /// <para>
 /// キャッシュ一覧オーバーレイ（<see cref="PreviewControl"/> の <c>C</c>）とは分離してある。
 /// キャッシュ一覧は写真切替に同期して更新する必要があるが、メモリ計測をその経路に載せると
@@ -119,7 +120,8 @@ public sealed partial class MemoryOverlay : UserControl
         GcCountText.Text = $"GC回数  gen0 {GC.CollectionCount(0)} / gen1 {GC.CollectionCount(1)} / gen2 {GC.CollectionCount(2)}";
 
         // メモリ時系列ログ（Ctrl+Shift+M）の録画中インジケーター。オーバーレイ非表示中はこの Update
-        // 自体が呼ばれない（タイマー停止中）ので、録画開始時に MainPage が EnsureShown() で表示させる。
+        // 自体が呼ばれない（タイマー停止中）が、非表示化と同時に MainPage が録画も停止するので
+        // 「録画中なのに ● REC が見えない」状態は発生しない。
         if (MemoryLog.Current.IsRecording)
         {
             RecIndicatorText.Text = $"● REC {Path.GetFileName(MemoryLog.Current.CurrentFilePath)}";
