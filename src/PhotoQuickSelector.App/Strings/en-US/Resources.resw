@@ -416,6 +416,12 @@
   <data name="Settings_BlockingGcNote.Text" xml:space="preserve">
     <value>Threshold (MB) for emergency memory reclamation. When pending memory (uncollected garbage plus memory collected but not yet returned to the OS) exceeds this amount, the app pauses briefly (about 0.1–0.3 s) to reclaim it immediately. This roughly limits how far memory use can temporarily rise above its normal level during continuous browsing. Smaller values keep memory lower at the cost of more frequent pauses. 0 disables.</value>
   </data>
+  <data name="Settings_HeapLimitHeader.Text" xml:space="preserve">
+    <value>Memory usage limit (GB)</value>
+  </data>
+  <data name="Settings_HeapLimitNote.Text" xml:space="preserve">
+    <value>Hard limit on managed heap commit. A forced GC runs when the limit is approached. Values below cache budget + 1 GB are raised automatically. Increases apply immediately; decreases may take effect after restart.</value>
+  </data>
   <data name="Settings_PrefetchHeader.Text" xml:space="preserve">
     <value>Prefetch count</value>
   </data>

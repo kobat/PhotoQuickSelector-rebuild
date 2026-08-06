@@ -416,6 +416,12 @@
   <data name="Settings_BlockingGcNote.Text" xml:space="preserve">
     <value>緊急メモリ回収のしきい値 (MB) です。回収待ちの不要メモリ（未回収のゴミと、回収済みでもまだ OS へ返却されていない分）の合計がこの量を超えると、表示を一瞬（0.1〜0.3 秒程度）止めて即時回収します。連続閲覧中に通常のメモリ使用量へ一時的に上乗せされる分を、おおむねこの量までに抑えます。小さくするほどメモリは抑えられますが、引っかかりの頻度が増えます。0 で無効。</value>
   </data>
+  <data name="Settings_HeapLimitHeader.Text" xml:space="preserve">
+    <value>メモリ使用量の上限 (GB)</value>
+  </data>
+  <data name="Settings_HeapLimitNote.Text" xml:space="preserve">
+    <value>マネージドヒープのコミット上限。超えそうになると GC が強制されます。キャッシュ予算＋1GB を下回る値は自動的に引き上げます。上げは即時反映・下げは次回起動時になることがあります。</value>
+  </data>
   <data name="Settings_PrefetchHeader.Text" xml:space="preserve">
     <value>先読み枚数</value>
   </data>

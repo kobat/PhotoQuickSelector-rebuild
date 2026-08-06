@@ -145,6 +145,16 @@ public sealed class AppSettings
     /// </summary>
     public int BlockingGcThresholdMB { get; set; } = 512;
 
+    /// <summary>
+    /// マネージドヒープ（GC）コミットの絶対上限（GB。<c>System.GC.HeapHardLimit</c>）。起動時と
+    /// 設定保存時に <see cref="MemoryDiagnostics.TryApplyHeapHardLimit"/>（<see cref="GC.RefreshMemoryLimit"/>）
+    /// で適用する。適用直前に <see cref="HeapHardLimitPolicy.ClampGB"/> で「キャッシュ予算＋1GB」を
+    /// 下限にクランプし、設定画面からクラッシュ必至の組み合わせ（上限がキャッシュ予算を下回る）を
+    /// 作れないようにする。csproj の <c>RuntimeHostConfigurationOption</c>（3758096384＝3.5GiB）は
+    /// この設定が適用されるまでの起動直後の初期値兼フォールバック。
+    /// </summary>
+    public double HeapHardLimitGB { get; set; } = 3.5;
+
     /// <summary>先読み枚数（表示中より前方＝次に進む向き）。</summary>
     public int PrefetchForward { get; set; } = 2;
 

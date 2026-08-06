@@ -135,4 +135,42 @@ public static class MemoryDiagnostics
     /// Grid の列で行うため、ここでは空白の詰め物を入れない。
     /// </summary>
     public static string Mb(long bytes) => $"{bytes / (1024.0 * 1024.0):#,0}MB";
+
+    /// <summary>
+    /// マネージドヒープのハードリミット（<c>System.GC.HeapHardLimit</c>）を実行中に変更する
+    /// （.NET 8+ の <see cref="GC.RefreshMemoryLimit"/>）。呼び出し元は事前に
+    /// <see cref="HeapHardLimitPolicy.ClampGB"/> でクランプ済みの値を渡すこと（ここでは検証しない）。
+    /// <para>
+    /// 上げ方向は即時有効。下げ方向は現在のヒープコミットが新上限を超えていると
+    /// <see cref="InvalidOperationException"/> になるため、一度フル GC（<see cref="ForceFullCollect"/>）
+    /// して収縮させてから 1 回だけ再試行する。それでも失敗する場合は false を返す
+    /// （値自体は呼び出し元が settings へ保存済みなので、次回起動時の初期適用では成功する設計）。
+    /// </para>
+    /// </summary>
+    /// <param name="limitGB">新しいハードリミット（GB）。</param>
+    /// <returns>適用に成功したか。</returns>
+    public static bool TryApplyHeapHardLimit(double limitGB)
+    {
+        var bytes = HeapHardLimitPolicy.ToBytes(limitGB);
+        try
+        {
+            AppContext.SetData("GCHeapHardLimit", bytes);
+            GC.RefreshMemoryLimit();
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            ForceFullCollect();
+            try
+            {
+                AppContext.SetData("GCHeapHardLimit", bytes);
+                GC.RefreshMemoryLimit();
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
+    }
 }

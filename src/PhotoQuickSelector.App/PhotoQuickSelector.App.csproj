@@ -136,6 +136,9 @@
     OutOfMemoryException＝クラッシュなので、値は「キャッシュ＋プール予算 2.5GB＋同時デコード
     2 本×約 200MB＋サムネイル圧縮バイト常駐＋余裕」を包含する 3.5GiB（暫定・実機の連打テストで調整）。
     キャッシュ予算（AppSettings.CacheBudgetGB）を上げる場合はこの値も連動して見直すこと。
+
+    起動後は AppSettings.HeapHardLimitGB を GC.RefreshMemoryLimit で適用するため、
+    この値は起動直後〜適用までの初期値兼フォールバック（HeapHardLimitPolicy.cs 参照）。
   -->
   <ItemGroup>
     <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />

@@ -58,4 +58,11 @@
              Link="Linked\MemoryLog.cs" />
   </ItemGroup>
 
+  <!-- HeapHardLimitPolicy も純 C#（WinUI/WinRT 非依存）なので同じ方式でソースリンクしてテストする。
+       MemoryDiagnostics.cs が参照するため、リンクしないと上のビルドが通らない。 -->
+  <ItemGroup>
+    <Compile Include="..\..\src\PhotoQuickSelector.App\HeapHardLimitPolicy.cs"
+             Link="Linked\HeapHardLimitPolicy.cs" />
+  </ItemGroup>
+
 </Project>

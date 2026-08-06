@@ -181,6 +181,14 @@
                         <NumberBox x:Name="BlockingGcBox" HorizontalAlignment="Left" MinWidth="160"
                                    Minimum="0" Maximum="8192" SmallChange="128" LargeChange="512"
                                    SpinButtonPlacementMode="Compact" />
+                        <TextBlock x:Uid="Settings_HeapLimitHeader" Text="メモリ使用量の上限 (GB)" FontWeight="SemiBold" Margin="0,4,0,0" />
+                        <TextBlock x:Uid="Settings_HeapLimitNote"
+                                   Text="マネージドヒープのコミット上限。超えそうになると GC が強制されます。キャッシュ予算＋1GB を下回る値は自動的に引き上げます。上げは即時反映・下げは次回起動時になることがあります。"
+                                   TextWrapping="Wrap"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <NumberBox x:Name="HeapLimitBox" HorizontalAlignment="Left" MinWidth="160"
+                                   Minimum="2" Maximum="64" SmallChange="0.5" LargeChange="1"
+                                   SpinButtonPlacementMode="Compact" />
                     </StackPanel>
 
                     <!-- 先読み枚数 -->
