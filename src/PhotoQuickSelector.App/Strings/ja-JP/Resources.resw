@@ -420,7 +420,7 @@
     <value>メモリ使用量の上限 (GB)</value>
   </data>
   <data name="Settings_HeapLimitNote.Text" xml:space="preserve">
-    <value>マネージドヒープのコミット上限。超えそうになると GC が強制されます。キャッシュ予算＋1GB を下回る値は自動的に引き上げます。上げは即時反映・下げは次回起動時になることがあります。</value>
+    <value>マネージドヒープのコミット上限。超えそうになると GC が強制されます。キャッシュ予算＋1GB を下回る値は自動的に引き上げます。上げは即時反映・下げは次回起動時になることがあります。0 で無効（上限なし）。</value>
   </data>
   <data name="Settings_PrefetchHeader.Text" xml:space="preserve">
     <value>先読み枚数</value>

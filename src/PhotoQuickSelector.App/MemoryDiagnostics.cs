@@ -146,8 +146,13 @@ public static class MemoryDiagnostics
     /// して収縮させてから 1 回だけ再試行する。それでも失敗する場合は false を返す
     /// （値自体は呼び出し元が settings へ保存済みなので、次回起動時の初期適用では成功する設計）。
     /// </para>
+    /// <para>
+    /// <paramref name="limitGB"/> が 0（<see cref="HeapHardLimitPolicy.ClampGB"/> が返す「無効」値）の
+    /// ときは <c>ToBytes(0)</c>＝0UL を <c>SetData</c> するため、設定済みの上限の撤去（無効化）になる
+    /// （上限未設定への遷移。0UL + RefreshMemoryLimit で撤去できることは実機検証済み）。
+    /// </para>
     /// </summary>
-    /// <param name="limitGB">新しいハードリミット（GB）。</param>
+    /// <param name="limitGB">新しいハードリミット（GB）。0＝上限の撤去。</param>
     /// <returns>適用に成功したか。</returns>
     public static bool TryApplyHeapHardLimit(double limitGB)
     {

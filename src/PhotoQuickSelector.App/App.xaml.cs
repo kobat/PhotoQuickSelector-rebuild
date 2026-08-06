@@ -52,7 +52,8 @@ public partial class App : Application
     /// PrimaryLanguageOverride は一度設定するとプロセス内で解除不可（""/null は 0x80070057）だが、
     /// プロセスをまたいで永続化はされないため「毎起動ここで設定 or 触らない」で完結する（検証済み）。
     /// ついでに <see cref="AppSettings.HeapHardLimitGB"/> も起動直後（ヒープがまだ小さく失敗しない
-    /// タイミング）に適用する＝設定読み込みを1回で済ませる。
+    /// タイミング）に適用する＝設定読み込みを1回で済ませる。0（無効）のときは csproj 側にも
+    /// フォールバック設定が無い＝素の GC のままなので、適用そのものをスキップする。
     /// </summary>
     private static void ApplyLanguageOverride()
     {
@@ -68,8 +69,9 @@ public partial class App : Application
             if (tag != null)
                 Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = tag;
 
-            MemoryDiagnostics.TryApplyHeapHardLimit(
-                HeapHardLimitPolicy.ClampGB(settings.HeapHardLimitGB, settings.CacheBudgetGB));
+            var heapLimitGB = HeapHardLimitPolicy.ClampGB(settings.HeapHardLimitGB, settings.CacheBudgetGB);
+            if (heapLimitGB > 0)
+                MemoryDiagnostics.TryApplyHeapHardLimit(heapLimitGB);
         }
         catch
         {

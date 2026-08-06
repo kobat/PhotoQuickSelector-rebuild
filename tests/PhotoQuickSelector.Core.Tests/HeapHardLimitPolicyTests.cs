@@ -5,7 +5,8 @@ namespace PhotoQuickSelector.Core.Tests;
 
 /// <summary>
 /// <see cref="HeapHardLimitPolicy"/>（マネージドヒープのハードリミット設定値の検証）の単体テスト。
-/// 「上限がキャッシュ予算＋1GB を下回る組み合わせを作れない」「絶対下限 2.0GB」「NaN の正規化」が要。
+/// 「上限がキャッシュ予算＋1GB を下回る組み合わせを作れない」「絶対下限 2.0GB」「NaN の正規化」
+/// 「0 以下＝無効はクランプを素通しする」が要。
 /// </summary>
 public class HeapHardLimitPolicyTests
 {
@@ -45,9 +46,31 @@ public class HeapHardLimitPolicyTests
     }
 
     [Fact]
-    public void ToBytes_ThreePointFiveGB_MatchesCsprojConstant()
+    public void ClampGB_Zero_PassesThroughAsDisabled()
     {
-        // csproj の RuntimeHostConfigurationOption（System.GC.HeapHardLimit）の既定値と一致すること。
+        // 0 は「無効（上限なし）」を意味する特別値。クランプせず 0 のまま返す。
+        Assert.Equal(0, HeapHardLimitPolicy.ClampGB(0, 2.5));
+    }
+
+    [Fact]
+    public void ClampGB_NegativeValue_NormalizesToDisabled()
+    {
+        // 負値も無効として 0 に正規化する（クランプは適用しない）。
+        Assert.Equal(0, HeapHardLimitPolicy.ClampGB(-1, 2.5));
+    }
+
+    [Fact]
+    public void ClampGB_SmallPositiveValue_StillClampedToFloor()
+    {
+        // 0 より大きければ「無効」扱いにはならず、従来どおりのクランプが働く。
+        // 予算 2.5GB の下限は 3.5GB。入力 1.0 はこれを下回るため引き上げられる。
+        Assert.Equal(3.5, HeapHardLimitPolicy.ClampGB(1.0, 2.5));
+    }
+
+    [Fact]
+    public void ToBytes_ThreePointFiveGB_MatchesExpectedByteCount()
+    {
+        // AppSettings.HeapHardLimitGB の既定値 3.5GiB がバイト換算で一致すること。
         Assert.Equal(3758096384UL, HeapHardLimitPolicy.ToBytes(3.5));
     }
 }

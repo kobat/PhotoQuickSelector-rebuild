@@ -4,6 +4,7 @@ namespace PhotoQuickSelector_App;
 /// マネージドヒープのハードリミット（<c>System.GC.HeapHardLimit</c>）の設定値を検証する純ロジック。
 /// UI（WinUI/WinRT）に依存しない static クラスとして分離し、xUnit からソースリンクしてテストする
 /// （<c>tests\PhotoQuickSelector.Core.Tests</c> の <c>PreviewViewport</c>/<c>DecodeGate</c> 等と同じ方式）。
+/// 0 以下＝無効（上限なし）を特別扱いする（下記 <see cref="ClampGB"/> 参照）。
 /// </summary>
 public static class HeapHardLimitPolicy
 {
@@ -18,14 +19,21 @@ public static class HeapHardLimitPolicy
     /// 設定画面の数値入力だけでその組み合わせを作れてしまわないよう、
     /// 「キャッシュ予算＋1GB」を下限として常に適用する（絶対下限 <see cref="AbsoluteMinimumGB"/> も併用）。
     /// </para>
+    /// <para>
+    /// 0 以下＝無効（上限なし）を意味する特別値。クランプの目的（上限がキャッシュ予算を下回る
+    /// OOM 必至の組み合わせの防止）は上限そのものが無い場合には該当しないため、素通しで 0 を返す
+    /// （負値も無効として 0 に正規化する）。
+    /// </para>
     /// </summary>
-    /// <param name="limitGB">設定画面で入力されたハードリミット（GB）。</param>
+    /// <param name="limitGB">設定画面で入力されたハードリミット（GB）。0 以下＝無効。</param>
     /// <param name="cacheBudgetGB">現在のキャッシュ容量予算（GB。<see cref="AppSettings.CacheBudgetGB"/>）。</param>
-    /// <returns>クランプ後のハードリミット（GB）。</returns>
+    /// <returns>クランプ後のハードリミット（GB）。0＝無効。</returns>
     public static double ClampGB(double limitGB, double cacheBudgetGB)
     {
         // NaN は Math.Max で伝播する（NaN と比較すると常に false）ため、既定値 3.5 扱いに正規化してから比べる。
+        // NaN は「無効」ではなく想定外入力なので、0 特別扱いより前に既定値へ正規化する。
         if (double.IsNaN(limitGB)) limitGB = 3.5;
+        if (limitGB <= 0) return 0;
         if (double.IsNaN(cacheBudgetGB)) cacheBudgetGB = 2.5;
 
         var minByBudget = cacheBudgetGB + 1.0;

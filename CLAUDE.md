@@ -54,7 +54,7 @@
 **Phase 1〜4 すべて完了**。旧アプリの機能同等＋既知バグ改善を達成し、**v0.2.1** として公開向け発行済み
 （v0.1.0＝2026-07-02 初回公開／v0.2.0＝2026-07-12。以降の画像情報パネル〔File→評価→EXIF・更新日時・XMP展開〕／
 評価のリセット／グリッド空状態表示／シャッター速度表示修正／評価データのスキーマ v2 等をまとめて v0.2.1＝2026-07-30）。
-`dotnet test` **226 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`/`PixelBufferPool`/`MemoryJanitor`/
+`dotnet test` **229 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`/`PixelBufferPool`/`MemoryJanitor`/
 `MemoryLog`/`HeapHardLimitPolicy`）。
 
 - **Core**: メタデータ抽出（EXIF／AF点／GPS／LensMake。全タグダンプは File グループを先頭へ並べ替え）・
@@ -84,12 +84,15 @@
   **GC 設定 `System.GC.ConserveMemory`=7**（csproj の `RuntimeHostConfigurationOption`。プールで確保を減らした
   うえで、GC に圧縮・OS へのセグメント返却を促して WS の高止まりを解消。値は実機比較で選定＝5 は効果不足・
   9 は停止が体感。詳細は HISTORY.md「GC の `System.GC.ConserveMemory` 設定」節）／
-  **マネージドヒープのハードリミット `System.GC.HeapHardLimit`＝既定 3.5GiB**（csproj＋
-  `AppSettings.HeapHardLimitGB`。2026-08-06。上限接近でランタイムがブロッキング圧縮 GC を強制＝
+  **マネージドヒープのハードリミット `System.GC.HeapHardLimit`＝既定 3.5GiB**（`AppSettings.HeapHardLimitGB`。
+  2026-08-06。上限接近でランタイムがブロッキング圧縮 GC を強制＝
   マネージドコミットの絶対上限・OOM 的肥大の保険。自発 gen2 は OS への返却をしないため
   **WS は下げない＝掃除係の置換ではなく併用**。設定＞高度な設定から変更可＝`GC.RefreshMemoryLimit` で
-  起動時＋保存時に適用〔`MemoryDiagnostics.TryApplyHeapHardLimit`。csproj の値は適用までの初期値兼
-  フォールバック〕。**下限クランプ「キャッシュ予算＋1GB・絶対下限 2GB」＝`HeapHardLimitPolicy`** で
+  起動時＋保存時に適用〔`MemoryDiagnostics.TryApplyHeapHardLimit`〕。
+  **`0` で無効＝上限なし**（2026-08-07。メモリ潤沢な PC 向け。csproj の初期値は撤去＝上限なし起動→
+  実行中新設も、0 指定での実行中撤去も `RefreshMemoryLimit` で可能と最小コンソール検証済み。
+  掃除係の `BlockingGcThresholdMB`=0 と組み合わせるとハードリミット導入前と同等になる）。
+  **下限クランプ「キャッシュ予算＋1GB・絶対下限 2GB」＝`HeapHardLimitPolicy`**（0 以下は無効として素通し）で
   OOM 必至の組み合わせを設定画面から作れない。実測 3 本比較で**上限は大きいほど良いではなく逆**＝
   窮屈な方が自発 GC が勤勉になり掃除係 agr の停止が短く少ない〔3.5GiB: max 235ms／4GiB: max 336ms・
   停止密度ほぼ倍〕→既定 3.5 据え置き。詳細は HISTORY.md「マネージドヒープのハードリミット」節）／

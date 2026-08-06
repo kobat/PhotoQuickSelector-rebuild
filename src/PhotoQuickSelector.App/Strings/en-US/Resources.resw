@@ -420,7 +420,7 @@
     <value>Memory usage limit (GB)</value>
   </data>
   <data name="Settings_HeapLimitNote.Text" xml:space="preserve">
-    <value>Hard limit on managed heap commit. A forced GC runs when the limit is approached. Values below cache budget + 1 GB are raised automatically. Increases apply immediately; decreases may take effect after restart.</value>
+    <value>Hard limit on managed heap commit. A forced GC runs when the limit is approached. Values below cache budget + 1 GB are raised automatically. Increases apply immediately; decreases may take effect after restart. 0 to disable (no limit).</value>
   </data>
   <data name="Settings_PrefetchHeader.Text" xml:space="preserve">
     <value>Prefetch count</value>

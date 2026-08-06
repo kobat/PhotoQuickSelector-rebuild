@@ -252,6 +252,7 @@ public sealed partial class PhotoStatusBar : UserControl
             s.BlockingGcThresholdMB = dialog.BlockingGcThresholdMB;
             // クランプ後の値を保存する（次に設定画面を開いた時にクランプ結果が見えるように）。
             s.HeapHardLimitGB = HeapHardLimitPolicy.ClampGB(dialog.HeapHardLimitGB, s.CacheBudgetGB);
+            // 0（無効）でも無条件で呼ぶ＝実行中に上限を有効→無効へ切り替える撤去適用になる。
             MemoryDiagnostics.TryApplyHeapHardLimit(s.HeapHardLimitGB);
             s.PrefetchForward = dialog.PrefetchForward;
             s.PrefetchBackward = dialog.PrefetchBackward;
