@@ -1,0 +1,1 @@
+﻿[ { "tag": "b2p50t512h35", "settings": { "CacheBudgetGB": 2.0, "CachePoolRatioPercent": 50, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } } ]

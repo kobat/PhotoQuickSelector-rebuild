@@ -406,11 +406,21 @@ public partial class MainViewModel : ObservableObject
     }
 
     /// <summary>
+    /// true の間 <see cref="CaptureSession"/> を no-op にする。membench（Debug 限定の自動ベンチマーク
+    /// モード。<see cref="MemBenchConfig"/>）が実行時に開くベンチ用フォルダで、ユーザーの「前回開いていた
+    /// フォルダ」設定を上書きしないためのガード。Debug 専用の用途だが、#if を散らかすほどでもないため
+    /// 常設のプロパティにしてある。
+    /// </summary>
+    public bool SuppressSessionCapture { get; set; }
+
+    /// <summary>
     /// 現在のセッション（開いていたフォルダ・選択ファイル・表示モード・フィルタ）を
     /// <see cref="Settings"/> へ書き出す（実保存は終了時の <c>Settings.Save()</c> で一括）。
     /// </summary>
     public void CaptureSession()
     {
+        if (SuppressSessionCapture) return;
+
         Settings.LastSession = new SessionState
         {
             FolderPath = CurrentFolder,

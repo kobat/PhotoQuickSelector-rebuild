@@ -49,3 +49,6 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 .DS_Store
+
+# membench の結果 TSV（ローカル計測データ。マシン依存のためコミットしない）
+tools/membench/results/

@@ -1,0 +1,5 @@
+[
+  { "tag": "same-p0",  "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 0,  "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } },
+  { "tag": "same-p20", "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } },
+  { "tag": "same-p50", "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 50, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } }
+]

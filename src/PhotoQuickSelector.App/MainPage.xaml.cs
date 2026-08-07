@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -132,6 +133,16 @@ public sealed partial class MainPage : Page
         RestoreLeftPaneLayout();
         StatusBar.UpdateLeftPaneGlyph(LeftColumn.ActualWidth > 0); // 復元直後の初期同期（以後は SizeChanged が追従）
         LeftNav.UpdatePinGlyph(_pinned); // ピンボタンの初期グリフ同期
+
+#if DEBUG
+        // membench（tools/membench/ ハーネス専用の自動ベンチマークモード）のトリガーがあれば、
+        // 通常のセッション復元の代わりにベンチを実行する（docs/HISTORY.md「メモリベンチマークモード」節）。
+        if (MemBenchConfig.TryConsume(AppSettings.SettingsFolder) is { } benchConfig)
+        {
+            _ = RunMemBenchAsync(benchConfig);
+            return;
+        }
+#endif
         _ = RestoreSessionAsync();
     }
 
@@ -464,23 +475,31 @@ public sealed partial class MainPage : Page
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _memoryLogTimer;
     private static readonly TimeSpan MemoryLogSampleInterval = TimeSpan.FromMilliseconds(250);
 
-    /// <summary>
-    /// 記録中でなければ <see cref="AppSettings.LogsFolder"/> へ開始し 250ms サンプリングタイマーを起動、
-    /// 記録中なら停止する。開始時はオーバーレイを表示状態にして録画中であることを分かるようにする。
-    /// </summary>
+    /// <summary>記録中でなければ開始、記録中なら停止する（<c>Ctrl+Shift+M</c> のトグル本体）。</summary>
     private void ToggleMemoryLogRecording()
     {
-        if (MemoryLog.Current.IsRecording)
-        {
-            _memoryLogTimer?.Stop();
-            MemoryLog.Current.Stop();
-            return;
-        }
+        if (MemoryLog.Current.IsRecording) StopMemoryLogRecording();
+        else StartMemoryLogRecording();
+    }
 
+    /// <summary>
+    /// <see cref="AppSettings.LogsFolder"/> へ記録を開始し 250ms サンプリングタイマーを起動する。
+    /// 開始時はオーバーレイを表示状態にして録画中であることを分かるようにする（多重開始は
+    /// <see cref="MemoryLog.Start"/> 側で no-op）。membench（<see cref="RunMemBenchAsync"/>）からも直接呼ぶ。
+    /// </summary>
+    private void StartMemoryLogRecording()
+    {
         MemoryLog.Current.Start(AppSettings.LogsFolder);
         _memoryLogTimer ??= CreateMemoryLogTimer();
         _memoryLogTimer.Start();
         MemoryPanel.EnsureShown();
+    }
+
+    /// <summary>記録を停止する（未記録なら <see cref="MemoryLog.Stop"/> 側で no-op）。</summary>
+    private void StopMemoryLogRecording()
+    {
+        _memoryLogTimer?.Stop();
+        MemoryLog.Current.Stop();
     }
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateMemoryLogTimer()
@@ -495,4 +514,86 @@ public sealed partial class MainPage : Page
         };
         return timer;
     }
+
+#if DEBUG
+    // --- メモリベンチマークモード（membench。tools/membench/ ハーネス専用。docs/HISTORY.md 参照） ---
+
+    /// <summary>
+    /// <paramref name="config"/> に従いフォルダ読み込み→落ち着き待ち→メモリログ記録→各ステップ実行の
+    /// 順に自動実行し、結果をコピーしてアプリを終了する。ハーネスを待ちぼうけさせないため、途中で
+    /// 例外が起きても <c>membench.error.txt</c> へ書いてから必ず終了する。
+    /// </summary>
+    private async Task RunMemBenchAsync(MemBenchConfig config)
+    {
+        ViewModel.SuppressSessionCapture = true; // ベンチ用フォルダで「前回開いていたフォルダ」を汚さない
+        try
+        {
+            var startFile = string.IsNullOrEmpty(config.StartFile) ? null : config.StartFile;
+            await ViewModel.LoadFolderAsync(config.FolderPath, startFile, restorePreviewMode: true);
+            await Task.Delay(config.SettleMs);
+
+            StartMemoryLogRecording();
+            MemoryLog.Current.Note("bench",
+                $"tag={config.Tag} budget={ViewModel.Settings.CacheBudgetGB} " +
+                $"pool={ViewModel.Settings.CachePoolRatioPercent} thr={ViewModel.Settings.BlockingGcThresholdMB} " +
+                $"hhl={ViewModel.Settings.HeapHardLimitGB}");
+
+            foreach (var step in config.Steps)
+            {
+                MemoryLog.Current.Note("bench-step", $"{step.Kind} duration={step.DurationMs} interval={step.IntervalMs}");
+                if (string.Equals(step.Kind, "sweep", StringComparison.OrdinalIgnoreCase))
+                    await RunMemBenchSweepAsync(step.DurationMs, step.IntervalMs);
+                else
+                    await Task.Delay(step.DurationMs);
+            }
+
+            MemoryLog.Current.Note("bench-end");
+            StopMemoryLogRecording();
+
+            if (!string.IsNullOrEmpty(config.OutputPath) && MemoryLog.Current.CurrentFilePath is { } src)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(config.OutputPath)!);
+                File.Copy(src, config.OutputPath, overwrite: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                File.WriteAllText(Path.Combine(AppSettings.SettingsFolder, "membench.error.txt"), ex.ToString());
+            }
+            catch
+            {
+                // ここでも書けないなら諦める（下の Exit は必ず実行する）。
+            }
+        }
+        finally
+        {
+            await Task.Delay(500);
+            Application.Current.Exit();
+        }
+    }
+
+    /// <summary>
+    /// sweep ステップ本体: <paramref name="intervalMs"/> 間隔で <see cref="MainViewModel.MoveNext"/>/
+    /// <see cref="MainViewModel.MovePrevious"/>（矢印キーと同じ実処理）を呼び続ける。端に着いて
+    /// <see cref="MainViewModel.FocusedPhoto"/> が動かなくなったら方向を反転して折り返す。
+    /// </summary>
+    private async Task RunMemBenchSweepAsync(int durationMs, int intervalMs)
+    {
+        var sw = Stopwatch.StartNew();
+        bool forward = true;
+        while (sw.ElapsedMilliseconds < durationMs)
+        {
+            var before = ViewModel.FocusedPhoto;
+            if (forward) ViewModel.MoveNext(); else ViewModel.MovePrevious();
+            if (ReferenceEquals(ViewModel.FocusedPhoto, before))
+            {
+                forward = !forward;
+                if (forward) ViewModel.MoveNext(); else ViewModel.MovePrevious();
+            }
+            await Task.Delay(intervalMs);
+        }
+    }
+#endif
 }

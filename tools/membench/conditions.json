@@ -1,0 +1,13 @@
+[
+  { "tag": "baseline",  "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 512,  "HeapHardLimitGB": 3.5 } },
+  { "tag": "budget1.5", "settings": { "CacheBudgetGB": 1.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 512,  "HeapHardLimitGB": 3.5 } },
+  { "tag": "budget3.5", "settings": { "CacheBudgetGB": 3.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 512,  "HeapHardLimitGB": 4.5 } },
+  { "tag": "pool10",    "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 10, "BlockingGcThresholdMB": 512,  "HeapHardLimitGB": 3.5 } },
+  { "tag": "pool40",    "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 40, "BlockingGcThresholdMB": 512,  "HeapHardLimitGB": 3.5 } },
+  { "tag": "thr0",      "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 0,    "HeapHardLimitGB": 3.5 } },
+  { "tag": "thr256",    "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 256,  "HeapHardLimitGB": 3.5 } },
+  { "tag": "thr1024",   "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 1024, "HeapHardLimitGB": 3.5 } },
+  { "tag": "hhl0",      "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 512,  "HeapHardLimitGB": 0 } },
+  { "tag": "hhl4.5",    "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 512,  "HeapHardLimitGB": 4.5 } },
+  { "tag": "baseline2", "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 20, "BlockingGcThresholdMB": 512,  "HeapHardLimitGB": 3.5 } }
+]

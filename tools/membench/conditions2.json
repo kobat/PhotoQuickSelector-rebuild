@@ -1,0 +1,8 @@
+[
+  { "tag": "pool30",        "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 30, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } },
+  { "tag": "pool50",        "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 50, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } },
+  { "tag": "pool40b",       "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 40, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } },
+  { "tag": "pool40thr0",    "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 40, "BlockingGcThresholdMB": 0,   "HeapHardLimitGB": 3.5 } },
+  { "tag": "pool40thr256",  "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 40, "BlockingGcThresholdMB": 256, "HeapHardLimitGB": 3.5 } },
+  { "tag": "budget2pool40", "settings": { "CacheBudgetGB": 2.0, "CachePoolRatioPercent": 40, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } }
+]

@@ -254,16 +254,15 @@ public sealed class AppSettings
 
     private const string SettingsFileName = "settings.json";
 
-    private static string SettingsPath
-    {
-        get
-        {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                SettingsFolderName);
-            return Path.Combine(dir, SettingsFileName);
-        }
-    }
+    /// <summary>
+    /// 設定フォルダの絶対パス（<c>settings.json</c> の親）。<see cref="LogsFolder"/> や
+    /// membench（<see cref="MemBenchConfig"/>）のトリガーファイル探索元として共有する。
+    /// </summary>
+    internal static string SettingsFolder => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        SettingsFolderName);
+
+    private static string SettingsPath => Path.Combine(SettingsFolder, SettingsFileName);
 
     /// <summary>
     /// 画面表示・エクスプローラで開く用の設定ファイルパス（実体の位置）。
@@ -294,10 +293,7 @@ public sealed class AppSettings
     /// 親フォルダが分かれる既存の分離にそのまま乗る。<see cref="SettingsPath"/> と同じ素のパスを使う
     /// （packaged 実行では実体が MSIX 仮想化でリダイレクトされる点も settings.json と同じ）。
     /// </summary>
-    internal static string LogsFolder => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        SettingsFolderName,
-        "logs");
+    internal static string LogsFolder => Path.Combine(SettingsFolder, "logs");
 
     /// <summary>設定を読み込む。ファイルが無い／壊れている場合は既定値を返す。</summary>
     public static AppSettings Load()

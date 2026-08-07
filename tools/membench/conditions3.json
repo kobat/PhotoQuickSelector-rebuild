@@ -1,0 +1,5 @@
+[
+  { "tag": "pool60",        "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 60, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } },
+  { "tag": "pool50b",       "settings": { "CacheBudgetGB": 2.5, "CachePoolRatioPercent": 50, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } },
+  { "tag": "budget2pool50", "settings": { "CacheBudgetGB": 2.0, "CachePoolRatioPercent": 50, "BlockingGcThresholdMB": 512, "HeapHardLimitGB": 3.5 } }
+]

@@ -3658,3 +3658,216 @@ Comm にも写らない**＝在庫の式（Comm − Mng）が ~100〜270MB に�
 申し送り: 無効＋しきい値 0 でも掃除係①（プールミス累積の背景 GC）・③（アイドル GC）・
 `ConserveMemory`=7・バッファプールは残る（いずれもハードリミットより前からある機構）。
 「メモリ対策を全部無効化」まで求める場合は別途検討。
+
+## メモリベンチマークモード（membench）（2026-08-07）
+
+キャッシュ/メモリ設定（`CacheBudgetGB`／`CachePoolRatioPercent`／`BlockingGcThresholdMB`／
+`HeapHardLimitGB`）の最適値探索を、手動での「設定変更→アプリ再起動→写真送り連打→
+`Ctrl+Shift+M` で記録→目視比較」という手順から解放するため、**Debug ビルド限定の自動ベンチマーク
+モード（membench）**をアプリに内蔵し、条件スイープ用ハーネス＋分析スクリプトを
+`tools/membench/` に追加した。計測基盤は既存の `MemoryLog`（TSV 時系列ログ）をそのまま再利用する。
+
+### 全体の流れ
+
+1. `tools/membench/Run-MemBench.ps1` が `conditions.json` の条件ごとに Debug 設定フォルダの
+   `settings.json` へキャッシュ/メモリ 4 項目を書き込み、`membench.json`（トリガーファイル）を
+   同フォルダへ置いて `dotnet run --no-build` を起動する。
+2. アプリ側（`MainPage.MainPage_Loaded`。Debug 限定）が起動時に `MemBenchConfig.TryConsume` で
+   `membench.json` を読み取り（**消費式**＝読み取り次第すぐ削除）、見つかれば通常のセッション復元
+   （`RestoreSessionAsync`）の代わりに `RunMemBenchAsync` を実行する。
+3. `RunMemBenchAsync` は指定フォルダを読み込み（`restoreSelectedFile` に `startFile` を渡して
+   任意のファイルから焦点を開始できる）、落ち着き待ち（`settleMs`）の後にメモリログ記録を開始し、
+   `steps`（`sweep`＝写真送り連打／`idle`＝無操作待機）を順に実行、記録を停止してログを
+   `outputPath` へコピーし、アプリを終了する（`Application.Current.Exit()`）。
+4. `Run-MemBench.ps1` は `dotnet run --no-build` の終了を待って次の条件へ進む（`dotnet run` は
+   `Microsoft.Windows.SDK.BuildTools.WinApp` 経由でパッケージ起動し、アプリが自発的に終了するまで
+   ブロックする＝`winapp run` の既定動作と同じ。`BuildAndRun.ps1` スキルの async 推奨の注記が
+   これの裏付け）。
+5. 全条件終了後、`tools/membench/Analyze-MemBench.ps1` が `results/*.tsv` を集計し
+   `results/summary.md` へ比較表（WS ピーク／sweep 中 WS 平均／終了時の床／カクつき／GC 内訳／
+   デコード統計／プールヒット率／DISCARD 合計）を書き出す。
+
+### membench.json スキーマ
+
+設定フォルダ（`AppSettings.SettingsFolder`＝`settings.json` と同じフォルダ）直下に置く。
+
+```json
+{
+  "folderPath": "D:\\Users\\kobat\\tmp_ClaudeCode用\\岩国_100MSDCF",
+  "tag": "baseline",
+  "startFile": "DSC03220.JPG",
+  "outputPath": "C:\\...\\tools\\membench\\results\\baseline.tsv",
+  "settleMs": 5000,
+  "steps": [
+    { "kind": "sweep", "durationMs": 60000, "intervalMs": 120 },
+    { "kind": "idle",  "durationMs": 30000 }
+  ]
+}
+```
+
+- `startFile`（任意）: 開始時に焦点を当てるファイル名（フォルダ相対）。
+  `LoadFolderAsync` の `restoreSelectedFile` へそのまま渡す。null/空なら先頭写真から開始する。
+  既定のハーネス設定はユーザーが実機でメモリ増加傾向を確認した実データ・実手順
+  （`岩国_100MSDCF` フォルダの `DSC03220.JPG` から右送りで `DSC03290`〜`03310` 付近を通過）に合わせて
+  `-FolderPath`/`-StartFile` の既定値をそれへ変更してある（旧既定の `20260228` フォルダ・先頭開始より
+  再現性が高いとの判断）。
+- `steps[].kind`＝`"sweep"`（`ViewModel.MoveNext`/`MovePrevious`＝矢印キーと同じ実処理を
+  `intervalMs` 間隔で呼ぶ。端に着いて `FocusedPhoto` が動かなくなったら方向反転して折り返す）または
+  `"idle"`（`durationMs` 待機するだけ）。
+
+### アプリ側の実装
+
+- `src/PhotoQuickSelector.App/MemBench.cs`（新規・全体を `#if DEBUG` で囲む）: `MemBenchStep`・
+  `MemBenchConfig`（`System.Text.Json`・`PropertyNameCaseInsensitive=true`。トリミング無効
+  ＝`PublishTrimmed=false` なのでリフレクション経由の Deserialize で問題ない）・
+  静的 `TryConsume(settingsFolder)`。パース失敗時は `membench.error.txt` へ例外を書いて null を返し
+  通常起動を継続させる（ハーネスの設定ミスでアプリが起動不能にならないように）。
+- `MainPage.xaml.cs`: `MainPage_Loaded` で `RestoreSessionAsync` の前に `MemBenchConfig.TryConsume`
+  を試す（Debug 限定）。ヒットしたら `RunMemBenchAsync` へ分岐し、通常のセッション復元は呼ばない。
+  `RunMemBenchAsync`/`RunMemBenchSweepAsync` も `#if DEBUG` ブロック内に追加。例外発生時も
+  `membench.error.txt` へ書いてから必ず `Application.Current.Exit()` する
+  （ハーネスを無限待ちにしないため。8 分タイムアウト＋プロセス Kill はハーネス側の保険）。
+- `MemoryLog` 記録の開始/停止を `ToggleMemoryLogRecording()` から `StartMemoryLogRecording()`/
+  `StopMemoryLogRecording()` の 2 ヘルパーへ分割（既存の `Ctrl+Shift+M` トグルは 2 つを呼ぶだけに
+  リファクタ）。`RunMemBenchAsync` は `StartMemoryLogRecording()`/`StopMemoryLogRecording()` を
+  直接呼ぶ（オーバーレイの `EnsureShown()`・250ms サンプリングタイマーの挙動は変えない）。
+- **セッション保存の抑止**: `MainViewModel.SuppressSessionCapture`（既定 false）を追加し、
+  `CaptureSession()` の先頭で true なら即 return。`RunMemBenchAsync` は開始時に立てる。
+  目的＝ベンチ実行がユーザーの「前回開いていたフォルダ」設定（`AppSettings.LastSession`）を
+  ベンチ用フォルダで上書きしないため。Debug 専用の用途だが `#if` を散らかすほどでもないため
+  常設プロパティにしてある。
+- `AppSettings.SettingsFolder`（新規・internal static）: `settings.json` の親フォルダを返す。
+  既存の `LogsFolder`（`logs\` 配下）はこれを使うようリファクタ（DRY）。`MemBench.TryConsume` の
+  探索元にも使う。
+
+### ハーネス（`tools/membench/`）
+
+- `conditions.json`: 1 因子ずつのスイープ（既定は現行既定 `2.5GB/20%/512MB/3.5GiB` を基準に
+  budget・pool・thr・hhl を 1 項目ずつ振る。`budget3.5` は `HeapHardLimitGB` を道連れで 4.5 にする
+  ＝`HeapHardLimitPolicy` のクランプ「予算＋1GB」対策。`baseline2` は再現性確認用）。
+- `Run-MemBench.ps1`: 残骸プロセス掃除→ Debug パッケージの設定フォルダを `Package.appxmanifest`
+  の Identity Name（GUID）から `Get-AppxPackage` で解決（失敗時は `%LOCALAPPDATA%\Packages` の
+  glob フォールバック）→ `settings.json` をバックアップ（既存バックアップは上書きしない）→
+  `dotnet build` → 条件ごとに `settings.json` の該当 4 項目だけ上書き＋`membench.json` 生成→
+  `dotnet run --no-build` を同期実行（8 分タイムアウト＋強制終了の保険）→ 結果 tsv の有無で
+  OK/NG 判定。終了時（`finally`）に `settings.json` を必ず復元する。
+  Windows PowerShell 5.1 構文限定（`&&`/`??`/三項演算子は不使用）。
+- `Analyze-MemBench.ps1`: `results/*.tsv` を集計し `results/summary.md` へ Markdown 表を出力
+  （WS ピーク／sweep 中 WS 平均／終了時の床／カクつき回数・最大ギャップ／GC kind 別回数・
+  最大/合計停止時間／DECODE 件数・平均／プールヒット率／DISCARD 合計）。条件（tag/budget/pool/
+  thr/hhl）は NOTE `bench` 行（`RunMemBenchAsync` が書く `tag=... budget=... pool=... thr=... hhl=...`
+  形式）から読み取る。
+- **PS 5.1 の `Sort-Object` はタイ・ブレークで挿入順を保証しない**（実機で確認済み＝
+  同一 `ElapsedMs` の `NOTE` 行が並べ替え後に入れ替わり、sweep 区間の境界計算が壊れるバグを
+  Analyze-MemBench.ps1 の開発時に実際に踏んだ）。`MemoryLog` の TSV は各記録メソッドが
+  `ConcurrentQueue` を FIFO で drain して書くため、**ファイル出現順＝発生順はそのまま信頼できる**
+  （`bench`/`bench-step`/`bench-end` はいずれも `RunMemBenchAsync` の単一スレッド `await` チェーンから
+  逐次発生する）。そのため `Analyze-MemBench.ps1` は SAMPLE/NOTE の並べ替えを行わず、
+  ファイル出現順をそのまま区間境界・時系列として使う。
+- 両スクリプトとも UTF-8 BOM 付きで保存する必要がある（PowerShell 5.1 はスクリプトファイルに
+  BOM が無いとシステムコードページ〔日本語 Windows では CP932〕でソースを読み、日本語コメント/
+  文字列が文字化けしてパースエラーになる）。同じ理由で、`settings.json`/`membench.json`/TSV
+  （いずれも .NET 側は BOM なし UTF-8 で読み書き）を読む `Get-Content` 呼び出しには
+  `-Encoding UTF8` を明示している（省略すると日本語フォルダパス等が文字化けする）。
+
+### 実行方法
+
+```powershell
+cd tools\membench
+.\Run-MemBench.ps1                              # conditions.json の全件
+.\Run-MemBench.ps1 -Tags baseline,budget1.5      # 一部のタグのみ
+.\Analyze-MemBench.ps1                           # results\*.tsv を集計して summary.md を生成
+```
+
+### 初回スイープの実測結果（2026-08-07・同日実施）
+
+実装同日に 3 ラウンド計 20 ラン実施（台本＝sweep60s→idle30s→sweep60s→idle25s・interval 120ms・
+`岩国_100MSDCF` の `DSC03220.JPG` 起点。カクつき閾値は実測に合わせ 400→350ms に調整＝通常時の
+SAMPLE ギャップは 300ms 未満で、~250ms の GC 停止でもギャップは ~324ms 程度にしか伸びないため）。
+生データと比較表は `tools/membench/results/`（gitignore 対象・ローカルのみ）。
+測定ノイズは baseline×2 の差＝WS ピーク ±80MB・agr 合計 ±190ms 程度。
+
+- **支配的因子はプール比率**（`CachePoolRatioPercent`）で、10→50% で単調に改善:
+  agr（ブロッキング gen2）24回/計4.9s → 6回/計0.6〜0.8s（20%＝現既定）→ 2回/計0.2s（40%）→
+  0〜1回/計0.1s 未満（50%）。DISCARD 12.2GB → ~3.3GB → ~1.4GB → 0.7〜0.9GB。
+  プールヒット率 72→85→89→92%。**60% はほぼ頭打ち**（DISCARD 241MB・ヒット 93.6%・WS ピークは
+  50% と同等かやや上）＝**膝は 40〜50%**。DECODE 件数は全比率で ~250〜320 とほぼ不変＝
+  プール拡大でキャッシュ枠が減っても（2.5GB×50%＝キャッシュ 1.25GB）このシナリオでは
+  再デコード増は出ない。
+  ※「メモリ掃除係」節の「サイズ混在では完全一致プールの拡大は構造的に効かない」という当時の推定は
+  **20% 止まりの範囲でのみ妥当**だった。40〜50%（1.0〜1.25GB）まで広げると 190MB/80MB の
+  2 サイズ級を同時に複数本ずつ抱えられるようになり、相互追い出しが実測で解消する。
+- **予算**（`CacheBudgetGB`）: 1.5GB は WS −700MB だが agr 28回/計4.3s・カクつき 8 回と大幅悪化。
+  ただし予算スイープはプール比 20% 固定＝プール絶対量も 0.3GB へ縮む交絡があり、悪化の主因は
+  プール縮小側の可能性が高い（budget2.0×pool40〜50 が良好なことが傍証）。3.5GB はカクつき 0 だが
+  常時 +1GB で伸びしろ小＝「上限は大きいほど良いではない」の既知見と整合。
+- **掃除係閾値**（`BlockingGcThresholdMB`）: 256 でピーク −190MB（agr 8回/計0.75s）、0/1024 で
+  agr 消滅（ピーク +260MB）＝ピーク ~300MB ↔ 停止 ~0.7s のトレード。**プール比 40〜50% では
+  そもそも agr がほぼ発火しなくなる**ので、どの閾値でも実質差なし＝512 のまま保険として維持で良い。
+- **ハードリミット**（`HeapHardLimitGB`）: 0/3.5/4.5 いずれも差はノイズ内＝このシナリオでは
+  発動せず。「マネージドコミットの保険」という役割どおり。
+- **有望構成**: `2.5GB/50%/512/3.5`（WS ピーク 3.75〜3.84GB・カクつき 0・agr ≦1回。pool50×2 本で
+  再現確認済み）／省メモリなら `2.0GB/40〜50%/512/3.5`（sweep 中平均 2.9GB・カクつき 0）。
+  **既定値（20%）の変更は未実施**＝一方向スイープ主体の台本のため、行き来の多い実操作での
+  キャッシュ縮小影響（2.5GB×50% だと 190MB 級 ~6 枚分）は未検証。既定変更するならその検証後。
+
+### ナビ間隔の是正（120ms→500ms）とサイズばらつき 3 水準の検証（2026-08-08）
+
+初回スイープの interval 120ms は**描画スキップを起こしていた**（ユーザーが目視で指摘。ログでも
+NAV 940 に対し DECODE 274＝レート制限 2 枚/秒に張り付き）。原因＝120ms は `LoadSettleDelay`
+（150ms）未満で settle→先読みが一度も走らず、即デコード経路（`RateBudget`3/`RateWindowMs`1500）で
+間引かれるため。**逆算での是正値＝500ms**（持続デコード上限 3÷1500ms＝2 枚/秒の逆数。かつ 150ms 超
+なので毎ナビ後に settle→先読みが走り、次のナビはキャッシュ済み即表示になる）。ハーネスの
+`-NavIntervalMs` パラメータ化（既定 500）。実測で **NAV＝DECODE が完全一致**（230/230 等）し
+スキップ解消を確認。旧 120ms の結果 TSV は `results/pace120/` へ退避（デコードレートは両ペースとも
+~2 枚/秒で頭打ちだったため結論は変わらなかったが、混同を避けるため分離）。
+
+併せて「プール比率の効果は画像サイズのばらつき依存」（ユーザー指摘）を検証するため、
+`New-MemBenchTestData.ps1`（System.Drawing で合成 JPEG 生成）を追加し、ばらつき 3 水準
+×プール比 0/20/50% の 9 ラン実施（いずれも 500ms・予算 2.5GB・thr512・hhl3.5）:
+
+- テストデータ: `membench_uniq`＝60 枚全部異寸法（8640x5760 から 1 枚ごとに幅 −16/高さ −8＝
+  完全一致プールが構造的にヒットできない最悪ケース）／`membench_same`＝60 枚全部 8640x5760
+  （最良ケース）／実データ `岩国_100MSDCF`＝α1/OM-1 の 2 サイズ混在。
+- **プール 0%（無効）は 3 水準すべてで最悪**: agr（ブロッキング gen2）50〜58 回/計 10.6〜14.0 秒・
+  カクつき 12〜25 回・DISCARD 31〜35GB。同一サイズのフォルダですら毎デコード 190MB 新規確保で
+  掃除係が回りっぱなしになる。
+- **2 サイズ混在（実データ）**: 20%→50% で agr 2 回/289ms→**0 回**・DISCARD 3.0GB→241MB・
+  WS ピーク 4270→3694MB。旧ペースの結論（膝 40〜50%）を実操作ペースでも確認。
+- **全同一サイズ**: 20% で既に完璧（GC 発生ゼロ・DISCARD 0・ヒット 96.6%）。50% も同様で、
+  キャッシュ枠が減るぶん **WS ピークはむしろ 2935→2181MB に低下**（常駐デコード済みが減るため）。
+- **全異寸法（最悪ケース）**: プールはほぼ無力（ヒット 0〜9%）で 0/20/50% とも agr ~9〜11 秒・
+  カクつき 14〜20 回と同水準＝**プールを大きくしても悪化はしない**（死蔵在庫でキャッシュ枠が
+  減っても DECODE 件数 +12% 程度・ピークはノイズ範囲）。被害の頭打ちは掃除係（thr512）が担う。
+- **結論: プール比 40〜50% はばらつきの全水準で最適〜無害**。「大きすぎると損」のケースは
+  実測では存在しなかった。既定 20%→40〜50% への引き上げは安全side（ユーザー判断待ち）。
+  ユーザー実機の設定（プール 0%）は全水準最悪の構成なので変更推奨。
+
+### ユーザー指定構成の検証＝「プール0・掃除係無効・ハードリミット頼み」（2026-08-08）
+
+ユーザー指定の「予算 2GB・プール 0%・閾値 0・上限 3.5GiB」を岩国×500ms で実測（`b2p0t0h35`）。
+同予算の対照 `b2p50t512h35`（プール 50%・閾値 512）との比較:
+
+| 指標 | b2p0t0h35（指定構成） | b2p50t512h35（対照） |
+|---|---|---|
+| WS ピーク / sweep 平均 | 4350 / 3580MB | 3304 / 2674MB |
+| カクつき | 2 回（max 352ms） | 0 回 |
+| GC | bgc 61 回＋gen2 計 101 回 | bgc1＋idle1 のみ |
+| DISCARD | 35.4GB | 0.7GB |
+| GC コミット最大 | **3503MB＝HHL 3584MB の 98% に張り付き** | 2332MB（余裕大） |
+
+- 指定構成は**カクつきはほぼ出ない**（ブロッキング段オフのため。プール0×閾値512 の
+  カクつき 25 回は agr＝掃除係ブロッキング段そのものが源だったと確定）。ゴミの頭打ちは
+  ハードリミット由来の GC 圧が実質担い、背景 gen2 が回りっぱなし（101 回/175 秒・捨て 35GB）に
+  なることで成立している＝CPU コストと平均 WS ~900MB 高で買う静けさ。コミットが上限の 98% に
+  常時張り付くため余裕がなく、より大きい画像や他の確保が重なると
+  ブロッキング化・アロケ停止に転びやすい構成でもある。
+- 同予算のプール 50% は WS ピーク −1046MB・平均 −906MB・GC 実質ゼロ・カクつき 0 で全面的に優位。
+
+### 未実施・申し送り
+
+- 台本は一方向スイープ主体のまま（500ms 化で毎ナビ描画になったが、短周期の「戻り連打」＝
+  数枚範囲の往復でのキャッシュ命中挙動は専用台本が要る。プール比を上げるとキャッシュ枠が
+  同額減る点の残リスクはここだけ）。
+- 合成 JPEG（membench_uniq/same）は EXIF 無し・デコード 40〜100ms と実写より軽い。
+  サイズ起因のアロケーション挙動の比較には十分だが、絶対値は実データと比較しないこと。
