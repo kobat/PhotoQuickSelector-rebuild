@@ -143,7 +143,7 @@ public sealed class AppSettings
     /// （~140〜300ms 実測）ため、カクつきが気になる場合は大きく、メモリを厳しく抑えたい場合は小さくする。
     /// 0 以下で無効（背景 GC とアイドル GC のみ）。
     /// </summary>
-    public int BlockingGcThresholdMB { get; set; } = 512;
+    public int BlockingGcThresholdMB { get; set; } = 0;
 
     /// <summary>
     /// マネージドヒープ（GC）コミットの絶対上限（GB。<c>System.GC.HeapHardLimit</c>）。起動時と
@@ -152,7 +152,7 @@ public sealed class AppSettings
     /// 下限にクランプし、設定画面からクラッシュ必至の組み合わせ（上限がキャッシュ予算を下回る）を
     /// 作れないようにする。0 以下＝無効（上限なし。<see cref="HeapHardLimitPolicy.ClampGB"/> が素通しする）。
     /// </summary>
-    public double HeapHardLimitGB { get; set; } = 3.5;
+    public double HeapHardLimitGB { get; set; } = 0;
 
     /// <summary>先読み枚数（表示中より前方＝次に進む向き）。</summary>
     public int PrefetchForward { get; set; } = 2;
