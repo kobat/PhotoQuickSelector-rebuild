@@ -70,7 +70,7 @@ public class HeapHardLimitPolicyTests
     [Fact]
     public void ToBytes_ThreePointFiveGB_MatchesExpectedByteCount()
     {
-        // AppSettings.HeapHardLimitGB の既定値 3.5GiB がバイト換算で一致すること。
+        // 3.5GiB 指定がバイト換算で一致すること（AppSettings.HeapHardLimitGB の代表値。既定は 0＝無効）。
         Assert.Equal(3758096384UL, HeapHardLimitPolicy.ToBytes(3.5));
     }
 }

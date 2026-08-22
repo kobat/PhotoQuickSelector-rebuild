@@ -84,7 +84,8 @@
   **GC 設定 `System.GC.ConserveMemory`=7**（csproj の `RuntimeHostConfigurationOption`。プールで確保を減らした
   うえで、GC に圧縮・OS へのセグメント返却を促して WS の高止まりを解消。値は実機比較で選定＝5 は効果不足・
   9 は停止が体感。詳細は HISTORY.md「GC の `System.GC.ConserveMemory` 設定」節）／
-  **マネージドヒープのハードリミット `System.GC.HeapHardLimit`＝既定 3.5GiB**（`AppSettings.HeapHardLimitGB`。
+  **マネージドヒープのハードリミット `System.GC.HeapHardLimit`＝既定 0＝無効**（`AppSettings.HeapHardLimitGB`。
+  導入時の既定は 3.5GiB だったが 2026-08-22 に 0 へ変更＝ユーザー判断。
   2026-08-06。上限接近でランタイムがブロッキング圧縮 GC を強制＝
   マネージドコミットの絶対上限・OOM 的肥大の保険。自発 gen2 は OS への返却をしないため
   **WS は下げない＝掃除係の置換ではなく併用**。設定＞高度な設定から変更可＝`GC.RefreshMemoryLimit` で
@@ -95,7 +96,7 @@
   **下限クランプ「キャッシュ予算＋1GB・絶対下限 2GB」＝`HeapHardLimitPolicy`**（0 以下は無効として素通し）で
   OOM 必至の組み合わせを設定画面から作れない。実測 3 本比較で**上限は大きいほど良いではなく逆**＝
   窮屈な方が自発 GC が勤勉になり掃除係 agr の停止が短く少ない〔3.5GiB: max 235ms／4GiB: max 336ms・
-  停止密度ほぼ倍〕→既定 3.5 据え置き。詳細は HISTORY.md「マネージドヒープのハードリミット」節）／
+  停止密度ほぼ倍〕→当時は既定 3.5 据え置き（現在は上記のとおり既定 0）。詳細は HISTORY.md「マネージドヒープのハードリミット」節）／
   **メモリ計測の強化**（`Ctrl+M` を `GCCollectionMode.Aggressive` 化＋`M` オーバーレイに「ネイティブ」行。
   これで測ったところ **WS 肥大の主因は LOH ではなくネイティブ**＝確定解放できない `BitmapDecoder` 等が
   ファイナライザ待ちで抱える分と判明〔GC 1 回でネイティブ −1,030MB／マネージドは −182MB のみ〕。
@@ -104,8 +105,8 @@
   **メモリ掃除係**（`Controls/MemoryJanitor`＝2026-08-04・3 段構成化 2026-08-05〜06。①プールミスで
   捨てた累積 512MB で背景 gen2 GC ②回収待ち概算＝**ゴミ**〔`GetTotalMemory` − キャッシュ・プール・
   デコード中貸出＝`PreviewBitmapCache.ResidentBytes`〕＋**在庫**〔直近 GC の `TotalCommittedBytes` −
-  `GetTotalMemory`＝回収済み・OS 未返却〕の合計が閾値〔`AppSettings.BlockingGcThresholdMB`＝既定 512・
-  0 で無効・設定＞高度な設定〕を超えたら＝背景 GC の速度負け時のみ**ブロッキング gen2＝常に
+  `GetTotalMemory`＝回収済み・OS 未返却〕の合計が閾値〔`AppSettings.BlockingGcThresholdMB`＝既定 0＝無効
+  （導入時の既定は 512。2026-08-22 に 0 へ変更＝ユーザー判断）・設定＞高度な設定〕を超えたら＝背景 GC の速度負け時のみ**ブロッキング gen2＝常に
   Aggressive**〔OS への返却込み・kind=`agr`・停止 ~140-300ms。再武装ガード＝捨てバイト閾値半分・
   Tick 5 秒周期でも判定。素の Forced 段は返却予定ページが計測に写らない盲点があり廃止〕③最終操作から
   20 秒のアイドルで `Ctrl+M` 相当の完全 GC〔結果はオーバーレイに「アイドル GC」表示〕。連打中は
