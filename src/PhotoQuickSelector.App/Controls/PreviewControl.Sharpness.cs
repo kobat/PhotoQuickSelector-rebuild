@@ -235,7 +235,9 @@ public sealed partial class PreviewControl
     /// <summary>
     /// 焦点写真の <see cref="PhotoItemViewModel.Sharpness"/>/<see cref="PhotoItemViewModel.SharpnessExtras"/>
     /// が変わったら、画像情報パネル／ルーペオーバーレイの行を差分更新する（ListView 再構築なし＝
-    /// <see cref="EvaluationInfoSection"/> と同じ流儀）。
+    /// <see cref="EvaluationInfoSection"/> と同じ流儀）。<see cref="PhotoItemViewModel.Sharpness"/> の
+    /// 変化は最大タイル枠の位置も動かすため、ルーペ／ナビの再描画と、自動センタリング待ちなら
+    /// ルーペの寄せ直し（<see cref="_loupeAutoPositionPending"/>）もあわせて行う。
     /// </summary>
     private void OnSharpnessWatchedPhotoPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -246,6 +248,13 @@ public sealed partial class PreviewControl
         if (sender is not PhotoItemViewModel photo || !ReferenceEquals(photo, _viewModel.FocusedPhoto)) return;
 
         SharpnessSection.Update(photo, mode);
+
+        if (e.PropertyName == nameof(PhotoItemViewModel.Sharpness))
+        {
+            ZoomCanvas.Invalidate();
+            NavCanvas.Invalidate();
+            if (_loupeAutoPositionPending) ScrollZoomToSharpestOrFocus();
+        }
     }
 
     /// <summary>
@@ -257,6 +266,9 @@ public sealed partial class PreviewControl
     {
         bool show = !_showExifPanel && _sharpnessModeSnapshot != SharpnessMode.None;
         SharpnessLoupeOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        // 比較4手法の副見出しは全手法モードのときだけ（Tenengrad のみのときは非表示）。
+        SharpnessExtrasBlock.Visibility =
+            _sharpnessModeSnapshot == SharpnessMode.All ? Visibility.Visible : Visibility.Collapsed;
         if (show && _viewModel?.FocusedPhoto is { } photo)
             SharpnessSection.Update(photo, _sharpnessModeSnapshot);
     }

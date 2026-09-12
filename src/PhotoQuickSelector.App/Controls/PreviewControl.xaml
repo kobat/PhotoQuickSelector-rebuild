@@ -209,26 +209,54 @@
                     PointerWheelChanged="ZoomCanvas_PointerWheelChanged" />
 
                 <!-- 鮮鋭度スコアのルーペオーバーレイ（S キーで巡回・ルーペ表示中のみ。ExifPanel 表示中は隠す。
-                     内容は PreviewControl.Sharpness.cs の SharpnessSection.Rows と共通。初期非表示。 -->
+                     内容は PreviewControl.Sharpness.cs の SharpnessSection と共通（Tenengrad/比較手法で
+                     コレクションを分けて見出しを別にする）。初期非表示。メインの InfoOverlay と見た目を揃える
+                     （左上・同じ Margin/Padding/CornerRadius）。 -->
                 <Border x:Name="SharpnessLoupeOverlay" Grid.Row="1"
-                        VerticalAlignment="Bottom" HorizontalAlignment="Left"
-                        Margin="8" Padding="8,6" CornerRadius="6"
+                        VerticalAlignment="Top" HorizontalAlignment="Left"
+                        Margin="12" Padding="12,9" CornerRadius="8"
                         Background="#A6000000" IsHitTestVisible="False"
                         Visibility="Collapsed">
-                    <ItemsControl ItemsSource="{x:Bind SharpnessSection.Rows, Mode=OneWay}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="ctl:EvaluationInfoRow">
-                                <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6">
-                                    <TextBlock Grid.Column="0" Text="{x:Bind Name}"
-                                               Foreground="#BFFFFFFF" FontSize="10" FontFamily="Consolas" />
-                                    <TextBlock Grid.Column="1" Text="{x:Bind Value, Mode=OneWay}"
-                                               Foreground="#E8FFFFFF" FontSize="10" FontFamily="Consolas" />
-                                    <TextBlock Grid.Column="2" Text="{x:Bind UpdatedAtText, Mode=OneWay}"
-                                               Foreground="#9AFFFFFF" FontSize="10" FontFamily="Consolas" />
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <StackPanel Spacing="4">
+                        <TextBlock x:Uid="Preview_SharpnessLoupeTitle"
+                                   Foreground="White" FontSize="13" FontWeight="SemiBold" />
+                        <ItemsControl ItemsSource="{x:Bind SharpnessSection.TenengradRows, Mode=OneWay}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="ctl:EvaluationInfoRow">
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6">
+                                        <TextBlock Grid.Column="0" Text="{x:Bind Name}"
+                                                   Foreground="#BFFFFFFF" FontSize="13" />
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Value, Mode=OneWay}"
+                                                   Foreground="#E8FFFFFF" FontSize="13" />
+                                        <TextBlock Grid.Column="2" Text="{x:Bind UpdatedAtText, Mode=OneWay}"
+                                                   Foreground="#9AFFFFFF" FontSize="13" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 比較4手法（最大タイル／AF窓のペア表示）。全手法モードのときだけ可視化する
+                             （PreviewControl.Sharpness.cs の UpdateSharpnessLoupeOverlayVisibility）。 -->
+                        <StackPanel x:Name="SharpnessExtrasBlock" Spacing="4" Visibility="Collapsed">
+                            <Border Height="1" Background="#66FFFFFF" Margin="0,4" />
+                            <TextBlock x:Uid="Preview_SharpnessExtrasTitle"
+                                       Foreground="#BFFFFFFF" FontSize="13" />
+                            <ItemsControl ItemsSource="{x:Bind SharpnessSection.ExtraRows, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="ctl:EvaluationInfoRow">
+                                        <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6">
+                                            <TextBlock Grid.Column="0" Text="{x:Bind Name}"
+                                                       Foreground="#BFFFFFFF" FontSize="13" />
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Value, Mode=OneWay}"
+                                                       Foreground="#E8FFFFFF" FontSize="13" />
+                                            <TextBlock Grid.Column="2" Text="{x:Bind UpdatedAtText, Mode=OneWay}"
+                                                       Foreground="#9AFFFFFF" FontSize="13" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
                 </Border>
 
                 <!-- 画像情報（ルーペと同一セルで排他表示。内容の供給は PreviewControl.ExifPanel.cs） -->

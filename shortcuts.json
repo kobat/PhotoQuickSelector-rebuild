@@ -73,7 +73,9 @@
         { "keys": "Alt+← / → / ↑ / ↓",
           "description": { "ja": "パン（画像を上下左右へ移動）", "en": "Pan the image" } },
         { "keys": "Alt+F",
-          "description": { "ja": "フォーカス点へスクロール", "en": "Scroll to the AF focus point" } },
+          "description": { "ja": "鮮鋭度最大タイルへスクロール（鮮鋭度表示が無いときは AF 点へ）", "en": "Scroll to the sharpest tile (AF focus point when sharpness is off)" } },
+        { "keys": "Shift+Alt+F",
+          "description": { "ja": "AF 点へスクロール", "en": "Scroll to the AF focus point" } },
         { "keys": "Ctrl+Alt+← / →",
           "description": { "ja": "ルーペを横スクロール（画像情報パネル表示中は一覧をページ送り＝←上／→下）", "en": "Scroll the loupe horizontally (page the list up/down while the image info panel is shown: ← up / → down)" } },
         { "keys": "Ctrl+Alt+↑ / ↓",
@@ -81,7 +83,9 @@
         { "keys": "Ctrl+Alt+PageUp / PageDown",
           "description": { "ja": "画像情報パネル表示中は一覧をページ送り（PageUp上／PageDown下）", "en": "Page the image info list up/down while it is shown (PageUp up / PageDown down)" } },
         { "keys": "Ctrl+Alt+F",
-          "description": { "ja": "ルーペをフォーカス点へ", "en": "Move the loupe to the AF focus point" } }
+          "description": { "ja": "ルーペを鮮鋭度最大タイルへ（鮮鋭度表示が無いときは AF 点へ）", "en": "Move the loupe to the sharpest tile (AF focus point when sharpness is off)" } },
+        { "keys": "Shift+Ctrl+Alt+F",
+          "description": { "ja": "ルーペを AF 点へ", "en": "Move the loupe to the AF focus point" } }
       ]
     },
     {

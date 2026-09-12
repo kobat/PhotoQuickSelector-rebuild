@@ -7,6 +7,10 @@ namespace PhotoQuickSelector_App.Controls;
 /// <summary>
 /// プレビューのキー処理。ナビ（←/→）/ ズーム（Z）/ スクロール（Alt+矢印）/ ルーペ（Ctrl+Alt+…）/
 /// グリッド（G）/ メタ情報（I）/ キャッシュ一覧（C）/ 評価キーを束ねる。Window 直下のルート集約ハンドラから呼ばれる。
+/// <para>
+/// Alt+F / Ctrl+Alt+F は既定で「鮮鋭度最大タイルへ（鮮鋭度表示が無い/未計算なら AF 点）」、
+/// Shift を足す（Shift+Alt+F / Shift+Ctrl+Alt+F）と常に「AF 点へ」になる（メイン/ルーペそれぞれ）。
+/// </para>
 /// </summary>
 public sealed partial class PreviewControl
 {
@@ -31,7 +35,8 @@ public sealed partial class PreviewControl
         bool alt = KeyboardModifiers.Alt;
         bool ctrl = KeyboardModifiers.Ctrl;
 
-        // Ctrl+Alt+矢印 : 右上ズームプレビュー（ルーペ）をスクロール / Ctrl+Alt+F : 同・フォーカス点へ
+        // Ctrl+Alt+矢印 : 右上ズームプレビュー（ルーペ）をスクロール /
+        // Ctrl+Alt+F : ルーペを鮮鋭度最大タイルへ（無ければ AF 点） / Shift+Ctrl+Alt+F : 常に AF 点へ
         if (ctrl && alt)
         {
             // 選択集合があるときは Ctrl+Alt+↑/↓ を一括フラグへ振り分ける（無いときは従来のルーペ縦スクロール）。
@@ -64,21 +69,30 @@ public sealed partial class PreviewControl
                 case VirtualKey.Right: ZoomPanByRatio(-0.25, 0); return true;
                 case VirtualKey.Up: ZoomPanByRatio(0, 0.25); return true;
                 case VirtualKey.Down: ZoomPanByRatio(0, -0.25); return true;
-                case VirtualKey.F: ScrollZoomToFocus(); return true;
+                case VirtualKey.F:
+                    _loupeAutoPositionPending = false; // 手動操作なので自動センタリングを止める
+                    if (KeyboardModifiers.Shift) ScrollZoomToFocus();
+                    else ScrollZoomToSharpestOrFocus();
+                    return true;
             }
         }
 
-        // Shift+Alt+←/→ : フィット / 100%（SPEC §3-7）
+        // Shift+Alt+←/→ : フィット / 100%（SPEC §3-7） / Shift+Alt+F : AF 点へスクロール（常に AF 点。
+        // Alt+F の既定＝鮮鋭度最大タイルの Shift 版）
         if (alt && KeyboardModifiers.Shift)
         {
             switch (key)
             {
                 case VirtualKey.Left: _viewport.SetFit(); InvalidateMain(); return true;
                 case VirtualKey.Right: _viewport.SetActualSize(); InvalidateMain(); return true;
+                case VirtualKey.F:
+                    _loupeAutoPositionPending = false;
+                    ScrollToFocus();
+                    return true;
             }
         }
 
-        // Alt+矢印 : ズーム画像をスクロール（パン） / Alt+F : フォーカス点へスクロール
+        // Alt+矢印 : ズーム画像をスクロール（パン） / Alt+F : 鮮鋭度最大タイルへスクロール（無ければ AF 点）
         if (alt && !ctrl)
         {
             switch (key)
@@ -87,7 +101,10 @@ public sealed partial class PreviewControl
                 case VirtualKey.Right: _viewport.Pan(-PanStep, 0); InvalidateMain(); return true;
                 case VirtualKey.Up: _viewport.Pan(0, PanStep); InvalidateMain(); return true;
                 case VirtualKey.Down: _viewport.Pan(0, -PanStep); InvalidateMain(); return true;
-                case VirtualKey.F: ScrollToFocus(); return true;
+                case VirtualKey.F:
+                    _loupeAutoPositionPending = false;
+                    ScrollToSharpestOrFocus();
+                    return true;
             }
         }
 
@@ -137,7 +154,8 @@ public sealed partial class PreviewControl
         }
 
         // F : イマーシブ表示トグル（右パネル＋フィルムストリップを畳んでメインを全域表示）。
-        // Alt+F / Ctrl+Alt+F（フォーカス点へスクロール）は上で処理済みなので、ここは修飾子なしのみ。
+        // Alt+F / Shift+Alt+F / Ctrl+Alt+F / Shift+Ctrl+Alt+F（スクロール系）は上で処理済みなので、
+        // ここは修飾子なしのみ。
         if (KeyboardModifiers.None && key == VirtualKey.F)
         {
             ToggleImmersive();

@@ -101,6 +101,12 @@ public sealed partial class PreviewControl : UserControl
     private Point _zoomLastPointer;
     private bool _isNavPanning;             // ナビゲーターのドラッグ中
 
+    // 写真ロード直後から立ち、ユーザーがルーペを操作（ドラッグ/ホイール/Ctrl+Alt+矢印/F系キー）した時点で
+    // 落とす。true の間は、後から届く Tenengrad の計算結果やモード変更でルーペを鮮鋭度最大タイルへ
+    // 再センタリングする（デコード直後はまだ鮮鋭度が未計算なことが多く、最初は AF 点へ寄せた後
+    // 計算が追いつき次第タイルへ寄せ直す動きになる）。
+    private bool _loupeAutoPositionPending;
+
     private MainViewModel? _viewModel;
 
     // --- メモリ掃除係（3段構成 GC。背景・役割分担は MemoryJanitor の <summary> 参照）。
@@ -489,6 +495,11 @@ public sealed partial class PreviewControl : UserControl
                 EnsureFocusedSharpness();
                 UpdateSharpnessLoupeOverlayVisibility();
                 if (_showExifPanel) RenderExifForFocus(); // 行数が変わるので画像情報パネル側は全体再構築
+                // モードが変わると最大タイル枠の可視/位置が変わるのでルーペ/ナビも再描画。
+                // 自動センタリング待ち（写真ロード直後で未操作）ならルーペも寄せ直す。
+                ZoomCanvas.Invalidate();
+                NavCanvas.Invalidate();
+                if (_loupeAutoPositionPending) ScrollZoomToSharpestOrFocus();
                 break;
         }
     }
@@ -729,11 +740,14 @@ public sealed partial class PreviewControl : UserControl
                 _viewport.SetImage(w, h);
             }
 
-            // 右上ズームプレビューは 100% 表示で AF フォーカス点へ寄せる（旧アプリ準拠）。
+            // 右上ズームプレビューは 100% 表示で鮮鋭度最大タイル（無ければ AF フォーカス点。旧アプリ準拠）へ
+            // 寄せる。この時点では鮮鋭度が未計算なことが多いので、以後の計算結果到着/モード変更で
+            // 再センタリングできるようフラグを立てておく（ユーザーがルーペを動かしたら落ちる）。
             _zoomViewport.SetCanvasSize(ZoomCanvas.ActualWidth, ZoomCanvas.ActualHeight);
             _zoomViewport.SetImage(w, h);
             _zoomViewport.SetActualSize();
-            ScrollZoomToFocus();
+            _loupeAutoPositionPending = true;
+            ScrollZoomToSharpestOrFocus();
         }
         InvalidateAll();
 

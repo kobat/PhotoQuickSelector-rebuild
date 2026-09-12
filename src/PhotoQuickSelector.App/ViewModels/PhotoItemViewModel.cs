@@ -469,7 +469,7 @@ public partial class PhotoItemViewModel : ObservableObject
 
     /// <summary>
     /// Tenengrad の表示文字列（詳細情報オーバーレイ・ルーペオーバーレイ・画像情報パネル共通の書式）。
-    /// 例: "鮮鋭度 AF 窓 7,700 ／ 最大タイル 65,647 ／ 全体 9,945 ／ 異方性 0.80"。
+    /// 例: "鮮鋭度 最大タイル 65,647 ／ AF 窓 7,700 ／ 全体 9,945 ／ 異方性 0.80"。
     /// AF 窓が無ければ「AF 窓 —」、異方性は AF 窓側（<see cref="SharpnessScore.AfWindowAnisotropy"/>）が
     /// NaN なら画像全体側（<see cref="SharpnessScore.Anisotropy"/>）へフォールバックする。
     /// </summary>
@@ -488,8 +488,8 @@ public partial class PhotoItemViewModel : ObservableObject
 
             string body = string.Join(" ／ ", new[]
             {
-                af,
                 $"{Loc.Get("Sharp_MaxTile")} {FormatN0(s.MaxTile)}",
+                af,
                 $"{Loc.Get("Sharp_Global")} {FormatN0(s.Global)}",
                 $"{Loc.Get("Sharp_Anisotropy")} {anisoText}",
             });

@@ -77,6 +77,9 @@ public sealed partial class PreviewControl
 
         // 緑枠: AF フォーカス枠（フィット変換でナビキャンバスへ）
         DrawFocusFrame(ds, (x, y) => (ox + x * scale, oy + y * scale), 2f);
+
+        // オレンジ枠: 鮮鋭度最大タイル（鮮鋭度表示 None または未計算なら無描画）
+        DrawSharpestTileFrame(ds, (x, y) => (ox + x * scale, oy + y * scale), 2f);
     }
 
     /// <summary>

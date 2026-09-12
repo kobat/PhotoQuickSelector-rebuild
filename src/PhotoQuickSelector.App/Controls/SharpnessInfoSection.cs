@@ -11,12 +11,20 @@ namespace PhotoQuickSelector_App.Controls;
 /// たびにグループ化 ListView を再構築しない）。行の型も同じ <see cref="EvaluationInfoRow"/> を流用する
 /// （画像情報パネルの <c>InfoRowTemplateSelector</c>・<c>EvaluationRowTemplate</c> にそのまま乗る）。
 /// <para>
-/// Tenengrad の 4 行（AF 窓／最大タイル／全体／異方性）は <see cref="SharpnessMode.Tenengrad"/> 以上で常に
-/// 出す。比較 4 手法の行は <see cref="SharpnessMode.All"/> のときだけ追加する。モード変更で行数が
+/// 行は 3 系統のコレクションで公開する。<see cref="Rows"/> は画像情報パネル向けの結合コレクション
+/// （<c>PreviewControl.ExifPanel.cs</c> がこれを 1 グループとして使う）。
+/// <see cref="TenengradRows"/>（最大タイル→AF窓→全体→異方性の順・4行固定）と
+/// <see cref="ExtraRows"/>（比較4手法・<see cref="SharpnessMode.All"/> のみ4行、それ以外は空）は
+/// ルーペオーバーレイ（<c>PreviewControl.xaml</c> の <c>SharpnessLoupeOverlay</c>）が見出しを分けて
+/// 表示するために分離した参照。3 つとも同じ <see cref="EvaluationInfoRow"/> インスタンスを指すので、
+/// <see cref="Update"/> の値書き換えは全コレクションの <c>x:Bind</c> へそのまま伝わる。
+/// </para>
+/// <para>
+/// Tenengrad の 4 行は <see cref="SharpnessMode.Tenengrad"/> 以上で常に出す。比較 4 手法の行は
+/// <see cref="SharpnessMode.All"/> のときだけ追加する。モード変更で <see cref="Rows"/> の行数が
 /// 変わるため、モード変更時は呼び出し側（<c>PreviewControl.ExifPanel.cs</c> の <c>RenderExifForFocus</c>）
-/// が画像情報パネル側は全体再構築する。<see cref="Rows"/> 自体は <see cref="ObservableCollection{T}"/>
-/// なので、値だけの変更（モード不変）ならルーペオーバーレイの <c>ItemsControl</c> もこのコレクションの
-/// 変更通知だけで追従する。
+/// が画像情報パネル側は全体再構築する。<see cref="ObservableCollection{T}"/> なので、値だけの変更
+/// （モード不変）ならルーペオーバーレイの <c>ItemsControl</c> もこのコレクションの変更通知だけで追従する。
 /// </para>
 /// </summary>
 public sealed class SharpnessInfoSection
@@ -36,16 +44,25 @@ public sealed class SharpnessInfoSection
     public string GroupName { get; } = Loc.Get("Info_SharpnessGroup");
 
     /// <summary>
-    /// 現在のモードに応じた可視行（None なら空・Tenengrad なら4行・全手法なら8行）。
+    /// 現在のモードに応じた可視行（None なら空・Tenengrad なら4行・全手法なら8行）。並び順は
+    /// 最大タイル→AF窓→全体→異方性→（全手法のみ）比較4手法。
     /// <see cref="ObservableCollection{T}"/> なので Clear/Add の変更が両表示（画像情報パネル・
     /// ルーペオーバーレイ）へそのまま伝わる。
     /// </summary>
     public ObservableCollection<object> Rows { get; } = new();
 
+    /// <summary>Tenengrad の4行（最大タイル→AF窓→全体→異方性）。モード None なら空。</summary>
+    public ObservableCollection<object> TenengradRows { get; } = new();
+
+    /// <summary>比較4手法の行。<see cref="SharpnessMode.All"/> のときだけ中身が入る（それ以外は空）。</summary>
+    public ObservableCollection<object> ExtraRows { get; } = new();
+
     /// <summary>写真の鮮鋭度スコアを行へ反映し、モードに応じて可視行を組み立て直す。</summary>
     public void Update(PhotoItemViewModel photo, SharpnessMode mode)
     {
         Rows.Clear();
+        TenengradRows.Clear();
+        ExtraRows.Clear();
         if (mode == SharpnessMode.None) return;
 
         if (photo.Sharpness is { } s)
@@ -65,10 +82,15 @@ public sealed class SharpnessInfoSection
             SetComputing(_afWindow, _maxTile, _global, _anisotropy);
         }
 
-        Rows.Add(_afWindow);
+        // 並びは 最大タイル→AF窓→全体→異方性（最大タイルを先頭に＝画面上のオレンジ枠と対応させる）。
         Rows.Add(_maxTile);
+        Rows.Add(_afWindow);
         Rows.Add(_global);
         Rows.Add(_anisotropy);
+        TenengradRows.Add(_maxTile);
+        TenengradRows.Add(_afWindow);
+        TenengradRows.Add(_global);
+        TenengradRows.Add(_anisotropy);
 
         if (mode != SharpnessMode.All) return;
 
@@ -88,6 +110,10 @@ public sealed class SharpnessInfoSection
         Rows.Add(_brenner);
         Rows.Add(_reblur);
         Rows.Add(_edgeWidth);
+        ExtraRows.Add(_lapv);
+        ExtraRows.Add(_brenner);
+        ExtraRows.Add(_reblur);
+        ExtraRows.Add(_edgeWidth);
     }
 
     private static void SetComputing(params EvaluationInfoRow[] rows)
@@ -100,14 +126,15 @@ public sealed class SharpnessInfoSection
         }
     }
 
-    /// <summary>比較手法 1 個ぶんの行を「AF 窓 ／ 最大タイル」の数値ペアで埋める。</summary>
+    /// <summary>比較手法 1 個ぶんの行を「最大タイル ／ AF 窓」の数値ペアで埋める（最大タイルを左に＝
+    /// Tenengrad 4行と同じ並び順に揃える）。</summary>
     private static void SetPair(EvaluationInfoRow row, MetricScores scores, string format, string suffix = "")
     {
-        string af = double.IsNaN(scores.AfWindow)
-            ? UnknownValue : scores.AfWindow.ToString(format, CultureInfo.InvariantCulture) + suffix;
         string tile = double.IsNaN(scores.MaxTile)
             ? UnknownValue : scores.MaxTile.ToString(format, CultureInfo.InvariantCulture) + suffix;
-        row.Value = $"{af} ／ {tile}";
+        string af = double.IsNaN(scores.AfWindow)
+            ? UnknownValue : scores.AfWindow.ToString(format, CultureInfo.InvariantCulture) + suffix;
+        row.Value = $"{tile} ／ {af}";
         row.UpdatedAtText = "";
     }
 

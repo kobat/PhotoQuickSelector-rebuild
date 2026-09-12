@@ -94,7 +94,10 @@ public sealed partial class MainWindow : Window
         // Shift+F: 完全全画面モード（ウィンドウ全画面＋左ペイン/ステータスバー非表示＋イマーシブ＋余白0）の
         // トグル。複数コンポーネントにまたがるので MainPage のコーディネータへ委譲する。グリッド表示中でも
         // ここで拾える（F11 と同じフォーカス非依存の集約点）。素の F（イマーシブ）は MainPage→Preview 側で処理。
-        if (e.Key == Windows.System.VirtualKey.F && KeyboardModifiers.Shift)
+        // Alt/Ctrl 併用は除外する（Shift+Alt+F＝AF点へスクロール／Shift+Ctrl+Alt+F＝ルーペをAF点へ、
+        // はいずれもプレビュー側のスクロールキー＝ここで奪うと Preview.HandleKeyDown に届かなくなる）。
+        if (e.Key == Windows.System.VirtualKey.F && KeyboardModifiers.Shift &&
+            !KeyboardModifiers.Alt && !KeyboardModifiers.Ctrl)
         {
             (RootFrame.Content as MainPage)?.ToggleFullImageMode();
             e.Handled = true;

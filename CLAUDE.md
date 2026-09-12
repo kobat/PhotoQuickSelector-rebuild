@@ -161,6 +161,9 @@ GC 設定 `System.GC.ConserveMemory`=7 を併用〔2026-08-01〕。さらに計�
 Tenengrad はデコード直後にフック計算（`PreviewBitmapCache.FrameDecoded`＝登録前なので Trim と競合しない）、
 全手法は焦点写真のみ settle 後にリース（`TryLease`）＋CancellationToken 付きで計算。保持は `PhotoItemViewModel`
 （DB 保存なし・フォルダ切替で自然に破棄）。実測: 解析 平均 26.5ms（50MP で約 60ms）＝デコードの 1/3。
+同日追加＝ルーペオーバーレイの整理（左上・13pt・見出し／区切り線・並びは最大タイル→AF 窓）、**最大タイル枠**（オレンジ。
+ルーペ＋ナビ）、**ルーペ初期位置＝最大タイル**（無ければ AF 点。`_loupeAutoPositionPending` で遅着結果に追従）、
+`Alt+F`/`Ctrl+Alt+F` の再定義＋`Shift+…` 新設（HISTORY.md「実機確認②」節）。
 **実機目視は未了**（ビルド成功・テスト緑のみ）。フェーズ③（目視突き合わせ）は本体表示で行う。
 連写グループ内相対値・グリッドのバッジ・DB v3 は未着手。詳細と申し送りは HISTORY.md「鮮鋭度スコア」各節。
 
@@ -267,7 +270,9 @@ Tenengrad はデコード直後にフック計算（`PreviewBitmapCache.FrameDec
   行テンプレートは `InfoRowTemplateSelector` で型別。XMP は `XmpDirectory.GetXmpProperties()` で
   `xmp:Rating` 等のプロパティへ展開＝HISTORY「EXIF 詳細パネルの XMP タグ展開」「画像情報パネル」節）
 - プレビュー中: `S` 鮮鋭度スコア表示を巡回（なし→Tenengrad のみ→全手法。`AppSettings.SharpnessMode`。ルーペ上・画像情報パネル・
-  詳細情報オーバーレイに表示。詳細は HISTORY.md「鮮鋭度スコアの本体組み込み」節）
+  詳細情報オーバーレイに表示。Tenengrad 結果があればルーペ／ナビにオレンジの最大タイル枠。詳細は HISTORY.md「鮮鋭度スコアの本体組み込み」節）
+- プレビュー中: `Alt+F` メインを最大タイルへ（鮮鋭度表示が無ければ AF 点）/ `Shift+Alt+F` 常に AF 点へ /
+  `Ctrl+Alt+F` ルーペを最大タイルへ（同フォールバック）/ `Shift+Ctrl+Alt+F` ルーペを AF 点へ。ルーペのロード時初期位置も同じ規則
 - プレビュー中: `G` 構図グリッド種類を巡回（None→中央十字→三分割→正方形→None）/ `Shift+G` グリッド基準を切替
   （画像⇄Canvas）。正方形は短辺を N 等分した正方セルを画像中央から対称配置（N＝`AppSettings.GridSquareDivisions`・既定8。
   偶数Nは中央に線・奇数Nは中央線なし）。種類/基準は `AppSettings` に永続化（次回起動で復元）

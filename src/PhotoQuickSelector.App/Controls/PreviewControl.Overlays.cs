@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using Microsoft.Graphics.Canvas;
+using PhotoQuickSelector.Core;
 using Windows.UI;
 
 namespace PhotoQuickSelector_App.Controls;
@@ -102,6 +103,9 @@ public sealed partial class PreviewControl
     /// <summary>半透明グリーンの AF 枠色。メイン・ナビゲーターで共通。</summary>
     private static readonly Color FocusColor = Color.FromArgb(0xEE, 0x66, 0xFF, 0x66);
 
+    /// <summary>鮮鋭度最大タイル枠の色（オレンジ）。AF枠（緑）・ナビの表示領域枠（青）と混同しないよう別色にする。</summary>
+    private static readonly Color SharpestTileColor = Color.FromArgb(0xEE, 0xFF, 0xA6, 0x33);
+
     /// <summary>
     /// AF フォーカス枠を描く（Sony／Olympus 共通。読取り側で同じ中心＋枠＋基準サイズ表現へ正規化済み）。
     /// フォーカス点・枠は「生センサー基準（Orientation 適用前）」の値なので、
@@ -168,18 +172,80 @@ public sealed partial class PreviewControl
         return (_viewport.ImageWidth / 2, _viewport.ImageHeight / 2);
     }
 
-    /// <summary>メインプレビューで AF フォーカス点が画面中央へ来るようスクロールする（Alt+F）。
+    /// <summary>
+    /// 鮮鋭度最大タイルの枠が描けるか判定し、左上座標とタイル一辺（いずれも表示空間 px）を返す。
+    /// <list type="bullet">
+    ///   <item>モード None なら false（S キーでオフにしたら枠も消える）。</item>
+    ///   <item><see cref="_currentMeta"/> と焦点写真の Path が一致しない間は false（<see cref="_bitmap"/>
+    ///   がデコード中で前の写真のまま＝焦点はもう次の写真という追い越し状態。前の写真のタイル位置を
+    ///   新しい写真の枠として誤描画しないためのガード）。</item>
+    ///   <item>タイルが画像に収まらない（小さい画像でタイルが存在しない＝<see cref="SharpnessScore.MaxTileX"/>/
+    ///   <see cref="SharpnessScore.MaxTileY"/> が既定の 0 のまま）なら false。</item>
+    /// </list>
+    /// </summary>
+    private bool TryGetSharpestTile(out int x, out int y, out int size)
+    {
+        x = y = size = 0;
+        if (_sharpnessModeSnapshot == SharpnessMode.None) return false;
+        if (_bitmap == null || _currentMeta == null) return false;
+        if (_viewModel?.FocusedPhoto is not { Sharpness: { } s } photo) return false;
+        if (!string.Equals(photo.Meta.Path, _currentMeta.Path, StringComparison.OrdinalIgnoreCase)) return false;
+        if (s.TileSize <= 0) return false;
+        if (s.MaxTileX + s.TileSize > _viewport.ImageWidth || s.MaxTileY + s.TileSize > _viewport.ImageHeight)
+            return false;
+
+        x = s.MaxTileX;
+        y = s.MaxTileY;
+        size = s.TileSize;
+        return true;
+    }
+
+    /// <summary>
+    /// 鮮鋭度最大タイルの枠を、表示空間 px → キャンバス座標の写像 <paramref name="toCanvas"/> を使って描く。
+    /// ルーペ・ナビゲーターにのみ表示（メインには重ねない＝AF枠と同じ方針）。
+    /// </summary>
+    private void DrawSharpestTileFrame(CanvasDrawingSession ds, Func<double, double, (double X, double Y)> toCanvas, float thickness)
+    {
+        if (!TryGetSharpestTile(out int tx, out int ty, out int size)) return;
+        var (x0, y0) = toCanvas(tx, ty);
+        var (x1, y1) = toCanvas(tx + size, ty + size);
+        float x = (float)Math.Min(x0, x1), y = (float)Math.Min(y0, y1);
+        ds.DrawRectangle(x, y, (float)Math.Abs(x1 - x0), (float)Math.Abs(y1 - y0), SharpestTileColor, thickness);
+    }
+
+    /// <summary>鮮鋭度最大タイルの中心（表示空間 px）。無ければ AF フォーカス点（<see cref="FocusDisplayPoint"/>）
+    /// にフォールバックする（鮮鋭度表示オフ・未計算・タイルなしのいずれでも従来どおり動く）。</summary>
+    private (double X, double Y) SharpestOrFocusDisplayPoint()
+        => TryGetSharpestTile(out int x, out int y, out int size)
+            ? (x + size / 2.0, y + size / 2.0)
+            : FocusDisplayPoint();
+
+    /// <summary>メインプレビューで指定の表示空間座標が画面中央へ来るようスクロールする。
     /// すでにズーム中なら現在の倍率を保ったまま寄せる。フィット以下（画像全体が収まりパンできない）
     /// のときだけ等倍化してから寄せる。</summary>
-    private void ScrollToFocus()
+    private void ScrollToDisplayPoint(double dispX, double dispY)
     {
         if (_bitmap == null) return;
         // Scale <= FitScale はフィット中またはフィット未満の縮小（Custom）＝スクロール余地が無い状態。
         // このときだけ等倍にする。ズーム中（Scale > FitScale）は倍率を変えずパンだけで寄せる。
         if (_viewport.Scale <= _viewport.FitScale) _viewport.SetActualSize();
-        var (dispX, dispY) = FocusDisplayPoint();
         var (curX, curY) = _viewport.ImageToCanvas(dispX, dispY);
         _viewport.Pan(MainCanvas.ActualWidth / 2 - curX, MainCanvas.ActualHeight / 2 - curY);
         InvalidateMain();
+    }
+
+    /// <summary>メインプレビューで AF フォーカス点が画面中央へ来るようスクロールする（Shift+Alt+F）。</summary>
+    private void ScrollToFocus()
+    {
+        var (dispX, dispY) = FocusDisplayPoint();
+        ScrollToDisplayPoint(dispX, dispY);
+    }
+
+    /// <summary>メインプレビューで鮮鋭度最大タイル（無ければ AF フォーカス点）が画面中央へ来るよう
+    /// スクロールする（Alt+F）。</summary>
+    private void ScrollToSharpestOrFocus()
+    {
+        var (dispX, dispY) = SharpestOrFocusDisplayPoint();
+        ScrollToDisplayPoint(dispX, dispY);
     }
 }

@@ -68,8 +68,9 @@ public sealed partial class PreviewControl
         else
         {
             // 非表示（Collapsed）中に写真が切り替わるとキャンバス寸法 0 のままルーペ中心が
-            // 決まっているため、レイアウト確定後に AF 点へ寄せ直す。
-            DispatcherQueue.TryEnqueue(ScrollZoomToFocus);
+            // 決まっているため、レイアウト確定後に鮮鋭度最大タイル（無ければ AF 点）へ寄せ直す
+            // （従来どおり無条件。_loupeAutoPositionPending は触らない）。
+            DispatcherQueue.TryEnqueue(ScrollZoomToSharpestOrFocus);
         }
     }
 

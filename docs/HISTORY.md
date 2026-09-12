@@ -4090,3 +4090,36 @@ DB 保存なし・先読み時に計算・フォルダを開いている間は�
   `SharpnessText` 通知なので問題なし（確認のみ）。
 - 対処: `RefreshSharpnessRowsForFocus`（新設）を FocusedPhoto 変更時に呼び、新しい写真の値
   （未計算なら「計算中…」）で行を即時書き直す。
+
+### 実機確認②: ルーペオーバーレイの整理・最大タイル枠・ルーペ初期位置（2026-09-13）
+
+ユーザー要望（ルーペオーバーレイ 6 項目＋鮮鋭度 2 項目）と、検討で確定した `Alt+F` 系キーの再定義を実装。
+実機目視は未了（ビルド成功・テスト 278 件緑のみ）。
+
+- **ルーペオーバーレイ**（`PreviewControl.xaml` `SharpnessLoupeOverlay`）: 左上へ移動・メインの詳細情報オーバーレイと
+  同じ Margin/Padding/CornerRadius・**フォントは既定フォント 13pt**（Consolas 10pt を廃止。見出しのみ SemiBold）。
+  構成は「見出し『鮮鋭度 (Tenengrad 法)』→ Tenengrad 4 行 → 区切り線＋副見出し『比較手法（最大タイル ／ AF 窓）』→
+  比較 4 行」（後半 `SharpnessExtrasBlock` は全手法モードのみ表示＝`UpdateSharpnessLoupeOverlayVisibility` で切替）。
+  `SharpnessInfoSection` は `Rows`（画像情報パネル用の結合）に加え `TenengradRows`/`ExtraRows` を公開
+  （同じ `EvaluationInfoRow` インスタンスを 3 コレクションで共有＝差分更新の仕組みは不変）。
+- **並び順の統一**: Tenengrad は **最大タイル → AF 窓 → 全体 → 異方性**、比較手法のペアは **最大タイル ／ AF 窓**。
+  ルーペ・画像情報パネル・詳細情報オーバーレイ（`SharpnessText`）の 3 表示すべてで揃えた。
+- **最大タイル枠**（オレンジ `SharpestTileColor`）: `TryGetSharpestTile` → `DrawSharpestTileFrame` を
+  `Overlays.cs` に新設し、ルーペとナビゲーターの AF 枠直後に描く（メインには描かない＝AF 枠と同方針）。
+  `MaxTileX/Y`・`TileSize` はデコード後（正立済み）フレーム座標＝表示空間そのものなので OrientationMatrix 不要。
+  描く条件＝モード None 以外・焦点写真の `Sharpness` 非 null・**焦点写真の Path が `_currentMeta.Path` と一致**
+  （連打中にビットマップが焦点より遅れている間の誤描画防止）・タイルが画像に収まる（小さい画像でタイル無しの
+  0,0 を描かない）。再描画契機＝`Sharpness` 到着（`OnSharpnessWatchedPhotoPropertyChanged`）とモード変更。
+- **ルーペ初期位置**: `ScrollZoomToFocus`/`ScrollToFocus` を「点を受け取る内部関数」に分解し、
+  `ScrollZoomToSharpestOrFocus`/`ScrollToSharpestOrFocus`（上記条件を満たせば最大タイル中心、
+  そうでなければ AF 点）を追加。ロード時・ルーペタブ復帰時はこちらを呼ぶ。
+  **自動配置保留フラグ `_loupeAutoPositionPending`**: ロードで立て、`Sharpness` 遅着・モード変更で寄せ直し、
+  ユーザーのルーペ操作（ドラッグ／ホイール／`Ctrl+Alt+矢印`／F 系キー）で落とす。ロード時点では鮮鋭度が
+  未計算なことが多く（モード None 中にデコードされた写真・先読みフックの `TryEnqueue` とロード継続の順序は
+  FIFO 頼み）、「まず AF 点→計算が追いつき次第タイルへ」の動きを許容する設計。
+- **キー再定義**（`shortcuts.json` 更新・`docs/SHORTCUTS*.md` 再生成）: `Alt+F`／`Ctrl+Alt+F`＝最大タイルへ
+  （鮮鋭度が無ければ AF 点）、**新設 `Shift+Alt+F`／`Shift+Ctrl+Alt+F`＝常に AF 点へ**。
+  **落とし穴**: `MainWindow.xaml.cs` の `Shift+F`（完全全画面）判定が Shift しか見ておらず Shift+Alt+F 等を
+  先取りしていたため、`!Alt && !Ctrl` を追加して締めた（既存 `Shift+F` の挙動は不変）。
+- 実機確認の観点: 3 表示の並び順・全手法モードでの区切り線／副見出し・オレンジ枠が AF 枠（緑）と
+  区別できるか・ルーペが最初 AF 点→タイルへ移る挙動が煩わしくないか・`Shift+Alt+F` が完全全画面に化けないか。

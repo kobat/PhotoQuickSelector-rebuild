@@ -44,11 +44,13 @@
 | `Double-click` | Filmstrip: return to the grid view |
 | `PageUp / PageDown / Home / End` | Move within the filmstrip |
 | `Alt+← / → / ↑ / ↓` | Pan the image |
-| `Alt+F` | Scroll to the AF focus point |
+| `Alt+F` | Scroll to the sharpest tile (AF focus point when sharpness is off) |
+| `Shift+Alt+F` | Scroll to the AF focus point |
 | `Ctrl+Alt+← / →` | Scroll the loupe horizontally (page the list up/down while the image info panel is shown: ← up / → down) |
 | `Ctrl+Alt+↑ / ↓` | Scroll the loupe vertically (scroll the list while the image info panel is shown; bulk flag when a selection set exists) |
 | `Ctrl+Alt+PageUp / PageDown` | Page the image info list up/down while it is shown (PageUp up / PageDown down) |
-| `Ctrl+Alt+F` | Move the loupe to the AF focus point |
+| `Ctrl+Alt+F` | Move the loupe to the sharpest tile (AF focus point when sharpness is off) |
+| `Shift+Ctrl+Alt+F` | Move the loupe to the AF focus point |
 
 ## Rating
 

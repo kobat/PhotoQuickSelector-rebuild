@@ -475,6 +475,12 @@
   <data name="Preview_ExifTab.Content" xml:space="preserve">
     <value>Info</value>
   </data>
+  <data name="Preview_SharpnessLoupeTitle.Text" xml:space="preserve">
+    <value>Sharpness (Tenengrad)</value>
+  </data>
+  <data name="Preview_SharpnessExtrasTitle.Text" xml:space="preserve">
+    <value>Other methods (best tile / AF window)</value>
+  </data>
 
   <!-- ============ Code-side (Loc.Get, plain keys without dot) ============ -->
   <!-- Common buttons / fragments -->
