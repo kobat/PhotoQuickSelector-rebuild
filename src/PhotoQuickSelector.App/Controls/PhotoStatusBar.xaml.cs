@@ -108,6 +108,10 @@ public sealed partial class PhotoStatusBar : UserControl
         GridRefImageItem.IsChecked = _viewModel.GridReference == GridOverlayReference.Image;
         GridRefCanvasItem.IsChecked = _viewModel.GridReference == GridOverlayReference.Canvas;
 
+        SharpnessNoneItem.IsChecked = _viewModel.SharpnessMode == SharpnessMode.None;
+        SharpnessTenengradItem.IsChecked = _viewModel.SharpnessMode == SharpnessMode.Tenengrad;
+        SharpnessAllItem.IsChecked = _viewModel.SharpnessMode == SharpnessMode.All;
+
         // プレビュー専用群はプレビュー時のみ有効。
         PreviewSubItem.IsEnabled = _viewModel.IsPreviewMode;
 
@@ -220,6 +224,21 @@ public sealed partial class PhotoStatusBar : UserControl
     private void MenuGridRefCanvas_Click(object sender, RoutedEventArgs e)
     {
         if (_viewModel is not null) _viewModel.GridReference = GridOverlayReference.Canvas;
+    }
+
+    private void MenuSharpnessNone_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.SharpnessMode = SharpnessMode.None;
+    }
+
+    private void MenuSharpnessTenengrad_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.SharpnessMode = SharpnessMode.Tenengrad;
+    }
+
+    private void MenuSharpnessAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.SharpnessMode = SharpnessMode.All;
     }
 
     /// <summary>GPS 地図ボタン。撮影位置をブラウザの地図で開く（十進緯度経度がある場合）。</summary>

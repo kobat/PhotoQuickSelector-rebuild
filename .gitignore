@@ -52,3 +52,6 @@ Desktop.ini
 
 # membench の結果 TSV（ローカル計測データ。マシン依存のためコミットしない）
 tools/membench/results/
+
+# SharpnessBench の結果 TSV（ローカル計測データ。マシン依存のためコミットしない）
+tools/sharpness/results/

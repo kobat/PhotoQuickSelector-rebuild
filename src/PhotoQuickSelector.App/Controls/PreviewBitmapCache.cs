@@ -74,6 +74,35 @@ internal sealed class PixelFrame
 }
 
 /// <summary>
+/// <see cref="PreviewBitmapCache.TryLease"/> が返す一時的な「貸出」参照。生きている間、
+/// <see cref="PreviewBitmapCache.Trim"/> はそのエントリのバッファをプールへ返さない
+/// （鮮鋭度計算等がバックグラウンドスレッドでバッファを読んでいる間に、他の写真のデコードへ
+/// 再利用されて中身が化けるのを防ぐ）。取得・<see cref="Dispose"/> は UI スレッドで行うこと
+/// （<see cref="PreviewBitmapCache"/> の他の全メソッドと同じ規約）。
+/// </summary>
+internal sealed class FrameLease : IDisposable
+{
+    private readonly Action _release;
+    private bool _disposed;
+
+    internal FrameLease(PixelFrame frame, Action release)
+    {
+        Frame = frame;
+        _release = release;
+    }
+
+    /// <summary>貸出中のフレーム（デコード済みピクセル）。</summary>
+    public PixelFrame Frame { get; }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _release();
+    }
+}
+
+/// <summary>
 /// プレビューの前後 N 枚先読みキャッシュ（SPEC §4）。キーはファイルパス。
 /// <para>
 /// デコード結果は <see cref="PixelFrame"/>（BGRA8 の <c>byte[]</c>・メインメモリ常駐）で保持し、
@@ -199,6 +228,12 @@ internal sealed class PreviewBitmapCache
         public PixelFrame Frame { get; }
         /// <summary>単調増分カウンタ（<see cref="_useCounter"/>）による最終利用順。時計に依存しない。</summary>
         public long LastUse { get; set; }
+        /// <summary>
+        /// <see cref="TryLease"/> による貸出中の本数。0 より大きい間は <see cref="Trim"/> の破棄候補から除外する
+        /// （バッファがプールへ返って別デコードに再利用されるのを防ぐ）。この間は予算超過が一時的に
+        /// 許容される（1 枚分の貸出は短命＝鮮鋭度計算が終わればすぐ解放されるため）。
+        /// </summary>
+        public int LeaseCount { get; set; }
     }
 
     private readonly Dictionary<string, CacheEntry> _cache = new(StringComparer.OrdinalIgnoreCase);
@@ -244,6 +279,35 @@ internal sealed class PreviewBitmapCache
     /// <see cref="DecodeGate"/> は純 FIFO で grant する。
     /// </summary>
     public Func<string, int>? DecodePriority { get => _gate.GetPriority; set => _gate.GetPriority = value; }
+
+    /// <summary>
+    /// デコード完了フック（鮮鋭度スコアの Tenengrad 即時計算用。<see cref="PreviewControl"/> の
+    /// 鮮鋭度表示モードが有効なときに設定される）。<see cref="WicPixelDecoder.Decode"/> が非 null の
+    /// <see cref="PixelFrame"/> を返した直後・<see cref="_cache"/> へ登録する前に、**ワーカースレッド上**
+    /// （デコードを実行している <c>Task.Run</c> の中＝<see cref="DecodeGate"/> のスロットを握ったまま）で
+    /// 呼ばれる。フックはこのスロットを塞ぐため軽量（数十 ms 程度）に留め、UI スレッドをブロックする
+    /// 処理を行ってはならない（結果を返すだけなら <c>DispatcherQueue.TryEnqueue</c> で UI スレッドへ渡す）。
+    /// 例外は握りつぶし、デコード自体を失敗させない（呼び出し元が try/catch で保護する）。
+    /// </summary>
+    public Action<string, PixelFrame>? FrameDecoded { get; set; }
+
+    /// <summary>
+    /// 指定パスが現在キャッシュ在籍中なら、そのフレームを一時的に「貸出中」として保護するリースを返す
+    /// （<see cref="Trim"/> がバッファをプールへ返すのを防ぐ）。鮮鋭度計算等、デコード済みバッファを
+    /// バックグラウンドスレッドで少し長く読む処理向け。未在籍（未デコード／Trim 済み）なら false。
+    /// 取得・<see cref="FrameLease.Dispose"/> は UI スレッドで行うこと（他の全メソッドと同じ規約）。
+    /// </summary>
+    public bool TryLease(string path, out FrameLease lease)
+    {
+        if (_cache.TryGetValue(path, out var entry))
+        {
+            entry.LeaseCount++;
+            lease = new FrameLease(entry.Frame, () => entry.LeaseCount--);
+            return true;
+        }
+        lease = null!;
+        return false;
+    }
 
     /// <summary>
     /// 現在キャッシュ中の画像の詳細一覧（デバッグオーバーレイ用）。デコード済み（<see cref="_cache"/> 在籍）は
@@ -361,13 +425,24 @@ internal sealed class PreviewBitmapCache
                 try
                 {
                     frame = await Task.Run(() =>
-                        WicPixelDecoder.Decode(bytes, MaxPixelBytesPerImage, len =>
+                    {
+                        var decoded = WicPixelDecoder.Decode(bytes, MaxPixelBytesPerImage, len =>
                         {
                             var buf = _pool.Rent(len, out poolHit);
                             rentedBytes = buf.Length;
                             Interlocked.Add(ref _inflightPixelBytes, rentedBytes);
                             return buf;
-                        }));
+                        });
+                        // 鮮鋭度スコアの即時計算フック。ワーカースレッド＝この Task.Run 内（DecodeGate の
+                        // スロットを握ったまま）で、_cache へ登録する前に呼ぶ（登録後だと Trim による
+                        // 破棄・プール返却と競合し得るため）。失敗してもデコード自体は成功として扱う。
+                        if (decoded != null && FrameDecoded is { } hook)
+                        {
+                            try { hook(path, decoded); }
+                            catch (Exception ex) { Debug.WriteLine($"FrameDecoded hook failed: {ex}"); }
+                        }
+                        return decoded;
+                    });
                     decodeSw.Stop();
                     if (frame == null) { return null; }
                     MemoryLog.Current.DecodeDone(Path.GetFileName(path), frame.Bytes.Length, decodeSw.Elapsed.TotalMilliseconds, poolHit, bytes.Length);
@@ -417,6 +492,8 @@ internal sealed class PreviewBitmapCache
     /// 表示中の 1 枚は呼び出し側（<see cref="PreviewControl"/>）が独立した
     /// <see cref="Microsoft.Graphics.Canvas.CanvasBitmap"/> として GPU へ転送・所有するため、
     /// このキャッシュ（<see cref="PixelFrame"/>）側では別途の保護不要。
+    /// <see cref="CacheEntry.LeaseCount"/>&gt;0（<see cref="TryLease"/> で貸出中）のエントリも破棄候補から
+    /// 除外する＝この間は予算が一時的に 1 枚分だけ超過し得る（貸出は短命なので許容する）。
     /// </summary>
     public void Trim(IEnumerable<string> keep)
     {
@@ -430,7 +507,7 @@ internal sealed class PreviewBitmapCache
         if (total > MaxCacheBytes)
         {
             var candidates = _cache
-                .Where(kv => !keepSet.Contains(kv.Key))
+                .Where(kv => !keepSet.Contains(kv.Key) && kv.Value.LeaseCount == 0)
                 .OrderBy(kv => kv.Value.LastUse)
                 .ToList();
 

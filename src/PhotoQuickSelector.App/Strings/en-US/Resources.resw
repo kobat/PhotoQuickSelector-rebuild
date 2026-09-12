@@ -182,6 +182,18 @@
   <data name="Menu_GridRefCanvas.Text" xml:space="preserve">
     <value>Reference: Canvas</value>
   </data>
+  <data name="Menu_SharpnessSub.Text" xml:space="preserve">
+    <value>Sharpness</value>
+  </data>
+  <data name="Menu_SharpnessNone.Text" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="Menu_SharpnessTenengrad.Text" xml:space="preserve">
+    <value>Tenengrad only</value>
+  </data>
+  <data name="Menu_SharpnessAll.Text" xml:space="preserve">
+    <value>All methods</value>
+  </data>
   <data name="Menu_FileSub.Text" xml:space="preserve">
     <value>File</value>
   </data>
@@ -520,6 +532,41 @@
     <value>Off</value>
   </data>
 
+  <!-- Sharpness score (SharpnessInfoSection / PhotoItemViewModel.SharpnessText etc.) -->
+  <data name="Info_SharpnessGroup" xml:space="preserve">
+    <value>Sharpness</value>
+  </data>
+  <data name="Sharp_Label" xml:space="preserve">
+    <value>Sharpness</value>
+  </data>
+  <data name="Sharp_AfWindow" xml:space="preserve">
+    <value>AF window</value>
+  </data>
+  <data name="Sharp_MaxTile" xml:space="preserve">
+    <value>Best tile</value>
+  </data>
+  <data name="Sharp_Global" xml:space="preserve">
+    <value>Whole image</value>
+  </data>
+  <data name="Sharp_Anisotropy" xml:space="preserve">
+    <value>Anisotropy</value>
+  </data>
+  <data name="Sharp_LapV" xml:space="preserve">
+    <value>Laplacian variance</value>
+  </data>
+  <data name="Sharp_Brenner" xml:space="preserve">
+    <value>Brenner</value>
+  </data>
+  <data name="Sharp_Reblur" xml:space="preserve">
+    <value>Re-blur</value>
+  </data>
+  <data name="Sharp_EdgeWidth" xml:space="preserve">
+    <value>Edge width</value>
+  </data>
+  <data name="Sharp_Computing" xml:space="preserve">
+    <value>Computing…</value>
+  </data>
+
   <!-- Status bar messages (MainViewModel / MainPage) -->
   <data name="Status_Initial" xml:space="preserve">
     <value>Select a folder in the tree on the left and open it with the Load button.</value>
@@ -842,6 +889,18 @@ Log: {1}</value>
   </data>
   <data name="PvCtx_GridRefCanvas" xml:space="preserve">
     <value>Reference: Canvas</value>
+  </data>
+  <data name="PvCtx_SharpnessSub" xml:space="preserve">
+    <value>Sharpness</value>
+  </data>
+  <data name="PvCtx_SharpnessNone" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="PvCtx_SharpnessTenengrad" xml:space="preserve">
+    <value>Tenengrad only</value>
+  </data>
+  <data name="PvCtx_SharpnessAll" xml:space="preserve">
+    <value>All methods</value>
   </data>
 
   <data name="BulkWarn_Title" xml:space="preserve">

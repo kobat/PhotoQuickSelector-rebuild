@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>SharpnessBench</RootNamespace>
+    <AssemblyName>SharpnessBench</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\PhotoQuickSelector.Core\PhotoQuickSelector.Core.csproj" />
+  </ItemGroup>
+
+  <!-- WicPixelDecoder は WinUI/WinRT 非依存（WIC の COM 直接呼び出しのみ）なので、
+       tests プロジェクトと同じ方式でソースをリンクして流用する（App を参照しない）。 -->
+  <ItemGroup>
+    <Compile Include="..\..\..\src\PhotoQuickSelector.App\Controls\WicPixelDecoder.cs"
+             Link="Linked\WicPixelDecoder.cs" />
+  </ItemGroup>
+
+</Project>

@@ -57,6 +57,8 @@ public sealed partial class PreviewControl
         ZoomCanvas.Visibility = showExif ? Visibility.Collapsed : Visibility.Visible;
         ExifPanel.Visibility = showExif ? Visibility.Visible : Visibility.Collapsed;
         if (_viewModel != null) _viewModel.Settings.PreviewExifPanel = showExif;
+        // ルーペと排他表示なので、ルーペのオーバーレイ（SharpnessLoupeOverlay）も表示状態を合わせる。
+        UpdateSharpnessLoupeOverlayVisibility();
 
         if (showExif)
         {
@@ -144,7 +146,7 @@ public sealed partial class PreviewControl
         var section = EvalSection;
         section.Update(photo);
 
-        var groups = new List<InfoGroup>(exifGroups.Count + 1);
+        var groups = new List<InfoGroup>(exifGroups.Count + 2);
         int index = 0;
 
         // File グループは ReadAllTags が先頭へ並べ替えている。あれば評価より上に置く。
@@ -155,6 +157,14 @@ public sealed partial class PreviewControl
         }
 
         groups.Add(new InfoGroup(section.GroupName, section.Rows));
+
+        // 鮮鋭度グループは評価の直後（File → 評価 → 鮮鋭度 → EXIF 等）。モード None なら出さない。
+        if (_viewModel?.SharpnessMode is { } mode && mode != SharpnessMode.None)
+        {
+            var sharpSection = SharpnessSection;
+            sharpSection.Update(photo, mode);
+            groups.Add(new InfoGroup(sharpSection.GroupName, sharpSection.Rows));
+        }
 
         for (; index < exifGroups.Count; index++)
             groups.Add(new InfoGroup(exifGroups[index].DirectoryName, exifGroups[index].Tags));

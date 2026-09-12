@@ -154,6 +154,8 @@ public sealed partial class PreviewControl : UserControl
         _cache.IsWanted = IsPathInWindow;
         // ゲート grant 時の優先度＝WindowEntries の index（フォーカス→選択窓→位置窓）。
         _cache.DecodePriority = DecodePriorityOf;
+        // 鮮鋭度スコア（Tenengrad）の先読み便乗計算。モード None のときは PreviewControl.Sharpness.cs 側で no-op。
+        _cache.FrameDecoded = OnFrameDecoded;
 
         _janitor = new MemoryJanitor(
             JanitorBgcThresholdBytes,
@@ -388,6 +390,7 @@ public sealed partial class PreviewControl : UserControl
         _cache.Changed += RefreshCacheOverlay;
         _cache.IsWanted = IsPathInWindow;
         _cache.DecodePriority = DecodePriorityOf;
+        _cache.FrameDecoded = OnFrameDecoded;
     }
 
     // 右パネルの幅変更（スプリッター/復元）に合わせて現在幅を設定へ控える（実保存は終了時）。
@@ -424,6 +427,7 @@ public sealed partial class PreviewControl : UserControl
                 RestoreRightPanelLayout();
                 SetExifPanelVisible(_viewModel.Settings.PreviewExifPanel);
                 SubscribeOverlayWatchedPhoto(_viewModel.FocusedPhoto);
+                InitializeSharpnessForViewModel();
             }
             Bindings.Update();
         }
@@ -449,6 +453,10 @@ public sealed partial class PreviewControl : UserControl
                 // 情報オーバーレイの「切替時のみ」表示: 焦点の写真切替は毎回トリガ。評価変更の監視対象も付け替える。
                 SubscribeOverlayWatchedPhoto(_viewModel?.FocusedPhoto);
                 RestartOverlayFade();
+                // 鮮鋭度: 前の写真ぶんの確定計算ジョブは打ち切る（実際の再計算は settle 後）。監視対象も付け替える。
+                CancelSharpnessJob();
+                SubscribeSharpnessWatchedPhoto(_viewModel?.FocusedPhoto);
+                RefreshSharpnessRowsForFocus(); // 新しい写真の値（未計算なら「計算中…」）へ即座に差し替える
                 // メモリ時系列ログの NAV 行。寸法は EXIF Orientation 適用後の表示寸法（Meta.Width/Height）。
                 if (_viewModel?.FocusedPhoto is { } navPhoto)
                     MemoryLog.Current.Nav(navPhoto.Meta.FileName, navPhoto.Meta.Width, navPhoto.Meta.Height);
@@ -464,6 +472,8 @@ public sealed partial class PreviewControl : UserControl
                     ScrollSelectedIntoView();
                     RenderExifForFocus(); // 入場は連打経路ではないので即描画
                     RestartOverlayFade(); // プレビュー入場も「切替時のみ」表示のトリガ
+                    EnsureFocusedSharpness();
+                    UpdateSharpnessLoupeOverlayVisibility();
                 }
                 break;
             case nameof(MainViewModel.GridKind):
@@ -473,6 +483,12 @@ public sealed partial class PreviewControl : UserControl
             case nameof(MainViewModel.OverlayKind):
             case nameof(MainViewModel.CurrentOverlayTransient):
                 ApplyOverlayTiming();
+                break;
+            case nameof(MainViewModel.SharpnessMode):
+                _sharpnessModeSnapshot = _viewModel?.SharpnessMode ?? SharpnessMode.None;
+                EnsureFocusedSharpness();
+                UpdateSharpnessLoupeOverlayVisibility();
+                if (_showExifPanel) RenderExifForFocus(); // 行数が変わるので画像情報パネル側は全体再構築
                 break;
         }
     }
@@ -593,6 +609,8 @@ public sealed partial class PreviewControl : UserControl
             LoadCurrentAsync(preserveView: true, prefetch: true);
             // 停止後に画像情報も確定描画（1 停止 1 回）。表示中でなければ RenderExifForFocus 側で no-op。
             RenderExifForFocus();
+            // 停止後に鮮鋭度も確定計算（1 停止 1 回。モード None／写真なしなら内部で no-op）。
+            EnsureFocusedSharpness();
         };
         return timer;
     }

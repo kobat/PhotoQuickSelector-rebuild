@@ -97,6 +97,9 @@ public sealed class AppSettings
     /// <summary>正方形グリッドの短辺分割数 N（≧2）。セル一辺＝短辺/N。</summary>
     public int GridSquareDivisions { get; set; } = 8;
 
+    /// <summary>プレビューの鮮鋭度スコア表示モード（S キーで巡回）。</summary>
+    public SharpnessMode SharpnessMode { get; set; } = SharpnessMode.None;
+
     /// <summary>「リネームしてコピー」で最後に使ったファイル名テンプレート（次回の初期値）。</summary>
     public string CopyRenameTemplate { get; set; } = "{name}";
 

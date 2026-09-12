@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices.WindowsRuntime;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI;
@@ -448,5 +449,87 @@ public partial class PhotoItemViewModel : ObservableObject
         {
             return null;
         }
+    }
+
+    // --- 鮮鋭度スコア（SharpnessMode.Tenengrad/All。PreviewControl.Sharpness.cs が計算・設定する） ---
+    // 焦点写真1枚ぶんだけ都度計算する軽量な状態のため、専用のキャッシュ/クリアは持たない
+    // （フォルダ切替で VM ごと破棄されるので自然に消える＝サムネイル/EXIF常駐系と違い明示クリア不要）。
+
+    /// <summary>Tenengrad（<see cref="SharpnessAnalyzer"/>）の解析結果。未計算/計算中は null。
+    /// UI スレッドでのみ設定すること（ワーカースレッドからの直接代入禁止）。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SharpnessText))]
+    public partial SharpnessScore? Sharpness { get; set; }
+
+    /// <summary>比較用 4 手法（<see cref="SharpnessMode.All"/> のみ）の解析結果。未計算/計算中は null。
+    /// UI スレッドでのみ設定すること。4 手法すべて完了して初めてセットする（部分結果は保持しない）。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SharpnessExtrasText))]
+    public partial SharpnessExtraScores? SharpnessExtras { get; set; }
+
+    /// <summary>
+    /// Tenengrad の表示文字列（詳細情報オーバーレイ・ルーペオーバーレイ・画像情報パネル共通の書式）。
+    /// 例: "鮮鋭度 AF 窓 7,700 ／ 最大タイル 65,647 ／ 全体 9,945 ／ 異方性 0.80"。
+    /// AF 窓が無ければ「AF 窓 —」、異方性は AF 窓側（<see cref="SharpnessScore.AfWindowAnisotropy"/>）が
+    /// NaN なら画像全体側（<see cref="SharpnessScore.Anisotropy"/>）へフォールバックする。
+    /// </summary>
+    public string SharpnessText
+    {
+        get
+        {
+            if (Sharpness is not { } s)
+                return $"{Loc.Get("Sharp_Label")} {Loc.Get("Sharp_Computing")}";
+
+            string af = double.IsNaN(s.AfWindow)
+                ? $"{Loc.Get("Sharp_AfWindow")} —"
+                : $"{Loc.Get("Sharp_AfWindow")} {FormatN0(s.AfWindow)}";
+            double aniso = double.IsNaN(s.AfWindowAnisotropy) ? s.Anisotropy : s.AfWindowAnisotropy;
+            string anisoText = double.IsNaN(aniso) ? "—" : aniso.ToString("F2", CultureInfo.InvariantCulture);
+
+            string body = string.Join(" ／ ", new[]
+            {
+                af,
+                $"{Loc.Get("Sharp_MaxTile")} {FormatN0(s.MaxTile)}",
+                $"{Loc.Get("Sharp_Global")} {FormatN0(s.Global)}",
+                $"{Loc.Get("Sharp_Anisotropy")} {anisoText}",
+            });
+            return $"{Loc.Get("Sharp_Label")} {body}";
+        }
+    }
+
+    /// <summary>
+    /// 比較用 4 手法の表示文字列（全手法モードのみ）。各手法とも AF 窓（NaN なら最大タイルへフォールバック
+    /// し「*」を付す）を表示する。例: "ラプラシアン分散 1,234 ／ Brenner 567 ／ 再ぼかし 0.512 ／ エッジ幅 3.20px"。
+    /// </summary>
+    public string SharpnessExtrasText
+    {
+        get
+        {
+            if (SharpnessExtras is not { } e)
+                return Loc.Get("Sharp_Computing");
+
+            return string.Join(" ／ ", new[]
+            {
+                $"{Loc.Get("Sharp_LapV")} {FormatMetric(e.LaplacianVariance, "N0")}",
+                $"{Loc.Get("Sharp_Brenner")} {FormatMetric(e.Brenner, "N0")}",
+                $"{Loc.Get("Sharp_Reblur")} {FormatMetric(e.Reblur, "F3")}",
+                $"{Loc.Get("Sharp_EdgeWidth")} {FormatMetric(e.EdgeWidth, "F2")}px",
+            });
+        }
+    }
+
+    private static string FormatN0(double value) => value.ToString("N0", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// 1 手法ぶんの AF 窓値を表示用に整形する。AF 窓が NaN（窓なし／評価画素 0）なら最大タイル値へ
+    /// フォールバックし「*」を付して由来が違うことを示す。
+    /// </summary>
+    private static string FormatMetric(MetricScores scores, string format)
+    {
+        if (!double.IsNaN(scores.AfWindow))
+            return scores.AfWindow.ToString(format, CultureInfo.InvariantCulture);
+        if (!double.IsNaN(scores.MaxTile))
+            return scores.MaxTile.ToString(format, CultureInfo.InvariantCulture) + "*";
+        return "—";
     }
 }

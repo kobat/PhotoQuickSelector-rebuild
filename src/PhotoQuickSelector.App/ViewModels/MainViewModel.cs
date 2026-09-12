@@ -156,6 +156,7 @@ public partial class MainViewModel : ObservableObject
         FullTransient = Settings.FullTransient;
         GridKind = Settings.GridKind;
         GridReference = Settings.GridReference;
+        SharpnessMode = Settings.SharpnessMode;
     }
 
     /// <summary>
@@ -598,6 +599,49 @@ public partial class MainViewModel : ObservableObject
     /// <summary>正方形グリッドの短辺分割数 N（設定値。Core/UI 非依存ロジックから参照）。</summary>
     public int GridSquareDivisions => Settings.GridSquareDivisions;
 
+    /// <summary>鮮鋭度スコア表示モード（None/Tenengrad/All。S キーで巡回）。</summary>
+    [ObservableProperty]
+    public partial SharpnessMode SharpnessMode { get; set; }
+
+    partial void OnSharpnessModeChanged(SharpnessMode value)
+    {
+        Settings.SharpnessMode = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
+        OnPropertyChanged(nameof(SharpnessVisibility));
+        OnPropertyChanged(nameof(SharpnessExtrasVisibility));
+    }
+
+    /// <summary>鮮鋭度スコア表示モードを巡回する（None→Tenengrad→全手法→None）。S キーとメニューから共用。</summary>
+    public void CycleSharpnessMode() =>
+        SharpnessMode = SharpnessMode switch
+        {
+            SharpnessMode.None => SharpnessMode.Tenengrad,
+            SharpnessMode.Tenengrad => SharpnessMode.All,
+            _ => SharpnessMode.None,
+        };
+
+    /// <summary>鮮鋭度表示（Tenengrad 行を含む）の表示可否。None 以外で表示。</summary>
+    public Visibility SharpnessVisibility =>
+        SharpnessMode != SharpnessMode.None ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>鮮鋭度の比較 4 手法（全手法モードのみの追加行）の表示可否。</summary>
+    public Visibility SharpnessExtrasVisibility =>
+        SharpnessMode == SharpnessMode.All ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// フルパスから写真 VM を引く辞書（<see cref="AllPhotos"/> と同じ寿命）。プレビューの鮮鋭度計算
+    /// （<c>PreviewControl.Sharpness.cs</c>）がデコード完了フック等でパスから対応する VM を安価に
+    /// 探すために使う。<see cref="LoadFolderAsync"/> が <see cref="AllPhotos"/> と同時に作り直す。
+    /// **読み手はデコードのワーカースレッド**（<see cref="TryGetPhotoByPath"/>）なので、UI スレッド側は
+    /// この辞書を in-place で書き換えず、作り終えた新しい辞書への参照差し替えだけを行う
+    /// （Dictionary は読み書き同時アクセスで例外・破損し得るため。参照の代入は原子的）。
+    /// </summary>
+    private volatile Dictionary<string, PhotoItemViewModel> _photosByPath =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>フルパスから写真 VM を引く。フォルダ切替で消えた古いパスは false。</summary>
+    public bool TryGetPhotoByPath(string path, out PhotoItemViewModel vm) =>
+        _photosByPath.TryGetValue(path, out vm!);
+
     /// <summary>プレビュー情報オーバーレイの種類（評価バッジ／詳細情報／オフ。I キーで巡回）。</summary>
     [ObservableProperty]
     public partial InfoOverlayKind OverlayKind { get; set; }
@@ -1002,6 +1046,7 @@ public partial class MainViewModel : ObservableObject
         if (IsLoading) return;
         IsLoading = true;
         AllPhotos.Clear();
+        _photosByPath = new(StringComparer.OrdinalIgnoreCase); // in-place Clear はワーカー読取と競合するため参照差し替え
         Photos.Clear();
         SelectedPhotos.Clear();    // 別フォルダの古い複数選択を残さない
         _selectionPivot = null;
@@ -1056,15 +1101,19 @@ public partial class MainViewModel : ObservableObject
             var records = _store.LoadAllRecords()
                 .ToDictionary(r => r.FileName, StringComparer.Ordinal);
 
+            var byPath = new Dictionary<string, PhotoItemViewModel>(StringComparer.OrdinalIgnoreCase);
             foreach (var meta in metas)
             {
                 records.TryGetValue(meta.FileName, out var record);
-                AllPhotos.Add(new PhotoItemViewModel(
+                var vm = new PhotoItemViewModel(
                     meta,
                     PhotoEvaluation.FromRecord(record, meta.ExifRating),
                     EvaluationTimestamps.FromRecord(record),
-                    _store));
+                    _store);
+                AllPhotos.Add(vm);
+                byPath[meta.Path] = vm;
             }
+            _photosByPath = byPath; // 作り終えてから公開（ワーカー側は旧辞書か新辞書のどちらかだけを見る）
 
             ApplyFilter();
             // 枚数はフィルタボタンの件数表示（FilteredCountText）と重複するため、ここでは開いているフォルダのパスのみ表示する。

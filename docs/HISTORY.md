@@ -3957,3 +3957,136 @@ csproj `<Version>` を 0.2.2 に更新（`Package.appxmanifest` は前回リリ�
   **タグ `v0.2.2` を付け直し**（force push）→再発行した zip で GitHub Release の添付を差し替え・
   リリースノートの既定値記述を修正、の手順でやり直した。公開数時間内の Pre-release のため
   タグ移動を許容（以後のタグは不変を原則とする）。
+
+## 鮮鋭度スコア（ピント・ブレの数値化）フェーズ 1〜2（2026-09-12）
+
+連写内で「等倍で見てシャキッとしている 1 枚」を縮小表示のまま見分けるための鮮鋭度スコア。
+検討資料（手法比較・組み込み方針）は Artifact「ピント・ブレ数値化の検討」にまとめ、推奨順序
+①Core 実装＋xUnit → ②実データ採点コンソール → ③目視突き合わせ → ④先読み便乗で UI 組み込み
+→ ⑤一括解析 のうち **①②まで完了**。③はユーザー目視待ち（Artifact「鮮鋭度スコア 目視突き合わせ」）。
+
+### 設計
+- **指標＝閾値付き Tenengrad**（Sobel 3×3 の Gx²+Gy² を、勾配の大きさが閾値以上の画素だけ合算し
+  評価画素数で割った平均。既定閾値 32＝Sobel 単位・ノイズ由来の微小勾配を捨てる）。
+  古典的手法の中で「閾値でノイズ耐性を持てる」「縦横を分けて集計できる」ことから第一候補にした。
+- **3 値＋異方性**: 全体／**AF 窓**（EXIF の AF 点中心の正方窓）／**最大タイル**（256px 格子で最鋭の
+  タイル）と、ΣGx²/ΣGy²（全体・AF 窓）。背景ボケに全体値が支配される写真でも被写体の鮮鋭さを拾い、
+  異方性が 1 から離れれば一方向ブレの疑いとする。
+- **絶対値はシーン間で 5 桁ばらつく**（実測: マクロの花や空＋小さな飛行機は 1〜50、街中の α1 は
+  数千〜数万）ため、**連写グループ内の最大を 100 とした相対値**で読む前提。
+- 計算は**等倍**（縮小では差が消える）。App では先読みキャッシュの WIC デコード済み BGRA バッファを
+  そのまま渡せる設計＝追加デコード不要。
+
+### 実装（Core）
+- `src/PhotoQuickSelector.Core/SharpnessAnalyzer.cs`: `RectI`／`SharpnessOptions`（TileSize・Threshold）／
+  `SharpnessScore`（Global・AfWindow・MaxTile・MaxTileX/Y・Anisotropy・AfWindowAnisotropy・TileSize・
+  Threshold・Version）／`SharpnessAnalyzer.Analyze(ReadOnlySpan<byte> bgra, w, h, stride, options, afWindow)`
+  と `AfWindowFor(ImageMetadata, displayW, displayH, min=256, max=1024, default=512)`。
+- 輝度 Y=(77R+150G+29B)>>8 の平面を 1 パスで作り（`ArrayPool`）、Sobel はタイル行単位の `Parallel.For`
+  （各バンドがタイル行を排他所有＝ロック不要・最後に合算）。合計は整数値の double 加算で 2^53 未満に
+  収まるため**結果は決定的**（xUnit で 2 回解析の一致を検証）。AF 窓は格子と無関係な位置なので
+  別パスで再計算（単純さ優先）。
+- `AfWindowFor` の Orientation 写像は App の `PreviewViewport.OrientationMatrix`／
+  `PreviewControl.Overlays.DrawFocusFrame` と同じ規則を Core 内で四則演算として再実装
+  （Core は System.Numerics に依存させない。両者を変えるときは対で見直す）。
+- xUnit 17 件追加（ぼかし単調減少・ノイズ閾値・異方性の向き・タイル位置特定・AF 窓のクリップ／NaN・
+  stride パディング・極小画像・Orientation 1/6/8 の写像・決定性）。`dotnet test` **246 件緑**。
+
+### 採点コンソール（`tools/sharpness/SharpnessBench`）
+- Core を参照し、`WicPixelDecoder.cs` をソースリンク（`PixelFrame` はローカルに同型を定義）して
+  App と同じ経路でデコード。1 ファイルずつ逐次処理し、`read/meta/decode/analyze/analyze0(閾値0)` の
+  所要 ms と 3 値・異方性・グループ内相対値を TSV へ出力（`tools/sharpness/results/`＝gitignore）。
+  連写グループ＝同一カメラ・撮影間隔 3 秒以内。詳細は `tools/sharpness/README.md`。
+- **実測（テストデータ 76 枚・KOBATOP2026・論理 24 スレッド）**: analyze 平均 26.5ms／中央値 23.3ms／
+  最大 62.7ms（α1 50MP で約 60ms・OM-1 20MP で約 23ms）。decode 平均 72.0ms。
+  **解析コストはデコードの 1/3 程度**＝先読み便乗（案 A）で十分に賄える。
+
+### 目視突き合わせ用ページ
+- 連写グループ 9 組・46 枚について、縮小版（AF 窓＝黄枠・最大タイル＝緑枠）＋AF 窓の等倍切り出し＋
+  最大タイルの等倍切り出し＋スコア表を並べた Artifact を作成（切り出しは PowerShell の System.Drawing で
+  生成・EXIF 回転適用後の座標）。
+- 先行して確認できたこと: P2280020（AF 窓 0.035）は等倍で完全にボケ、P2280028（152）は雄しべに芯があり、
+  数値と見た目の方向は一致。OM-1 のマクロ連写（P2280017〜61）は AF 位置固定でピント位置をずらした
+  シリーズに見え、「正解」は AF 窓ではなく狙った部位で決まる＝AF 窓と最大タイルのどちらで判断するかは
+  目視結果待ち。
+
+### 申し送り（フェーズ ④ 以降）
+- AF 窓の一辺（AF 枠長辺を 256〜1024 にクランプ・無指定 512）と閾値 32 は暫定。③の結果で調整する。
+- Sony の AF 枠は広い（0x2037 換算で 1900px 級）ため上限 1024 で頭打ちになる。
+- 保存先は評価 DB（スキーマ v3）へ列追加の予定。評価リセット（行削除）でスコアまで消してよいかで
+  同一テーブルか別テーブルかを決める。
+
+### 他手法の追加比較（同日）
+
+ユーザー要望で Tenengrad 以外も並べて見られるよう、検討資料の表から実装可能な 4 手法を Core
+`SharpnessMetrics`（`SharpnessMetric` enum＋`MetricScores`＝Global/AfWindow/MaxTile/座標/HigherIsSharper）
+として追加し、コンソールが同じ 3 領域を全手法で採点する（TSV 末尾に `lapv_*`／`bren_*`／`reblur_*`／
+`edgew_*` と `rel_*`・各 `_ms` 列を追加）。FFT 系と学習型は見送り。xUnit 27 件追加＝**273 件緑**。
+
+| 手法 | 定義 | 向き | 平均 ms（76 枚） |
+|---|---|---|---|
+| Tenengrad（閾値 32） | Sobel Gx²+Gy² の平均 | 大＝鮮鋭 | 26.0 |
+| ラプラシアン分散 | 4 近傍ラプラシアンの分散 | 大＝鮮鋭 | 23.6 |
+| Brenner | 2px 差分二乗の平均（縦横） | 大＝鮮鋭 | 23.0 |
+| 再ぼかし法（Crete 2007） | 1 − max(縦,横のぼけ度)。0〜1 | 大＝鮮鋭 | 67.6 |
+| エッジ幅（Marziliano 2002） | Sobel 極大エッジの立ち上がり幅 px の平均。最良タイルは ≥100 エッジのタイルのみ | 小＝鮮鋭 | 185.8 |
+
+- エッジ幅の歩行条件は文献どおりの `≤/≥` だと 8bit 量子化の平坦部で 64px 上限まで走ってしまうため
+  厳密不等号にした（`Walk` の remarks に記載）。エッジ幅は逐次実装で最も重い（50MP で最大 710ms）。
+- **グループ内最良の一致**（AF 窓基準）: 2 枚組の G9/G16/G39 と 9 枚組の G28/G29/G30 で Tenengrad・
+  ラプラシアン分散・Brenner の 3 手法は同じ写真を選び、再ぼかし法とエッジ幅は別の写真を選ぶ傾向
+  （G17 は再ぼかし法だけ別、G27 は 5 手法バラバラ）。最大タイル基準はより割れる。
+  どれが目視に合うかは③の結果で決める。比較ページ（Artifact「鮮鋭度スコア 目視突き合わせ」）を
+  5 手法の相対値・生値・ms の表付きに更新。
+
+## 鮮鋭度スコアの本体組み込み（フェーズ ④・2026-09-13）
+
+ユーザー仕様「`S` キーで なし→Tenengrad のみ→全手法 を巡回／右上ペインと詳細情報オーバーレイに表示／
+DB 保存なし・先読み時に計算・フォルダを開いている間はメモリ保持」を、検討で確定した推奨案で実装。
+初回は**生の値のみ**（連写グループ内相対値は未実装）。キーは当初案の `P` が紫ラベルと衝突するため `S`。
+
+### 設計（確定）
+- **モード** `SharpnessMode`（None/Tenengrad/All）＝`AppSettings.SharpnessMode` に永続化・`MainViewModel` に
+  ミラー（`CycleSharpnessMode`）。メニューはハンバーガー「プレビュー▶鮮鋭度▶」とメイン画像右クリックの両方に
+  ラジオ 3 択（慣例どおり両方）。`shortcuts.json` に `S` 追加。
+- **計算経路は 2 系統**（`Controls/PreviewControl.Sharpness.cs`）:
+  1. **先読み便乗**: `PreviewBitmapCache.FrameDecoded` フック（新設）。デコードの `Task.Run` 内・DecodeGate の
+     スロットを握ったまま・`_cache` へ登録する**前**に Tenengrad だけ計算（約 26ms）。登録前なので Trim による
+     プール返却と競合しない。フック例外はデコードを失敗させない。モードは volatile スナップショットで判定
+     （ワーカーから観測可能プロパティに触らない）。
+  2. **焦点写真の確定計算**: settle 後（`RenderExifForFocus` と同じ箇所）・モード変更・プレビュー入場で
+     `EnsureFocusedSharpness`。未計算なら Tenengrad、全手法モードなら比較 4 手法をこの順で
+     （ラプラシアン分散→Brenner→再ぼかし→エッジ幅）。**`PreviewBitmapCache.TryLease`（新設）で
+     フレームを貸出中にし Trim の破棄候補から外す**（予算超過は一時的に 1 枚分）＋**CancellationToken**
+     （焦点/モード変更・アンロード・新ジョブで取消。手法間で確認、Core 側も `ParallelOptions` で中断可）。
+     4 手法すべて完了したときだけ `SharpnessExtras` を確定（部分結果は捨てる）。
+- **保持先**は `PhotoItemViewModel.Sharpness`／`SharpnessExtras`（観測可能・UI スレッドでのみ代入）。
+  フォルダ切替で VM ごと破棄されるため専用クリア不要。パス→VM は `MainViewModel.TryGetPhotoByPath`
+  （辞書は**参照差し替え**で更新＝ワーカー読取と in-place 書換の競合を避ける。レビューで是正）。
+- **表示 3 箇所**: ①ルーペ上＝XAML の半透明 Border（`SharpnessLoupeOverlay`。Win2D で文字を描かず、
+  `SharpnessInfoSection.Rows` を ItemsControl で表示）②画像情報パネル＝「鮮鋭度」グループを評価の直下に
+  挿入（`Controls/SharpnessInfoSection`＝`EvaluationInfoSection` と同じ固定行・差分更新。モード変更時のみ
+  全体再構築）③詳細情報オーバーレイ＝`PhotoItemViewModel.SharpnessText`/`SharpnessExtrasText` の 2 行。
+  未計算は「計算中…」。
+- Core: `Analyze`/`Compute` に `CancellationToken` 省略可引数を追加（xUnit 5 件追加＝**278 件緑**）。
+  `SharpnessMetrics` の「App 非組み込み」注記を撤回。
+
+### 申し送り
+- **実機目視は未了**（ビルド成功・テスト緑のみ）。確認点: `S` 巡回とメニューのチェック同期／ルーペ・情報
+  パネル・詳細オーバーレイの 3 表示／全手法モードでの写真送りの引っかかり（エッジ幅は 50MP で最大 710ms、
+  焦点写真のみ・中断付き）／モード None→Tenengrad 切替直後の「計算中…」→値の遷移。
+- 相対値（連写グループ内）・グリッドのバッジ・DB 保存（スキーマ v3）は未着手。手法確定後に「全手法」を
+  整理する前提。
+
+### 実機確認①: 写真切替でルーペオーバーレイが更新されない（2026-09-13・修正済み）
+
+- 症状: `←/→` で写真を切り替えてもルーペ上の鮮鋭度が前の写真のまま。Tenengrad のみ＝ずっと変わらない／
+  全手法＝4 手法の計算完了までは変わらない・計算済みなら変わらない。
+- 原因: `SharpnessSection.Update` の呼び出しが「焦点写真の値変更イベント」「ルーペ⇄情報パネル切替・モード変更・
+  入場」「画像情報パネル再構築」の 3 経路にしかなく、**焦点写真の切替そのもの**では呼んでいなかった。
+  先読み便乗で計算済みの写真は切替後に値変更イベントが起きないため更新契機が無い（全手法の完了イベントだけが
+  たまたま更新していた）。画像情報パネルは settle 後の `RenderExifForFocus` が全体再構築するため無事。
+  メインペインの詳細情報オーバーレイは `DataContext` が焦点写真へ OneWay 追従＋写真ごとの
+  `SharpnessText` 通知なので問題なし（確認のみ）。
+- 対処: `RefreshSharpnessRowsForFocus`（新設）を FocusedPhoto 変更時に呼び、新しい写真の値
+  （未計算なら「計算中…」）で行を即時書き直す。

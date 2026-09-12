@@ -30,6 +30,7 @@
 | `E` | Toggle the right panel between the loupe and the image info |
 | `G` | Cycle the composition grid type (none → center cross → rule of thirds → squares) |
 | `Shift+G` | Toggle the composition grid reference (image ⇄ canvas) |
+| `S` | Cycle sharpness display (off → Tenengrad → all methods) |
 | `C` | Toggle the prefetch cache overlay (debug) |
 | `M` | Toggle the memory usage overlay (debug) |
 | `Ctrl+M` | Force a full GC and show memory usage before/after (debug; only while the overlay is shown) |

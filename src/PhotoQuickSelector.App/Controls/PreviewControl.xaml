@@ -9,6 +9,7 @@
     xmlns:ctl="using:PhotoQuickSelector_App.Controls"
     xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    Unloaded="PreviewControl_Unloaded"
     mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -90,6 +91,17 @@
                     <TextBlock Text="{Binding CameraLensText}"
                                Foreground="#9AFFFFFF" FontSize="11"
                                TextTrimming="CharacterEllipsis" />
+
+                    <!-- 鮮鋭度スコア（S キーで巡回。モード None なら両行とも Collapsed）。
+                         Tenengrad 行は Tenengrad/全手法いずれでも表示、比較4手法行は全手法のみ。 -->
+                    <TextBlock Text="{Binding SharpnessText}"
+                               Foreground="#9AFFFFFF" FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               Visibility="{x:Bind ViewModel.SharpnessVisibility, Mode=OneWay}" />
+                    <TextBlock Text="{Binding SharpnessExtrasText}"
+                               Foreground="#9AFFFFFF" FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               Visibility="{x:Bind ViewModel.SharpnessExtrasVisibility, Mode=OneWay}" />
 
                     <!-- 4行目: 評価（旗/★/カラー） ＋ 撮影日時。並びは全表示箇所で 旗→★→カラー に統一 -->
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -195,6 +207,29 @@
                     PointerMoved="ZoomCanvas_PointerMoved"
                     PointerReleased="ZoomCanvas_PointerReleased"
                     PointerWheelChanged="ZoomCanvas_PointerWheelChanged" />
+
+                <!-- 鮮鋭度スコアのルーペオーバーレイ（S キーで巡回・ルーペ表示中のみ。ExifPanel 表示中は隠す。
+                     内容は PreviewControl.Sharpness.cs の SharpnessSection.Rows と共通。初期非表示。 -->
+                <Border x:Name="SharpnessLoupeOverlay" Grid.Row="1"
+                        VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                        Margin="8" Padding="8,6" CornerRadius="6"
+                        Background="#A6000000" IsHitTestVisible="False"
+                        Visibility="Collapsed">
+                    <ItemsControl ItemsSource="{x:Bind SharpnessSection.Rows, Mode=OneWay}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="ctl:EvaluationInfoRow">
+                                <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6">
+                                    <TextBlock Grid.Column="0" Text="{x:Bind Name}"
+                                               Foreground="#BFFFFFFF" FontSize="10" FontFamily="Consolas" />
+                                    <TextBlock Grid.Column="1" Text="{x:Bind Value, Mode=OneWay}"
+                                               Foreground="#E8FFFFFF" FontSize="10" FontFamily="Consolas" />
+                                    <TextBlock Grid.Column="2" Text="{x:Bind UpdatedAtText, Mode=OneWay}"
+                                               Foreground="#9AFFFFFF" FontSize="10" FontFamily="Consolas" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Border>
 
                 <!-- 画像情報（ルーペと同一セルで排他表示。内容の供給は PreviewControl.ExifPanel.cs） -->
                 <ctl:ExifDetailPanel x:Name="ExifPanel" Grid.Row="1" Visibility="Collapsed" />

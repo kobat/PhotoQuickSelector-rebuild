@@ -129,6 +129,16 @@ public sealed partial class PreviewControl
             () => vm.GridReference = GridOverlayReference.Canvas));
         flyout.Items.Add(gridSub);
 
+        // --- 鮮鋭度スコア（None/Tenengrad/全手法） ---
+        var sharpnessSub = new MenuFlyoutSubItem { Text = Loc.Get("PvCtx_SharpnessSub") };
+        sharpnessSub.Items.Add(RadioItem(Loc.Get("PvCtx_SharpnessNone"), "PvSharpness",
+            vm.SharpnessMode == SharpnessMode.None, "S", () => vm.SharpnessMode = SharpnessMode.None));
+        sharpnessSub.Items.Add(RadioItem(Loc.Get("PvCtx_SharpnessTenengrad"), "PvSharpness",
+            vm.SharpnessMode == SharpnessMode.Tenengrad, "S", () => vm.SharpnessMode = SharpnessMode.Tenengrad));
+        sharpnessSub.Items.Add(RadioItem(Loc.Get("PvCtx_SharpnessAll"), "PvSharpness",
+            vm.SharpnessMode == SharpnessMode.All, "S", () => vm.SharpnessMode = SharpnessMode.All));
+        flyout.Items.Add(sharpnessSub);
+
         // --- 評価／ファイル連携（焦点の1枚のみが対象。選択集合は不問） ---
         if (vm.FocusedPhoto is { } photo)
         {

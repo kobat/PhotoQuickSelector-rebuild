@@ -158,6 +158,13 @@ public sealed partial class PreviewControl
             return true;
         }
 
+        // S : 鮮鋭度スコア表示モードを巡回（None→Tenengrad→全手法→None）。メニューと共用。
+        if (KeyboardModifiers.None && key == VirtualKey.S)
+        {
+            _viewModel.CycleSharpnessMode();
+            return true;
+        }
+
         // Shift+I : オーバーレイの表示タイミングを切替（常時 ⇄ 切替時のみ）。None 分岐より前に判定する
         // （Shift+G と同じ並び方＝修飾子ありを先に見る）。
         if (KeyboardModifiers.Shift && key == VirtualKey.I)

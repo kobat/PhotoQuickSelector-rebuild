@@ -13,7 +13,7 @@
 - 構成:
   - `src/PhotoQuickSelector.Core/` … UI 非依存（メタデータ抽出・評価モデル・SQLite 永続化）
   - `src/PhotoQuickSelector.App/` … WinUI アプリ（左右分割UI・サムネイル・キー操作）
-  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（150 件）
+  - `tests/PhotoQuickSelector.Core.Tests/` … xUnit（278 件）
 
 ## ビルド / 起動（重要）
 - **packaged（MSIX 開発）構成**で開発している。**exe を直接ダブルクリックしない**（無音終了する）。
@@ -54,7 +54,7 @@
 **Phase 1〜4 すべて完了**。旧アプリの機能同等＋既知バグ改善を達成し、**v0.2.2** として公開向け発行済み
 （v0.1.0＝2026-07-02 初回公開／v0.2.0＝2026-07-12／v0.2.1＝2026-07-30。以降のメモリ削減の一連の対応
 〔バッファプール・WIC 直接デコード・掃除係・ハードリミット〕等をまとめて v0.2.2＝2026-08-22）。
-`dotnet test` **229 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`/`PixelBufferPool`/`MemoryJanitor`/
+`dotnet test` **278 件緑**（Core＋リンク参照の `PreviewViewport`/`DecodeGate`/`PixelBufferPool`/`MemoryJanitor`/
 `MemoryLog`/`HeapHardLimitPolicy`）。
 
 - **Core**: メタデータ抽出（EXIF／AF点／GPS／LensMake。全タグダンプは File グループを先頭へ並べ替え）・
@@ -152,6 +152,17 @@ HISTORY.md「実機確認⑤と『ネイティブ』積み上がりの正体」�
 （バッファ再利用プール〔2026-07-31〕はユーザーが実機確認済み。ただし単体ではまだ WS が多めだったため、
 GC 設定 `System.GC.ConserveMemory`=7 を併用〔2026-08-01〕。さらに計測の結果 WS 肥大の主因は LOH ではなく
 ネイティブと判明〔同日〕。）
+
+**進行中（2026-09-12〜13）**: **鮮鋭度スコア（ピント・ブレの数値化）**。Core `SharpnessAnalyzer`（閾値付き Tenengrad・
+全体/AF 窓/最大タイル＋異方性・タイル行並列・決定的・中断可）と採点コンソール `tools/sharpness/SharpnessBench`
+（WIC 直デコード＋各ステップ ms を TSV 出力。比較用に `SharpnessMetrics`＝ラプラシアン分散/Brenner/再ぼかし法/エッジ幅も
+同時採点）＝フェーズ①②。**フェーズ④＝本体組み込み（2026-09-13）まで完了**: `S` キー／両メニューで
+なし→Tenengrad のみ→全手法 を巡回し、ルーペ上オーバーレイ・画像情報パネル「鮮鋭度」グループ・詳細情報オーバーレイに表示。
+Tenengrad はデコード直後にフック計算（`PreviewBitmapCache.FrameDecoded`＝登録前なので Trim と競合しない）、
+全手法は焦点写真のみ settle 後にリース（`TryLease`）＋CancellationToken 付きで計算。保持は `PhotoItemViewModel`
+（DB 保存なし・フォルダ切替で自然に破棄）。実測: 解析 平均 26.5ms（50MP で約 60ms）＝デコードの 1/3。
+**実機目視は未了**（ビルド成功・テスト緑のみ）。フェーズ③（目視突き合わせ）は本体表示で行う。
+連写グループ内相対値・グリッドのバッジ・DB v3 は未着手。詳細と申し送りは HISTORY.md「鮮鋭度スコア」各節。
 
 **次の候補（未着手）**:
 - **使っていない間のキャッシュ解放**（`PreviewBitmapCache.Clear()` は実装済みだが**呼び出し元が無い**。
@@ -255,6 +266,8 @@ GC 設定 `System.GC.ConserveMemory`=7 を併用〔2026-08-01〕。さらに計�
   UI `Controls/ExifDetailPanel`（＝画像情報パネル。クラス名は旧称のまま）・グループ化 ListView 仮想化・
   行テンプレートは `InfoRowTemplateSelector` で型別。XMP は `XmpDirectory.GetXmpProperties()` で
   `xmp:Rating` 等のプロパティへ展開＝HISTORY「EXIF 詳細パネルの XMP タグ展開」「画像情報パネル」節）
+- プレビュー中: `S` 鮮鋭度スコア表示を巡回（なし→Tenengrad のみ→全手法。`AppSettings.SharpnessMode`。ルーペ上・画像情報パネル・
+  詳細情報オーバーレイに表示。詳細は HISTORY.md「鮮鋭度スコアの本体組み込み」節）
 - プレビュー中: `G` 構図グリッド種類を巡回（None→中央十字→三分割→正方形→None）/ `Shift+G` グリッド基準を切替
   （画像⇄Canvas）。正方形は短辺を N 等分した正方セルを画像中央から対称配置（N＝`AppSettings.GridSquareDivisions`・既定8。
   偶数Nは中央に線・奇数Nは中央線なし）。種類/基準は `AppSettings` に永続化（次回起動で復元）

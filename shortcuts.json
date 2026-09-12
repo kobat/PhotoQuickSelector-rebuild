@@ -49,6 +49,8 @@
           "description": { "ja": "構図グリッドの種類を巡回（なし→中央十字→三分割→正方形）", "en": "Cycle the composition grid type (none → center cross → rule of thirds → squares)" } },
         { "keys": "Shift+G",
           "description": { "ja": "構図グリッドの基準を切替（画像⇄Canvas）", "en": "Toggle the composition grid reference (image ⇄ canvas)" } },
+        { "keys": "S",
+          "description": { "ja": "鮮鋭度の表示を切替（なし→Tenengrad→全手法）", "en": "Cycle sharpness display (off → Tenengrad → all methods)" } },
         { "keys": "C",
           "description": { "ja": "先読みキャッシュ一覧の切替（デバッグ）", "en": "Toggle the prefetch cache overlay (debug)" } },
         { "keys": "M",
