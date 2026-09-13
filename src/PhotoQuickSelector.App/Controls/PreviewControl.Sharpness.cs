@@ -35,6 +35,9 @@ public sealed partial class PreviewControl
     /// <summary>Tenengrad 計算に使う既定オプション（タイル 256px・閾値 32。CLAUDE.md の SharpnessAnalyzer 既定と同じ）。</summary>
     private static readonly SharpnessOptions DefaultSharpnessOptions = new();
 
+    /// <summary>被写体領域（<see cref="SubjectRegionAnalyzer"/>）計算に使う既定オプション。</summary>
+    private static readonly SubjectRegionOptions DefaultSubjectRegionOptions = new();
+
     /// <summary>
     /// 現在の鮮鋭度表示モード。<see cref="OnFrameDecoded"/> はワーカースレッドから呼ばれるため、
     /// <see cref="MainViewModel.SharpnessMode"/>（UI スレッド専用の観測可能プロパティ）へ直接触れず、
@@ -71,8 +74,13 @@ public sealed partial class PreviewControl
     /// デコード完了フック（<see cref="PreviewBitmapCache.FrameDecoded"/>）。**ワーカースレッド**から呼ばれる
     /// （デコードを実行している Task.Run の中＝DecodeGate のスロットを握ったまま）ため、軽量な Tenengrad
     /// 計算のみをここで行い、UI への反映は <c>DispatcherQueue.TryEnqueue</c> に委ねる。
-    /// 先読み分も含め、フォルダ内のデコード済み写真を広く埋める役目（比較 4 手法はここでは計算しない＝
-    /// 焦点写真だけの <see cref="EnsureFocusedSharpness"/> が担当）。
+    /// 先読み分も含め、フォルダ内のデコード済み写真を広く埋める役目（比較 4 手法・被写体領域はここでは
+    /// 計算しない＝焦点写真だけの <see cref="EnsureFocusedSharpness"/> が担当）。
+    /// <para>
+    /// 被写体領域（<see cref="SubjectRegionAnalyzer"/>）は意図的にここでは計算しない。実測で 1 枚あたり
+    /// 約 55ms かかり、DecodeGate のスロットを握ったまま先読み全枚数ぶん追加コストが乗ってしまうため
+    /// （Tenengrad の約 26ms より重い）。焦点写真だけを対象にする settle 後の確定計算経路で足りる。
+    /// </para>
     /// </summary>
     private void OnFrameDecoded(string path, PixelFrame frame)
     {
@@ -107,7 +115,8 @@ public sealed partial class PreviewControl
     /// <summary>
     /// 焦点写真の鮮鋭度を確定計算する。呼び出し元は (a) 停止後の settle タイマ（<see cref="RenderExifForFocus"/>
     /// と同じ箇所）(b) モード変更 (c) プレビュー入場。モード None・写真なしなら計算せず取り消すだけ。
-    /// 未計算な分だけ計算する（Tenengrad が既にあれば飛ばす／全手法モードで比較 4 手法が既にあれば飛ばす）。
+    /// 未計算な分だけ計算する（Tenengrad が既にあれば飛ばす／全手法モードで比較 4 手法が既にあれば飛ばす／
+    /// 被写体領域が既にあれば飛ばす＝モード問わず一度だけ計算する）。
     /// 焦点写真の frame がまだキャッシュに無ければ何もしない（settle 経路がロード完了後に再度呼ぶため
     /// 取りこぼさない）。
     /// </summary>
@@ -124,21 +133,23 @@ public sealed partial class PreviewControl
 
         bool needTenengrad = photo.Sharpness == null;
         bool needExtras = mode == SharpnessMode.All && photo.SharpnessExtras == null;
-        if (!needTenengrad && !needExtras) return;
+        bool needSubject = photo.SubjectRegion == null; // None 以外のどのモードでも被写体領域は表示するため
+        if (!needTenengrad && !needExtras && !needSubject) return;
 
         if (!_cache.TryLease(photo.Meta.Path, out var lease)) return; // 未デコード。settle 再訪で拾う。
 
         var cts = new CancellationTokenSource();
         _sharpnessCts = cts;
-        _ = ComputeFocusedSharpnessAsync(photo, lease, needTenengrad, needExtras, cts.Token);
+        _ = ComputeFocusedSharpnessAsync(photo, lease, needTenengrad, needSubject, needExtras, cts.Token);
     }
 
     /// <summary>
     /// <see cref="EnsureFocusedSharpness"/> の本体（ワーカースレッドで計算・UI スレッドへ反映）。
     /// リース（<paramref name="lease"/>）は完了/キャンセル/例外いずれの経路でも必ず破棄する。
+    /// 計算順は Tenengrad → 被写体領域 → 比較4手法（全手法モードのみ）。
     /// </summary>
     private async Task ComputeFocusedSharpnessAsync(
-        PhotoItemViewModel photo, FrameLease lease, bool computeTenengrad, bool computeExtras,
+        PhotoItemViewModel photo, FrameLease lease, bool computeTenengrad, bool computeSubject, bool computeExtras,
         CancellationToken token)
     {
         try
@@ -156,6 +167,17 @@ public sealed partial class PreviewControl
                     token);
                 token.ThrowIfCancellationRequested();
                 DispatcherQueue.TryEnqueue(() => photo.Sharpness = score);
+            }
+
+            if (computeSubject)
+            {
+                var subjectScore = await Task.Run(
+                    () => SubjectRegionAnalyzer.Analyze(
+                        frame.Bytes, frame.Width, frame.Height, frame.Width * 4,
+                        DefaultSubjectRegionOptions, afWindow, token),
+                    token);
+                token.ThrowIfCancellationRequested();
+                DispatcherQueue.TryEnqueue(() => photo.SubjectRegion = subjectScore);
             }
 
             if (computeExtras)
@@ -233,16 +255,19 @@ public sealed partial class PreviewControl
     }
 
     /// <summary>
-    /// 焦点写真の <see cref="PhotoItemViewModel.Sharpness"/>/<see cref="PhotoItemViewModel.SharpnessExtras"/>
-    /// が変わったら、画像情報パネル／ルーペオーバーレイの行を差分更新する（ListView 再構築なし＝
-    /// <see cref="EvaluationInfoSection"/> と同じ流儀）。<see cref="PhotoItemViewModel.Sharpness"/> の
-    /// 変化は最大タイル枠の位置も動かすため、ルーペ／ナビの再描画と、自動センタリング待ちなら
-    /// ルーペの寄せ直し（<see cref="_loupeAutoPositionPending"/>）もあわせて行う。
+    /// 焦点写真の <see cref="PhotoItemViewModel.Sharpness"/>/<see cref="PhotoItemViewModel.SharpnessExtras"/>/
+    /// <see cref="PhotoItemViewModel.SubjectRegion"/> が変わったら、画像情報パネル／ルーペオーバーレイの
+    /// 行を差分更新する（ListView 再構築なし＝<see cref="EvaluationInfoSection"/> と同じ流儀）。
+    /// <see cref="PhotoItemViewModel.Sharpness"/>/<see cref="PhotoItemViewModel.SubjectRegion"/> の変化は
+    /// それぞれ最大タイル枠／被写体領域枠の位置を動かすため、ルーペ／ナビの再描画を行う。ルーペの
+    /// 自動センタリング寄せ直し（<see cref="_loupeAutoPositionPending"/>）は最大タイル基準のままなので
+    /// <see cref="PhotoItemViewModel.Sharpness"/> のときだけ行う（被写体領域では触らない）。
     /// </summary>
     private void OnSharpnessWatchedPhotoPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(PhotoItemViewModel.Sharpness) &&
-            e.PropertyName != nameof(PhotoItemViewModel.SharpnessExtras))
+            e.PropertyName != nameof(PhotoItemViewModel.SharpnessExtras) &&
+            e.PropertyName != nameof(PhotoItemViewModel.SubjectRegion))
             return;
         if (_viewModel?.SharpnessMode is not { } mode || mode == SharpnessMode.None) return;
         if (sender is not PhotoItemViewModel photo || !ReferenceEquals(photo, _viewModel.FocusedPhoto)) return;
@@ -254,6 +279,11 @@ public sealed partial class PreviewControl
             ZoomCanvas.Invalidate();
             NavCanvas.Invalidate();
             if (_loupeAutoPositionPending) ScrollZoomToSharpestOrFocus();
+        }
+        else if (e.PropertyName == nameof(PhotoItemViewModel.SubjectRegion))
+        {
+            ZoomCanvas.Invalidate();
+            NavCanvas.Invalidate();
         }
     }
 

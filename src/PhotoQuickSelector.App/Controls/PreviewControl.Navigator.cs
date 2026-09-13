@@ -80,6 +80,9 @@ public sealed partial class PreviewControl
 
         // オレンジ枠: 鮮鋭度最大タイル（鮮鋭度表示 None または未計算なら無描画）
         DrawSharpestTileFrame(ds, (x, y) => (ox + x * scale, oy + y * scale), 2f);
+
+        // シアン枠: 被写体領域の外接矩形（鮮鋭度表示 None または被写体タイル無しなら無描画）
+        DrawSubjectRegionFrame(ds, (x, y) => (ox + x * scale, oy + y * scale), 1.5f);
     }
 
     /// <summary>

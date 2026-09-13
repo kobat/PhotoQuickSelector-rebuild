@@ -62,6 +62,7 @@ public sealed partial class PreviewControl
         DrawScaledBitmap(ds, _zoomViewport); // 100% ルーペは実質常に NearestNeighbor（縮小時のみ Linear）
         DrawFocusFrame(ds, _zoomViewport.ImageToCanvas, 2f); // AF 枠はメインでなくここに表示
         DrawSharpestTileFrame(ds, _zoomViewport.ImageToCanvas, 2f); // 鮮鋭度最大タイル枠（オレンジ）
+        DrawSubjectRegionFrame(ds, _zoomViewport.ImageToCanvas, 1.5f); // 被写体領域の外接矩形（シアン）
     }
 
     private void ZoomCanvas_SizeChanged(object sender, SizeChangedEventArgs e)

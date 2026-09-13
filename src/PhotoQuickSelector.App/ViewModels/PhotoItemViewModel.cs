@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.InteropServices.WindowsRuntime;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -6,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using PhotoQuickSelector.Core;
+using PhotoQuickSelector_App.Controls;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
 using Windows.Storage.Streams;
@@ -467,6 +469,13 @@ public partial class PhotoItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(SharpnessExtrasText))]
     public partial SharpnessExtraScores? SharpnessExtras { get; set; }
 
+    /// <summary>被写体領域（<see cref="SubjectRegionAnalyzer"/>）の解析結果。未計算/計算中は null。
+    /// UI スレッドでのみ設定すること。<see cref="SharpnessMode"/> が None 以外ならモードを問わず一度だけ
+    /// 計算する（最大タイルの補完情報として常に表示するため）。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SubjectRegionText))]
+    public partial SubjectRegionScore? SubjectRegion { get; set; }
+
     /// <summary>
     /// Tenengrad の表示文字列（詳細情報オーバーレイ・ルーペオーバーレイ・画像情報パネル共通の書式）。
     /// 例: "鮮鋭度 最大タイル 65,647 ／ AF 窓 7,700 ／ 全体 9,945 ／ 異方性 0.80"。
@@ -515,6 +524,43 @@ public partial class PhotoItemViewModel : ObservableObject
                 $"{Loc.Get("Sharp_Reblur")} {FormatMetric(e.Reblur, "F3")}",
                 $"{Loc.Get("Sharp_EdgeWidth")} {FormatMetric(e.EdgeWidth, "F2")}px",
             });
+        }
+    }
+
+    /// <summary>
+    /// 被写体領域（<see cref="SubjectRegionAnalyzer"/>）の表示文字列（詳細情報オーバーレイ用）。
+    /// 例: "被写体領域 ブレ幅 9.0px ／ 方向比 2.00 ／ 33 タイル ／ AF 窓 エッジなし"。
+    /// 未計算は「計算中…」。被写体タイルが1つも見つからなければブレ幅/方向比/タイル数の代わりに
+    /// 「被写体なし」を表示する。AF 窓のエッジ画素数が閾値未満（空振り＝背景に外れた等）なら、
+    /// 被写体タイルの有無によらず「AF 窓 エッジなし」を追記する（<see cref="SharpnessInfoSection.AfNoEdgeThreshold"/>
+    /// を共有）。
+    /// </summary>
+    public string SubjectRegionText
+    {
+        get
+        {
+            if (SubjectRegion is not { } s)
+                return $"{Loc.Get("Sharp_SubjectRegion")} {Loc.Get("Sharp_Computing")}";
+
+            var parts = new List<string>();
+            if (s.TileCount == 0)
+            {
+                parts.Add(Loc.Get("Sharp_NoSubject"));
+            }
+            else
+            {
+                string blur = double.IsNaN(s.WorstWidth)
+                    ? "—" : s.WorstWidth.ToString("F1", CultureInfo.InvariantCulture) + "px";
+                string ratio = double.IsNaN(s.WidthRatio)
+                    ? "—" : s.WidthRatio.ToString("F2", CultureInfo.InvariantCulture);
+                parts.Add($"{Loc.Get("Sharp_SubjectBlur")} {blur}");
+                parts.Add($"{Loc.Get("Sharp_SubjectRatio")} {ratio}");
+                parts.Add(string.Format(CultureInfo.InvariantCulture, Loc.Get("Sharp_SubjectTilesFormat"), s.TileCount));
+            }
+            if (s.AfWindowPixelCount > 0 && s.AfWindowEdgeCount < SharpnessInfoSection.AfNoEdgeThreshold)
+                parts.Add($"{Loc.Get("Sharp_AfWindow")} {Loc.Get("Sharp_AfNoEdges")}");
+
+            return $"{Loc.Get("Sharp_SubjectRegion")} {string.Join(" ／ ", parts)}";
         }
     }
 

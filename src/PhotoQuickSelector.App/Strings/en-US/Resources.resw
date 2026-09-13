@@ -189,7 +189,7 @@
     <value>Off</value>
   </data>
   <data name="Menu_SharpnessTenengrad.Text" xml:space="preserve">
-    <value>Tenengrad only</value>
+    <value>Basic (Tenengrad + subject region)</value>
   </data>
   <data name="Menu_SharpnessAll.Text" xml:space="preserve">
     <value>All methods</value>
@@ -476,7 +476,7 @@
     <value>Info</value>
   </data>
   <data name="Preview_SharpnessLoupeTitle.Text" xml:space="preserve">
-    <value>Sharpness (Tenengrad)</value>
+    <value>Sharpness</value>
   </data>
   <data name="Preview_SharpnessExtrasTitle.Text" xml:space="preserve">
     <value>Other methods (best tile / AF window)</value>
@@ -571,6 +571,27 @@
   </data>
   <data name="Sharp_Computing" xml:space="preserve">
     <value>Computing…</value>
+  </data>
+  <data name="Sharp_SubjectRegion" xml:space="preserve">
+    <value>Subject region</value>
+  </data>
+  <data name="Sharp_SubjectBlur" xml:space="preserve">
+    <value>Blur width</value>
+  </data>
+  <data name="Sharp_SubjectRatio" xml:space="preserve">
+    <value>Direction ratio</value>
+  </data>
+  <data name="Sharp_SubjectTilesFormat" xml:space="preserve">
+    <value>{0} tiles</value>
+  </data>
+  <data name="Sharp_SubjectDirFormat" xml:space="preserve">
+    <value>worst dir {0}° · ratio {1}</value>
+  </data>
+  <data name="Sharp_NoSubject" xml:space="preserve">
+    <value>No subject</value>
+  </data>
+  <data name="Sharp_AfNoEdges" xml:space="preserve">
+    <value>no edges</value>
   </data>
 
   <!-- Status bar messages (MainViewModel / MainPage) -->
@@ -903,7 +924,7 @@ Log: {1}</value>
     <value>Off</value>
   </data>
   <data name="PvCtx_SharpnessTenengrad" xml:space="preserve">
-    <value>Tenengrad only</value>
+    <value>Basic (Tenengrad + subject region)</value>
   </data>
   <data name="PvCtx_SharpnessAll" xml:space="preserve">
     <value>All methods</value>

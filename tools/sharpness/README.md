@@ -1,8 +1,15 @@
 # SharpnessBench
 
 `SharpnessAnalyzer`（`src/PhotoQuickSelector.Core/SharpnessAnalyzer.cs`＝Tenengrad）と、比較用に追加した
-4手法（`src/PhotoQuickSelector.Core/SharpnessMetrics.cs`）を実写真フォルダにかけて、鮮鋭度スコアと
-各処理ステップの所要時間を TSV に記録する開発用の計測ツール。App 本体には組み込まない。
+4手法（`src/PhotoQuickSelector.Core/SharpnessMetrics.cs`）、および被写体領域解析
+`SubjectRegionAnalyzer`（`src/PhotoQuickSelector.Core/SubjectRegionAnalyzer.cs`）を実写真フォルダにかけて、
+鮮鋭度スコアと各処理ステップの所要時間を TSV に記録する開発用の計測ツール。App 本体には組み込まない。
+
+`SubjectRegionAnalyzer` は、Tenengrad の「最大タイル」が一方向ブレの被写体では
+「ブレ方向に平行な、たまたま残った鋭いエッジ」を拾ってしまう問題に対応するもの。エッジ密度の高い
+タイル群（＝被写体領域）を特定し、その中で勾配方向ビンごとにエッジ幅（px）の中央値を測る。
+最もエッジ幅が広い方向（=最もボケている方向）と最も狭い方向の比（`subj_w_ratio`）が大きいほど、
+方向依存性の強いボケ（＝被写体ブレ）を示唆する。
 
 比較用4手法（`SharpnessMetric` enum）：
 
@@ -63,5 +70,17 @@ dotnet run --project tools\sharpness\SharpnessBench -c Release -- <folder> [--ou
 | `<p>_maxtile_x`/`<p>_maxtile_y` | 各手法の最良タイル位置（`edgew` は「エッジ幅が最小＝最鋭」なタイル。100 エッジ未満のタイルは対象外） |
 | `rel_<p>_af`/`rel_<p>_maxtile` | 同一グループ内の相対値（%）。`lapv`/`bren`/`reblur` は「値/グループ最大×100」（Tenengrad の `rel_af`/`rel_maxtile` と同じ向き）、`edgew` のみ値が小さいほど鮮鋭なので「グループ最小/値×100」（どちらも 100=グループ内最鋭。値がNaN、またはグループの最大/最小が0かNaNなら空） |
 | `<p>_ms` | 各手法の `SharpnessMetrics.Compute` 所要時間（ms） |
+| `subj_tiles` | 被写体タイル数（`SubjectRegionScore.TileCount`）。0 なら以降の `subj_*` 実数値列は空欄（タイル判定は相対基準 `DensityRatio` に加え絶対下限 `MinTileEdgeFraction`＝タイル面積比・既定0.5% があり、画像全体がほぼ平坦なら0になる） |
+| `subj_x`/`subj_y`/`subj_w`/`subj_h` | 被写体タイル群の外接矩形（`Bounds`。px・タイル格子基準） |
+| `subj_ten`/`subj_edge_density`/`subj_per_edge` | 被写体タイル内の Tenengrad 平均・エッジ密度・エッジ画素のみの平均 mag²（`Tenengrad`/`EdgeDensity`/`PerEdgeMag2`） |
+| `subj_aniso`/`subj_dir_deg` | 構造テンソルの異方性比・支配的勾配方向（度。`AnisotropyRatio`/`DominantGradientDegrees`） |
+| `subj_w_worst`/`subj_w_best` | 方向ビン別エッジ幅中央値のうち最大/最小（`MinEdgesPerBin` 以上のサンプルを持つビンのみが対象。`WorstWidth`/`BestWidth`） |
+| `subj_w_worst_deg` | 最大幅ビンの中心角度（度。`SubjectRegionScore.BinCenterDegrees`） |
+| `subj_w_ratio` | `subj_w_worst`/`subj_w_best`（大きいほど方向依存性の強いボケ＝被写体ブレを示唆） |
+| `subj_w_rel_extent` | `subj_w_worst` ÷ max(`subj_w`,`subj_h`) × 1000（被写体外接矩形の長辺に対する千分率。矩形サイズに対する相対的なボケ幅） |
+| `subj_bins` | 方向ビン（既定8＝22.5°刻み）ごとのエッジ幅中央値を `/` 区切りで並べたもの（`BinMedianWidths`。NaN は `-`） |
+| `af_edges`/`af_edge_density` | AF 窓内（クリップ後）のエッジ画素数・エッジ密度（`AfWindowEdgeCount`/`AfWindowEdgeCount÷AfWindowPixelCount`） |
+| `rel_subj_w`/`rel_subj_extent` | 同一グループ内の相対値（%）。`edgew` と同じ向き＝グループ最小/値×100（`subj_w_worst`/`subj_w_rel_extent` それぞれに適用。値が小さいほど鮮鋭なため） |
+| `subj_ms` | `SubjectRegionAnalyzer.Analyze` の所要時間（ms） |
 
 数値は小数点表記（不変カルチャ）。スコア系は 3 桁、時間系は 1 桁。値が無い（NaN・null）場合は空欄。

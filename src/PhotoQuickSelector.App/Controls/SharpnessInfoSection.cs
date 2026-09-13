@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using PhotoQuickSelector.Core;
@@ -13,14 +14,21 @@ namespace PhotoQuickSelector_App.Controls;
 /// <para>
 /// 行は 3 系統のコレクションで公開する。<see cref="Rows"/> は画像情報パネル向けの結合コレクション
 /// （<c>PreviewControl.ExifPanel.cs</c> がこれを 1 グループとして使う）。
-/// <see cref="TenengradRows"/>（最大タイル→AF窓→全体→異方性の順・4行固定）と
+/// <see cref="TenengradRows"/>（最大タイル→ブレ幅→被写体領域→AF窓→全体→異方性の順・6行固定）と
 /// <see cref="ExtraRows"/>（比較4手法・<see cref="SharpnessMode.All"/> のみ4行、それ以外は空）は
 /// ルーペオーバーレイ（<c>PreviewControl.xaml</c> の <c>SharpnessLoupeOverlay</c>）が見出しを分けて
 /// 表示するために分離した参照。3 つとも同じ <see cref="EvaluationInfoRow"/> インスタンスを指すので、
 /// <see cref="Update"/> の値書き換えは全コレクションの <c>x:Bind</c> へそのまま伝わる。
 /// </para>
 /// <para>
-/// Tenengrad の 4 行は <see cref="SharpnessMode.Tenengrad"/> 以上で常に出す。比較 4 手法の行は
+/// ブレ幅／被写体領域の2行は <see cref="SubjectRegionAnalyzer"/>（被写体領域＝高エッジ密度タイル群の
+/// 方向別エッジ幅解析）の結果を表示する。最大タイルが一方向ブレの被写体で「たまたま残った鋭いエッジ」を
+/// 誤検出しうる問題への補完情報として、モードを問わず（Tenengrad のみ／全手法のいずれでも）表示する。
+/// AF 窓行は、被写体領域側のエッジ画素数が閾値（<see cref="AfNoEdgeThreshold"/>）未満（空振り＝AF窓が
+/// 背景に外れた等）なら「エッジなし」を注記に追加する。
+/// </para>
+/// <para>
+/// Tenengrad の 6 行は <see cref="SharpnessMode.Tenengrad"/> 以上で常に出す。比較 4 手法の行は
 /// <see cref="SharpnessMode.All"/> のときだけ追加する。モード変更で <see cref="Rows"/> の行数が
 /// 変わるため、モード変更時は呼び出し側（<c>PreviewControl.ExifPanel.cs</c> の <c>RenderExifForFocus</c>）
 /// が画像情報パネル側は全体再構築する。<see cref="ObservableCollection{T}"/> なので、値だけの変更
@@ -31,8 +39,15 @@ public sealed class SharpnessInfoSection
 {
     private const string UnknownValue = "—";
 
+    /// <summary>AF 窓のエッジ画素数がこれ未満なら「エッジなし」（空振り＝AF窓が背景に外れた等）とみなす
+    /// 閾値。ヒューリスティックな値。<see cref="PhotoItemViewModel.SubjectRegionText"/> と共有するため
+    /// ここに集約する（数値の重複を避ける）。</summary>
+    public const long AfNoEdgeThreshold = 200;
+
     private readonly EvaluationInfoRow _afWindow = new(Loc.Get("Sharp_AfWindow"));
     private readonly EvaluationInfoRow _maxTile = new(Loc.Get("Sharp_MaxTile"));
+    private readonly EvaluationInfoRow _subjectBlur = new(Loc.Get("Sharp_SubjectBlur"));
+    private readonly EvaluationInfoRow _subjectRegion = new(Loc.Get("Sharp_SubjectRegion"));
     private readonly EvaluationInfoRow _global = new(Loc.Get("Sharp_Global"));
     private readonly EvaluationInfoRow _anisotropy = new(Loc.Get("Sharp_Anisotropy"));
     private readonly EvaluationInfoRow _lapv = new(Loc.Get("Sharp_LapV"));
@@ -82,12 +97,49 @@ public sealed class SharpnessInfoSection
             SetComputing(_afWindow, _maxTile, _global, _anisotropy);
         }
 
-        // 並びは 最大タイル→AF窓→全体→異方性（最大タイルを先頭に＝画面上のオレンジ枠と対応させる）。
+        if (photo.SubjectRegion is { } r)
+        {
+            if (r.TileCount == 0)
+            {
+                _subjectBlur.Value = Loc.Get("Sharp_NoSubject");
+                _subjectBlur.UpdatedAtText = "";
+                _subjectRegion.Value = Loc.Get("Sharp_NoSubject");
+                _subjectRegion.UpdatedAtText = "";
+            }
+            else
+            {
+                _subjectBlur.Value = double.IsNaN(r.WorstWidth)
+                    ? UnknownValue : r.WorstWidth.ToString("F1", CultureInfo.InvariantCulture) + " px";
+                _subjectBlur.UpdatedAtText = r.WorstBin >= 0 && !double.IsNaN(r.WorstWidth) && !double.IsNaN(r.WidthRatio)
+                    ? string.Format(CultureInfo.InvariantCulture, Loc.Get("Sharp_SubjectDirFormat"),
+                        (int)Math.Round(SubjectRegionScore.BinCenterDegrees(r.WorstBin, r.BinMedianWidths.Count)),
+                        r.WidthRatio.ToString("F2", CultureInfo.InvariantCulture))
+                    : "";
+                _subjectRegion.Value = string.Format(CultureInfo.InvariantCulture, Loc.Get("Sharp_SubjectTilesFormat"), r.TileCount);
+                _subjectRegion.UpdatedAtText = $"@{r.Bounds.X},{r.Bounds.Y} {r.Bounds.Width}×{r.Bounds.Height}";
+            }
+
+            // AF 窓の空振り注記は被写体タイルの有無と無関係（AfWindowEdgeCount/PixelCount は Empty でも保持される）。
+            _afWindow.UpdatedAtText = r.AfWindowPixelCount > 0 && r.AfWindowEdgeCount < AfNoEdgeThreshold
+                ? Loc.Get("Sharp_AfNoEdges")
+                : "";
+        }
+        else
+        {
+            SetComputing(_subjectBlur, _subjectRegion);
+        }
+
+        // 並びは 最大タイル→ブレ幅→被写体領域→AF窓→全体→異方性（最大タイルを先頭に＝画面上のオレンジ枠、
+        // 被写体領域をその直後に＝画面上のシアン枠と対応させる）。
         Rows.Add(_maxTile);
+        Rows.Add(_subjectBlur);
+        Rows.Add(_subjectRegion);
         Rows.Add(_afWindow);
         Rows.Add(_global);
         Rows.Add(_anisotropy);
         TenengradRows.Add(_maxTile);
+        TenengradRows.Add(_subjectBlur);
+        TenengradRows.Add(_subjectRegion);
         TenengradRows.Add(_afWindow);
         TenengradRows.Add(_global);
         TenengradRows.Add(_anisotropy);

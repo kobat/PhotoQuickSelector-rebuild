@@ -92,9 +92,13 @@
                                Foreground="#9AFFFFFF" FontSize="11"
                                TextTrimming="CharacterEllipsis" />
 
-                    <!-- 鮮鋭度スコア（S キーで巡回。モード None なら両行とも Collapsed）。
-                         Tenengrad 行は Tenengrad/全手法いずれでも表示、比較4手法行は全手法のみ。 -->
+                    <!-- 鮮鋭度スコア（S キーで巡回。モード None なら全行 Collapsed）。
+                         Tenengrad/被写体領域行は Tenengrad/全手法いずれでも表示、比較4手法行は全手法のみ。 -->
                     <TextBlock Text="{Binding SharpnessText}"
+                               Foreground="#9AFFFFFF" FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               Visibility="{x:Bind ViewModel.SharpnessVisibility, Mode=OneWay}" />
+                    <TextBlock Text="{Binding SubjectRegionText}"
                                Foreground="#9AFFFFFF" FontSize="11"
                                TextTrimming="CharacterEllipsis"
                                Visibility="{x:Bind ViewModel.SharpnessVisibility, Mode=OneWay}" />

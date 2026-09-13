@@ -189,7 +189,7 @@
     <value>なし</value>
   </data>
   <data name="Menu_SharpnessTenengrad.Text" xml:space="preserve">
-    <value>Tenengrad のみ</value>
+    <value>基本（Tenengrad＋被写体領域）</value>
   </data>
   <data name="Menu_SharpnessAll.Text" xml:space="preserve">
     <value>全ての手法</value>
@@ -476,7 +476,7 @@
     <value>情報</value>
   </data>
   <data name="Preview_SharpnessLoupeTitle.Text" xml:space="preserve">
-    <value>鮮鋭度 (Tenengrad 法)</value>
+    <value>鮮鋭度</value>
   </data>
   <data name="Preview_SharpnessExtrasTitle.Text" xml:space="preserve">
     <value>比較手法（最大タイル ／ AF 窓）</value>
@@ -571,6 +571,27 @@
   </data>
   <data name="Sharp_Computing" xml:space="preserve">
     <value>計算中…</value>
+  </data>
+  <data name="Sharp_SubjectRegion" xml:space="preserve">
+    <value>被写体領域</value>
+  </data>
+  <data name="Sharp_SubjectBlur" xml:space="preserve">
+    <value>ブレ幅</value>
+  </data>
+  <data name="Sharp_SubjectRatio" xml:space="preserve">
+    <value>方向比</value>
+  </data>
+  <data name="Sharp_SubjectTilesFormat" xml:space="preserve">
+    <value>{0} タイル</value>
+  </data>
+  <data name="Sharp_SubjectDirFormat" xml:space="preserve">
+    <value>最悪方向 {0}° ・ 方向比 {1}</value>
+  </data>
+  <data name="Sharp_NoSubject" xml:space="preserve">
+    <value>被写体なし</value>
+  </data>
+  <data name="Sharp_AfNoEdges" xml:space="preserve">
+    <value>エッジなし</value>
   </data>
 
   <!-- ステータスバー文言（MainViewModel / MainPage） -->
@@ -903,7 +924,7 @@
     <value>なし</value>
   </data>
   <data name="PvCtx_SharpnessTenengrad" xml:space="preserve">
-    <value>Tenengrad のみ</value>
+    <value>基本（Tenengrad＋被写体領域）</value>
   </data>
   <data name="PvCtx_SharpnessAll" xml:space="preserve">
     <value>全ての手法</value>

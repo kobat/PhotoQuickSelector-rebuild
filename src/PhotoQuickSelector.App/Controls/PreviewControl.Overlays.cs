@@ -213,6 +213,40 @@ public sealed partial class PreviewControl
         ds.DrawRectangle(x, y, (float)Math.Abs(x1 - x0), (float)Math.Abs(y1 - y0), SharpestTileColor, thickness);
     }
 
+    /// <summary>被写体領域（<see cref="SubjectRegionAnalyzer"/>）の外接矩形枠の色（シアン）。
+    /// 最大タイル枠（オレンジ）・AF枠（緑）・ナビの表示領域枠（青）と混同しないよう別色にする。</summary>
+    private static readonly Color SubjectRegionColor = Color.FromArgb(0xEE, 0x45, 0xD1, 0xE3);
+
+    /// <summary>
+    /// 被写体領域の外接矩形が描けるか判定し、矩形（表示空間 px・タイル格子基準）を返す。
+    /// <see cref="TryGetSharpestTile"/> と同じガード（モード None・焦点写真とビットマップの追い越し状態）に
+    /// 加え、被写体タイルが1つも見つからない（<see cref="SubjectRegionScore.TileCount"/>=0）場合も false。
+    /// </summary>
+    private bool TryGetSubjectBounds(out RectI bounds)
+    {
+        bounds = default;
+        if (_sharpnessModeSnapshot == SharpnessMode.None) return false;
+        if (_bitmap == null || _currentMeta == null) return false;
+        if (_viewModel?.FocusedPhoto is not { SubjectRegion: { TileCount: > 0 } r } photo) return false;
+        if (!string.Equals(photo.Meta.Path, _currentMeta.Path, StringComparison.OrdinalIgnoreCase)) return false;
+
+        bounds = r.Bounds;
+        return true;
+    }
+
+    /// <summary>
+    /// 被写体領域の外接矩形を、表示空間 px → キャンバス座標の写像 <paramref name="toCanvas"/> を使って描く。
+    /// ルーペ・ナビゲーターにのみ表示（メインには重ねない＝AF枠・最大タイル枠と同じ方針）。
+    /// </summary>
+    private void DrawSubjectRegionFrame(CanvasDrawingSession ds, Func<double, double, (double X, double Y)> toCanvas, float thickness)
+    {
+        if (!TryGetSubjectBounds(out var b)) return;
+        var (x0, y0) = toCanvas(b.X, b.Y);
+        var (x1, y1) = toCanvas(b.X + b.Width, b.Y + b.Height);
+        float x = (float)Math.Min(x0, x1), y = (float)Math.Min(y0, y1);
+        ds.DrawRectangle(x, y, (float)Math.Abs(x1 - x0), (float)Math.Abs(y1 - y0), SubjectRegionColor, thickness);
+    }
+
     /// <summary>鮮鋭度最大タイルの中心（表示空間 px）。無ければ AF フォーカス点（<see cref="FocusDisplayPoint"/>）
     /// にフォールバックする（鮮鋭度表示オフ・未計算・タイルなしのいずれでも従来どおり動く）。</summary>
     private (double X, double Y) SharpestOrFocusDisplayPoint()
