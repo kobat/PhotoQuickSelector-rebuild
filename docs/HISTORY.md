@@ -4254,3 +4254,29 @@ DB 保存なし・先読み時に計算・フォルダを開いている間は�
 - 目視ページ Artifact「縮小表示のブレ判定」（3 段階判定＋指標別 AUC 集計）を作成したが、ユーザーは数値の段階で効果薄と判断。
 - 縮小手法の食い違いに注意: 指標側＝面積平均／目視切り出し＝GDI+ HighQualityBicubic／本体フィット表示＝Win2D HighQualityCubic。
   閾値を厳密に決めるなら揃える必要がある。
+
+## v0.2.3 リリース（2026-09-17）
+
+v0.2.2（2026-08-22）以降の鮮鋭度スコア関連 5 コミットをまとめて **v0.2.3** として公開（GitHub Release・Pre-release 継続）。
+csproj `<Version>` を 0.2.3 に更新（`Package.appxmanifest` は前回リリース直後に 0.2.3.0 へ上げ済み）。
+発行・添付は既定どおり**単一ファイル版**（`win-x64-singlefile`・zip には exe＋LICENSE＋THIRD-PARTY の 3 点のみ・`.pdb` 除外）。
+
+- **実機目視**: 鮮鋭度の本体組み込み各節（フェーズ④・実機確認②・改善①・コンパクト表示）で「未了」としていた項目は、
+  リリース前にユーザーが実機で確認し**問題なし**（2026-09-17）。各節の「実機目視は未了」記述は本節をもって解消とする。
+- **v0.2.2 → v0.2.3 の主な変更**（利用者視点）
+  - **鮮鋭度スコア（ピント・ブレの数値化）を追加**: プレビュー中 `S` で なし→コンパクト→基本→全手法 を巡回
+    （`AppSettings.SharpnessMode`）。ルーペ上オーバーレイ・画像情報パネル「鮮鋭度」グループ・詳細情報オーバーレイに表示。
+    Tenengrad はデコード直後にフック計算、全手法は焦点写真のみ settle 後に計算。DB 保存なし（メモリ上のみ）
+  - **最大タイル枠（オレンジ）と被写体領域枠（シアン）**をルーペ／ナビゲーターに表示。ルーペのロード時初期位置は最大タイル
+    （無ければ AF 点）
+  - **被写体領域の方向別エッジ幅**＝一方向ブレの推定幅（px）・方向比を算出し最大タイルと併記
+  - **キー割当の変更**: `Alt+F`／`Ctrl+Alt+F` は「最大タイルへ」（鮮鋭度表示が無ければ従来どおり AF 点）。
+    従来の「常に AF 点へ」は `Shift+Alt+F`／`Shift+Ctrl+Alt+F` に移動
+  - README（日英）の「特長」に鮮鋭度スコアを追記
+- **開発向け（配布物には非影響）**: 採点コンソール `tools/sharpness/SharpnessBench`（各手法の TSV 採点・`fit_*` 列）、
+  Core `SharpnessMetrics`（比較用 4 手法）・`BgraDownscaler`（縮小検証用・本体未参照）。
+- 評価 DB のスキーマ変更なし（v2 のまま）。
+- リリース作業: 保留分の記録コミット（`d9db8d0`）→ バージョン更新コミット（csproj `-dev` 外し・HISTORY／CLAUDE.md／README）→
+  `main` へ push → `v0.2.3` タグ → `dotnet publish -p:PublishProfile=win-x64-singlefile` → `gh release create`
+  （Pre-release・`PhotoQuickSelector-0.2.3-win-x64.zip` 添付）→ 次サイクル開始コミット（csproj 0.2.4-dev・appxmanifest 0.2.4.0）。
+  `dotnet test` 312 件緑。

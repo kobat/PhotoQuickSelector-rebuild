@@ -27,6 +27,9 @@ Review photos in a local folder with keyboard-centric controls, and cull them wi
   - Evaluations are stored in a per-folder `PhotoQuickSelector.sqlite3`; the original files are never modified.
 - **Focus-point magnification from Exif analysis**
   - The focus point is read from the Exif data and magnified in the upper-right pane, to help you pick the shots that are actually in focus. (Supports Sony and OM SYSTEM cameras.)
+- **Sharpness score (focus and blur as numbers)**
+  - Sharpness is measured from edge strength (Tenengrad); the sharpest region and the subject region are outlined, and an estimated one-directional blur width (px) is derived from the subject region.
+  - Press `S` in preview to cycle the display (off → compact → basic → all methods). `Alt+F` jumps to the sharpest spot. Intended to help you guess which frame of a burst is the sharpest.
 - **Keyboard-centric operation**
   - Rating, navigation, zoom, multi-select, bulk rating, and more from the keyboard. Press `F1` for the list of shortcuts.
 - **Copy and move via batch files**
