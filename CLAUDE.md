@@ -274,8 +274,11 @@ Tenengrad はデコード直後にフック計算（`PreviewBitmapCache.FrameDec
   UI `Controls/ExifDetailPanel`（＝画像情報パネル。クラス名は旧称のまま）・グループ化 ListView 仮想化・
   行テンプレートは `InfoRowTemplateSelector` で型別。XMP は `XmpDirectory.GetXmpProperties()` で
   `xmp:Rating` 等のプロパティへ展開＝HISTORY「EXIF 詳細パネルの XMP タグ展開」「画像情報パネル」節）
-- プレビュー中: `S` 鮮鋭度スコア表示を巡回（なし→基本〔Tenengrad＋被写体領域〕→全手法。`AppSettings.SharpnessMode`。ルーペ上・画像情報パネル・
-  詳細情報オーバーレイに表示。Tenengrad 結果があればルーペ／ナビにオレンジの最大タイル枠、被写体領域があればシアンの外接矩形枠。詳細は HISTORY.md「鮮鋭度スコアの本体組み込み」「鮮鋭度スコアの改善①」節）
+- プレビュー中: `S` 鮮鋭度スコア表示を巡回（なし→コンパクト→基本〔Tenengrad＋被写体領域〕→全手法。`AppSettings.SharpnessMode`。ルーペ上・画像情報パネル・
+  詳細情報オーバーレイに表示。Tenengrad 結果があればルーペ／ナビにオレンジの最大タイル枠、被写体領域があればシアンの外接矩形枠。
+  **コンパクト**はルーペ／詳細情報オーバーレイの表示だけを簡略化（見出し・注記なしで最大タイル・異方性・ブレ幅・被写体領域数の4行のみ。
+  計算内容は基本と同じ＝Tenengrad＋被写体領域）。**画像情報パネルはコンパクトでも簡略化しない**（基本と同じ6行＋注記）。
+  詳細は HISTORY.md「鮮鋭度スコアの本体組み込み」「鮮鋭度スコアの改善①」「鮮鋭度オーバーレイのコンパクト表示」節）
 - プレビュー中: `Alt+F` メインを最大タイルへ（鮮鋭度表示が無ければ AF 点）/ `Shift+Alt+F` 常に AF 点へ /
   `Ctrl+Alt+F` ルーペを最大タイルへ（同フォールバック）/ `Shift+Ctrl+Alt+F` ルーペを AF 点へ。ルーペのロード時初期位置も同じ規則
 - プレビュー中: `G` 構図グリッド種類を巡回（None→中央十字→三分割→正方形→None）/ `Shift+G` グリッド基準を切替

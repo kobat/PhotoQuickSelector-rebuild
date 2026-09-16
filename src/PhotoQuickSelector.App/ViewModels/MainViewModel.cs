@@ -599,7 +599,7 @@ public partial class MainViewModel : ObservableObject
     /// <summary>正方形グリッドの短辺分割数 N（設定値。Core/UI 非依存ロジックから参照）。</summary>
     public int GridSquareDivisions => Settings.GridSquareDivisions;
 
-    /// <summary>鮮鋭度スコア表示モード（None/Tenengrad/All。S キーで巡回）。</summary>
+    /// <summary>鮮鋭度スコア表示モード（None/Compact/Tenengrad/All。S キーで巡回）。</summary>
     [ObservableProperty]
     public partial SharpnessMode SharpnessMode { get; set; }
 
@@ -608,13 +608,16 @@ public partial class MainViewModel : ObservableObject
         Settings.SharpnessMode = value;  // in-memory。実保存は終了時の Settings.Save() で一括。
         OnPropertyChanged(nameof(SharpnessVisibility));
         OnPropertyChanged(nameof(SharpnessExtrasVisibility));
+        OnPropertyChanged(nameof(SharpnessCompactVisibility));
+        OnPropertyChanged(nameof(SharpnessBasicVisibility));
     }
 
-    /// <summary>鮮鋭度スコア表示モードを巡回する（None→Tenengrad→全手法→None）。S キーとメニューから共用。</summary>
+    /// <summary>鮮鋭度スコア表示モードを巡回する（None→コンパクト→基本→全手法→None）。S キーとメニューから共用。</summary>
     public void CycleSharpnessMode() =>
         SharpnessMode = SharpnessMode switch
         {
-            SharpnessMode.None => SharpnessMode.Tenengrad,
+            SharpnessMode.None => SharpnessMode.Compact,
+            SharpnessMode.Compact => SharpnessMode.Tenengrad,
             SharpnessMode.Tenengrad => SharpnessMode.All,
             _ => SharpnessMode.None,
         };
@@ -626,6 +629,15 @@ public partial class MainViewModel : ObservableObject
     /// <summary>鮮鋭度の比較 4 手法（全手法モードのみの追加行）の表示可否。</summary>
     public Visibility SharpnessExtrasVisibility =>
         SharpnessMode == SharpnessMode.All ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>鮮鋭度のコンパクト表示（見出し・注記なしの4行のみ）の表示可否。<see cref="SharpnessMode.Compact"/> のみ。</summary>
+    public Visibility SharpnessCompactVisibility =>
+        SharpnessMode == SharpnessMode.Compact ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>鮮鋭度の基本表示（既存の SharpnessText/SubjectRegionText 行）の表示可否。
+    /// Tenengrad・全手法のみ（Compact は専用の <see cref="SharpnessCompactVisibility"/> 側で表示）。</summary>
+    public Visibility SharpnessBasicVisibility =>
+        SharpnessMode is SharpnessMode.Tenengrad or SharpnessMode.All ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>
     /// フルパスから写真 VM を引く辞書（<see cref="AllPhotos"/> と同じ寿命）。プレビューの鮮鋭度計算

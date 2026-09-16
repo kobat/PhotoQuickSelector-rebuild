@@ -109,6 +109,7 @@ public sealed partial class PhotoStatusBar : UserControl
         GridRefCanvasItem.IsChecked = _viewModel.GridReference == GridOverlayReference.Canvas;
 
         SharpnessNoneItem.IsChecked = _viewModel.SharpnessMode == SharpnessMode.None;
+        SharpnessCompactItem.IsChecked = _viewModel.SharpnessMode == SharpnessMode.Compact;
         SharpnessTenengradItem.IsChecked = _viewModel.SharpnessMode == SharpnessMode.Tenengrad;
         SharpnessAllItem.IsChecked = _viewModel.SharpnessMode == SharpnessMode.All;
 
@@ -229,6 +230,11 @@ public sealed partial class PhotoStatusBar : UserControl
     private void MenuSharpnessNone_Click(object sender, RoutedEventArgs e)
     {
         if (_viewModel is not null) _viewModel.SharpnessMode = SharpnessMode.None;
+    }
+
+    private void MenuSharpnessCompact_Click(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is not null) _viewModel.SharpnessMode = SharpnessMode.Compact;
     }
 
     private void MenuSharpnessTenengrad_Click(object sender, RoutedEventArgs e)

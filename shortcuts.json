@@ -50,7 +50,7 @@
         { "keys": "Shift+G",
           "description": { "ja": "構図グリッドの基準を切替（画像⇄Canvas）", "en": "Toggle the composition grid reference (image ⇄ canvas)" } },
         { "keys": "S",
-          "description": { "ja": "鮮鋭度の表示を切替（なし→Tenengrad→全手法）", "en": "Cycle sharpness display (off → Tenengrad → all methods)" } },
+          "description": { "ja": "鮮鋭度の表示を切替（なし→コンパクト→基本→全手法）", "en": "Cycle sharpness display (off → compact → basic → all methods)" } },
         { "keys": "C",
           "description": { "ja": "先読みキャッシュ一覧の切替（デバッグ）", "en": "Toggle the prefetch cache overlay (debug)" } },
         { "keys": "M",

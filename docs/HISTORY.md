@@ -4201,3 +4201,30 @@ DB 保存なし・先読み時に計算・フォルダを開いている間は�
 - 実機確認の観点: 写真切替直後の「計算中…」→値（約 200ms）／シアン枠とオレンジ枠の区別／ナビでのシアン枠の視認性／
   被写体なし・AF 窓エッジなしの表示／メニューラベルの幅／600mm グループでブレ幅が総じて大きめに出る点の妥当性
   （陰影による水増しの疑い＝改善①の申し送り）。
+
+## 鮮鋭度オーバーレイのコンパクト表示（2026-09-16）
+
+鮮鋭度モードに `Compact` を追加した。`S` キーの巡回順は None→コンパクト→基本（Tenengrad＋被写体領域）→全手法→None。
+計算内容は基本モードと完全に同じ（Tenengrad＋被写体領域のみ・比較4手法は計算しない）で、**表示だけ**を簡略化する。
+コンパクトの対象はルーペオーバーレイ（`SharpnessLoupeOverlay`）と詳細情報オーバーレイ（メイン画像左上の `InfoOverlay`）の
+2箇所のみ＝見出し・注記（`UpdatedAtText`）なしで「最大タイル・異方性・ブレ幅・被写体領域数」の4行/1行のみを出す。
+**画像情報パネル（ExifPanel の `SharpnessInfoSection.Rows`）はコンパクトでも簡略化しない**＝基本モードと同じ6行＋注記
+（`Rows`/`TenengradRows` は `mode == Compact` を `mode == Tenengrad` と同一に扱う）。理由は情報パネルが元々じっくり見る
+用途で注記も有用なため、簡略化は「ちら見用」のオーバーレイ側だけで十分という判断。
+
+- `SharpnessMode` は **末尾に `Compact` を追加**した（既存3メンバーの並びは変更せず）。`AppSettings.SharpnessMode` は
+  ソース生成 JSON コンテキスト経由で整数値として settings.json へ永続化されるため、既存メンバーの数値がずれると
+  旧 settings.json の値が別モードとして読み込まれてしまう。新モードは常に末尾へ足すこと。
+- `SharpnessInfoSection` に `CompactRows`（最大タイル→異方性→ブレ幅→被写体領域の4行）を追加したが、行オブジェクトは
+  `Rows`/`TenengradRows` とは**あえて別インスタンス**にした（`_maxTileCompact` 等）。3系統が同じインスタンスを共有する
+  既存設計のまま Compact 用に注記を消すと、画像情報パネル側の注記まで一緒に消えてしまうため。
+  `PhotoItemViewModel.SharpnessCompactText`（詳細情報オーバーレイ用の1行版）も `SharpnessText`/`SubjectRegionText` とは
+  別プロパティとして追加し、`Sharpness`/`SubjectRegion` の `NotifyPropertyChangedFor` に相乗りさせた。
+- XAML 側はルーペオーバーレイの見出し＋`TenengradRows` を `SharpnessBasicBlock`（StackPanel）へまとめ、
+  `SharpnessCompactBlock`（`CompactRows` を束ねる ItemsControl）と排他表示にした
+  （`PreviewControl.Sharpness.cs` の `UpdateSharpnessLoupeOverlayVisibility`）。詳細情報オーバーレイも同様に
+  `SharpnessBasicVisibility`/`SharpnessCompactVisibility`（`MainViewModel`）で排他。
+- メニュー（ハンバーガー・右クリック）・resw（`Menu_SharpnessCompact`/`PvCtx_SharpnessCompact`）・`shortcuts.json` も
+  それぞれ None と基本の間に追加。
+
+**実機目視は未了**（ビルド成功・テスト緑のみで確認。表示簡略化のみで Core 側の計算・xUnit に変更なし）。

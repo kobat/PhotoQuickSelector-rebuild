@@ -9,7 +9,10 @@ using PhotoQuickSelector_App.ViewModels;
 namespace PhotoQuickSelector_App.Controls;
 
 /// <summary>
-/// 鮮鋭度スコア（<see cref="MainViewModel.SharpnessMode"/> ＝ None/Tenengrad/全手法。S キーで巡回）の計算・表示。
+/// 鮮鋭度スコア（<see cref="MainViewModel.SharpnessMode"/> ＝ None/コンパクト/Tenengrad/全手法。S キーで巡回）の
+/// 計算・表示。コンパクトは Tenengrad と**計算内容が同じ**（Tenengrad＋被写体領域のみ・比較4手法は計算しない）で、
+/// 表示だけが簡略（見出し・注記なしの4行）になる＝以下の計算経路は Tenengrad/コンパクトを区別しない
+/// （<c>mode != SharpnessMode.None</c> / <c>mode == SharpnessMode.All</c> の判定のみ）。
 /// <para>
 /// 2 系統の計算経路がある:
 /// <list type="bullet">
@@ -296,7 +299,13 @@ public sealed partial class PreviewControl
     {
         bool show = !_showExifPanel && _sharpnessModeSnapshot != SharpnessMode.None;
         SharpnessLoupeOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        // 比較4手法の副見出しは全手法モードのときだけ（Tenengrad のみのときは非表示）。
+        // 基本表示（見出し＋6行）は Tenengrad/全手法のみ、コンパクト表示（見出しなし4行）はコンパクトのみ。
+        SharpnessBasicBlock.Visibility =
+            _sharpnessModeSnapshot is SharpnessMode.Tenengrad or SharpnessMode.All
+                ? Visibility.Visible : Visibility.Collapsed;
+        SharpnessCompactBlock.Visibility =
+            _sharpnessModeSnapshot == SharpnessMode.Compact ? Visibility.Visible : Visibility.Collapsed;
+        // 比較4手法の副見出しは全手法モードのときだけ（基本表示ブロック内・Tenengrad のみのときは非表示）。
         SharpnessExtrasBlock.Visibility =
             _sharpnessModeSnapshot == SharpnessMode.All ? Visibility.Visible : Visibility.Collapsed;
         if (show && _viewModel?.FocusedPhoto is { } photo)

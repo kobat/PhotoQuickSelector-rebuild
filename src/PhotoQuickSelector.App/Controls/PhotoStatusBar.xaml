@@ -238,13 +238,17 @@
                                                   KeyboardAcceleratorTextOverride="Shift+G"
                                                   Click="MenuGridRefCanvas_Click" />
                         </MenuFlyoutSubItem>
-                        <!-- 鮮鋭度スコア（None/Tenengrad/全手法）。メイン画像右クリックメニュー
+                        <!-- 鮮鋭度スコア（None/コンパクト/Tenengrad/全手法）。メイン画像右クリックメニュー
                              （PreviewControl.ContextMenu）と同じラジオ選択式。 -->
                         <MenuFlyoutSubItem x:Name="SharpnessSubItem" x:Uid="Menu_SharpnessSub" Text="鮮鋭度">
                             <RadioMenuFlyoutItem x:Name="SharpnessNoneItem" x:Uid="Menu_SharpnessNone"
                                                   Text="なし" GroupName="MenuSharpness"
                                                   KeyboardAcceleratorTextOverride="S"
                                                   Click="MenuSharpnessNone_Click" />
+                            <RadioMenuFlyoutItem x:Name="SharpnessCompactItem" x:Uid="Menu_SharpnessCompact"
+                                                  Text="コンパクト" GroupName="MenuSharpness"
+                                                  KeyboardAcceleratorTextOverride="S"
+                                                  Click="MenuSharpnessCompact_Click" />
                             <RadioMenuFlyoutItem x:Name="SharpnessTenengradItem" x:Uid="Menu_SharpnessTenengrad"
                                                   Text="Tenengrad のみ" GroupName="MenuSharpness"
                                                   KeyboardAcceleratorTextOverride="S"

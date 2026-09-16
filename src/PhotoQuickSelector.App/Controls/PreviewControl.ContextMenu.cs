@@ -129,10 +129,12 @@ public sealed partial class PreviewControl
             () => vm.GridReference = GridOverlayReference.Canvas));
         flyout.Items.Add(gridSub);
 
-        // --- 鮮鋭度スコア（None/Tenengrad/全手法） ---
+        // --- 鮮鋭度スコア（None/コンパクト/Tenengrad/全手法） ---
         var sharpnessSub = new MenuFlyoutSubItem { Text = Loc.Get("PvCtx_SharpnessSub") };
         sharpnessSub.Items.Add(RadioItem(Loc.Get("PvCtx_SharpnessNone"), "PvSharpness",
             vm.SharpnessMode == SharpnessMode.None, "S", () => vm.SharpnessMode = SharpnessMode.None));
+        sharpnessSub.Items.Add(RadioItem(Loc.Get("PvCtx_SharpnessCompact"), "PvSharpness",
+            vm.SharpnessMode == SharpnessMode.Compact, "S", () => vm.SharpnessMode = SharpnessMode.Compact));
         sharpnessSub.Items.Add(RadioItem(Loc.Get("PvCtx_SharpnessTenengrad"), "PvSharpness",
             vm.SharpnessMode == SharpnessMode.Tenengrad, "S", () => vm.SharpnessMode = SharpnessMode.Tenengrad));
         sharpnessSub.Items.Add(RadioItem(Loc.Get("PvCtx_SharpnessAll"), "PvSharpness",

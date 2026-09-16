@@ -461,6 +461,7 @@ public partial class PhotoItemViewModel : ObservableObject
     /// UI スレッドでのみ設定すること（ワーカースレッドからの直接代入禁止）。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SharpnessText))]
+    [NotifyPropertyChangedFor(nameof(SharpnessCompactText))]
     public partial SharpnessScore? Sharpness { get; set; }
 
     /// <summary>比較用 4 手法（<see cref="SharpnessMode.All"/> のみ）の解析結果。未計算/計算中は null。
@@ -474,6 +475,7 @@ public partial class PhotoItemViewModel : ObservableObject
     /// 計算する（最大タイルの補完情報として常に表示するため）。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SubjectRegionText))]
+    [NotifyPropertyChangedFor(nameof(SharpnessCompactText))]
     public partial SubjectRegionScore? SubjectRegion { get; set; }
 
     /// <summary>
@@ -503,6 +505,49 @@ public partial class PhotoItemViewModel : ObservableObject
                 $"{Loc.Get("Sharp_Anisotropy")} {anisoText}",
             });
             return $"{Loc.Get("Sharp_Label")} {body}";
+        }
+    }
+
+    /// <summary>
+    /// コンパクト表示（<see cref="SharpnessMode.Compact"/>）の1行版。<see cref="SharpnessText"/> と同じ
+    /// 最大タイル／異方性、<see cref="SubjectRegionText"/> と同じブレ幅／被写体領域数のみを1行にまとめる
+    /// （AF 窓・全体・方向比・AF窓エッジなし注記は省く＝ルーペ／詳細情報オーバーレイの表示を簡略化する目的。
+    /// 画像情報パネルは対象外＝<see cref="SharpnessInfoSection"/> は Compact でも Tenengrad と同じ6行を出す）。
+    /// 例: "鮮鋭度 最大タイル 65,647 ／ 異方性 0.80 ／ ブレ幅 9.0px ／ 33 タイル"。
+    /// </summary>
+    public string SharpnessCompactText
+    {
+        get
+        {
+            if (Sharpness is not { } s)
+                return $"{Loc.Get("Sharp_Label")} {Loc.Get("Sharp_Computing")}";
+
+            double aniso = double.IsNaN(s.AfWindowAnisotropy) ? s.Anisotropy : s.AfWindowAnisotropy;
+            string anisoText = double.IsNaN(aniso) ? "—" : aniso.ToString("F2", CultureInfo.InvariantCulture);
+
+            var parts = new List<string>
+            {
+                $"{Loc.Get("Sharp_MaxTile")} {FormatN0(s.MaxTile)}",
+                $"{Loc.Get("Sharp_Anisotropy")} {anisoText}",
+            };
+
+            if (SubjectRegion is not { } r)
+            {
+                parts.Add(Loc.Get("Sharp_Computing"));
+            }
+            else if (r.TileCount == 0)
+            {
+                parts.Add(Loc.Get("Sharp_NoSubject"));
+            }
+            else
+            {
+                string blur = double.IsNaN(r.WorstWidth)
+                    ? "—" : r.WorstWidth.ToString("F1", CultureInfo.InvariantCulture) + "px";
+                parts.Add($"{Loc.Get("Sharp_SubjectBlur")} {blur}");
+                parts.Add(string.Format(CultureInfo.InvariantCulture, Loc.Get("Sharp_SubjectTilesFormat"), r.TileCount));
+            }
+
+            return $"{Loc.Get("Sharp_Label")} {string.Join(" ／ ", parts)}";
         }
     }
 

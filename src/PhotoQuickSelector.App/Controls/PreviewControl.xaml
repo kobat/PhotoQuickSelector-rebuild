@@ -93,15 +93,20 @@
                                TextTrimming="CharacterEllipsis" />
 
                     <!-- 鮮鋭度スコア（S キーで巡回。モード None なら全行 Collapsed）。
-                         Tenengrad/被写体領域行は Tenengrad/全手法いずれでも表示、比較4手法行は全手法のみ。 -->
+                         SharpnessText/SubjectRegionText は基本モード（Tenengrad/全手法）のみ、
+                         SharpnessCompactText はコンパクトモードのみ、比較4手法行は全手法のみ表示。 -->
                     <TextBlock Text="{Binding SharpnessText}"
                                Foreground="#9AFFFFFF" FontSize="11"
                                TextTrimming="CharacterEllipsis"
-                               Visibility="{x:Bind ViewModel.SharpnessVisibility, Mode=OneWay}" />
+                               Visibility="{x:Bind ViewModel.SharpnessBasicVisibility, Mode=OneWay}" />
                     <TextBlock Text="{Binding SubjectRegionText}"
                                Foreground="#9AFFFFFF" FontSize="11"
                                TextTrimming="CharacterEllipsis"
-                               Visibility="{x:Bind ViewModel.SharpnessVisibility, Mode=OneWay}" />
+                               Visibility="{x:Bind ViewModel.SharpnessBasicVisibility, Mode=OneWay}" />
+                    <TextBlock Text="{Binding SharpnessCompactText}"
+                               Foreground="#9AFFFFFF" FontSize="11"
+                               TextTrimming="CharacterEllipsis"
+                               Visibility="{x:Bind ViewModel.SharpnessCompactVisibility, Mode=OneWay}" />
                     <TextBlock Text="{Binding SharpnessExtrasText}"
                                Foreground="#9AFFFFFF" FontSize="11"
                                TextTrimming="CharacterEllipsis"
@@ -213,7 +218,7 @@
                     PointerWheelChanged="ZoomCanvas_PointerWheelChanged" />
 
                 <!-- 鮮鋭度スコアのルーペオーバーレイ（S キーで巡回・ルーペ表示中のみ。ExifPanel 表示中は隠す。
-                     内容は PreviewControl.Sharpness.cs の SharpnessSection と共通（Tenengrad/比較手法で
+                     内容は PreviewControl.Sharpness.cs の SharpnessSection と共通（Tenengrad/比較手法/コンパクトで
                      コレクションを分けて見出しを別にする）。初期非表示。メインの InfoOverlay と見た目を揃える
                      （左上・同じ Margin/Padding/CornerRadius）。 -->
                 <Border x:Name="SharpnessLoupeOverlay" Grid.Row="1"
@@ -222,30 +227,13 @@
                         Background="#A6000000" IsHitTestVisible="False"
                         Visibility="Collapsed">
                     <StackPanel Spacing="4">
-                        <TextBlock x:Uid="Preview_SharpnessLoupeTitle"
-                                   Foreground="White" FontSize="13" FontWeight="SemiBold" />
-                        <ItemsControl ItemsSource="{x:Bind SharpnessSection.TenengradRows, Mode=OneWay}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="ctl:EvaluationInfoRow">
-                                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6">
-                                        <TextBlock Grid.Column="0" Text="{x:Bind Name}"
-                                                   Foreground="#BFFFFFFF" FontSize="13" />
-                                        <TextBlock Grid.Column="1" Text="{x:Bind Value, Mode=OneWay}"
-                                                   Foreground="#E8FFFFFF" FontSize="13" />
-                                        <TextBlock Grid.Column="2" Text="{x:Bind UpdatedAtText, Mode=OneWay}"
-                                                   Foreground="#9AFFFFFF" FontSize="13" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <!-- 比較4手法（最大タイル／AF窓のペア表示）。全手法モードのときだけ可視化する
+                        <!-- 基本表示（Tenengrad/全手法）＝見出し＋6行。コンパクトモードでは隠し、
+                             見出しなしの SharpnessCompactBlock（下）を代わりに出す
                              （PreviewControl.Sharpness.cs の UpdateSharpnessLoupeOverlayVisibility）。 -->
-                        <StackPanel x:Name="SharpnessExtrasBlock" Spacing="4" Visibility="Collapsed">
-                            <Border Height="1" Background="#66FFFFFF" Margin="0,4" />
-                            <TextBlock x:Uid="Preview_SharpnessExtrasTitle"
-                                       Foreground="#BFFFFFFF" FontSize="13" />
-                            <ItemsControl ItemsSource="{x:Bind SharpnessSection.ExtraRows, Mode=OneWay}">
+                        <StackPanel x:Name="SharpnessBasicBlock" Spacing="4">
+                            <TextBlock x:Uid="Preview_SharpnessLoupeTitle"
+                                       Foreground="White" FontSize="13" FontWeight="SemiBold" />
+                            <ItemsControl ItemsSource="{x:Bind SharpnessSection.TenengradRows, Mode=OneWay}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="ctl:EvaluationInfoRow">
                                         <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6">
@@ -259,7 +247,50 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <!-- 比較4手法（最大タイル／AF窓のペア表示）。全手法モードのときだけ可視化する
+                                 （PreviewControl.Sharpness.cs の UpdateSharpnessLoupeOverlayVisibility）。 -->
+                            <StackPanel x:Name="SharpnessExtrasBlock" Spacing="4" Visibility="Collapsed">
+                                <Border Height="1" Background="#66FFFFFF" Margin="0,4" />
+                                <TextBlock x:Uid="Preview_SharpnessExtrasTitle"
+                                           Foreground="#BFFFFFFF" FontSize="13" />
+                                <ItemsControl ItemsSource="{x:Bind SharpnessSection.ExtraRows, Mode=OneWay}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="ctl:EvaluationInfoRow">
+                                            <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6">
+                                                <TextBlock Grid.Column="0" Text="{x:Bind Name}"
+                                                           Foreground="#BFFFFFFF" FontSize="13" />
+                                                <TextBlock Grid.Column="1" Text="{x:Bind Value, Mode=OneWay}"
+                                                           Foreground="#E8FFFFFF" FontSize="13" />
+                                                <TextBlock Grid.Column="2" Text="{x:Bind UpdatedAtText, Mode=OneWay}"
+                                                           Foreground="#9AFFFFFF" FontSize="13" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </StackPanel>
+
+                        <!-- コンパクト表示＝見出し・注記なしの4行のみ（SharpnessSection.CompactRows）。
+                             基本表示と排他（UpdateSharpnessLoupeOverlayVisibility）。 -->
+                        <ItemsControl x:Name="SharpnessCompactBlock"
+                                      ItemsSource="{x:Bind SharpnessSection.CompactRows, Mode=OneWay}"
+                                      Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="ctl:EvaluationInfoRow">
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="6">
+                                        <TextBlock Grid.Column="0" Text="{x:Bind Name}"
+                                                   Foreground="#BFFFFFFF" FontSize="13" />
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Value, Mode=OneWay}"
+                                                   Foreground="#E8FFFFFF" FontSize="13" />
+                                        <!-- コンパクト行は注記を出さない仕様だが、テンプレートは基本表示と揃えておく
+                                             （UpdatedAtText は常に空文字なので実質非表示）。 -->
+                                        <TextBlock Grid.Column="2" Text="{x:Bind UpdatedAtText, Mode=OneWay}"
+                                                   Foreground="#9AFFFFFF" FontSize="13" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
 

@@ -188,6 +188,9 @@
   <data name="Menu_SharpnessNone.Text" xml:space="preserve">
     <value>なし</value>
   </data>
+  <data name="Menu_SharpnessCompact.Text" xml:space="preserve">
+    <value>コンパクト</value>
+  </data>
   <data name="Menu_SharpnessTenengrad.Text" xml:space="preserve">
     <value>基本（Tenengrad＋被写体領域）</value>
   </data>
@@ -922,6 +925,9 @@
   </data>
   <data name="PvCtx_SharpnessNone" xml:space="preserve">
     <value>なし</value>
+  </data>
+  <data name="PvCtx_SharpnessCompact" xml:space="preserve">
+    <value>コンパクト</value>
   </data>
   <data name="PvCtx_SharpnessTenengrad" xml:space="preserve">
     <value>基本（Tenengrad＋被写体領域）</value>

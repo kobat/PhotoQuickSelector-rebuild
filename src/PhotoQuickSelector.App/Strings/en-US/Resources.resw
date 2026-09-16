@@ -188,6 +188,9 @@
   <data name="Menu_SharpnessNone.Text" xml:space="preserve">
     <value>Off</value>
   </data>
+  <data name="Menu_SharpnessCompact.Text" xml:space="preserve">
+    <value>Compact</value>
+  </data>
   <data name="Menu_SharpnessTenengrad.Text" xml:space="preserve">
     <value>Basic (Tenengrad + subject region)</value>
   </data>
@@ -922,6 +925,9 @@ Log: {1}</value>
   </data>
   <data name="PvCtx_SharpnessNone" xml:space="preserve">
     <value>Off</value>
+  </data>
+  <data name="PvCtx_SharpnessCompact" xml:space="preserve">
+    <value>Compact</value>
   </data>
   <data name="PvCtx_SharpnessTenengrad" xml:space="preserve">
     <value>Basic (Tenengrad + subject region)</value>
