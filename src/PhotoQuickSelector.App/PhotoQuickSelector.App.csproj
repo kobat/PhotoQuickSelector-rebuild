@@ -20,7 +20,7 @@
       （Package.appxmanifest の Version は数値4組しか許されないので、そちらは数値のみ上げる）。
       `-dev` が残るのは AssemblyInformationalVersion だけ（AssemblyVersion/FileVersion は数値部のみ）。
     -->
-    <Version>0.2.3</Version>
+    <Version>0.2.4-dev</Version>
     <!-- InformationalVersion への `+<git sha>` 付与を止める（そのまま画面に出すため）。 -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
