@@ -11,6 +11,16 @@
 最もエッジ幅が広い方向（=最もボケている方向）と最も狭い方向の比（`subj_w_ratio`）が大きいほど、
 方向依存性の強いボケ（＝被写体ブレ）を示唆する。
 
+**フィット表示相当（`fit_*`/`ratio_*` 列）**：ここまでの指標はすべて 1:1 等倍で計算するが、
+実際のアプリのフィット表示（ウィンドウに収まるよう長辺を固定 px に縮小する表示）では、
+等倍で見えるボケが縮小により目立たなくなることがある。`BgraDownscaler`
+（`src/PhotoQuickSelector.Core/BgraDownscaler.cs`）で面積平均（OpenCV の `INTER_AREA` 相当）縮小した
+コピーを別途作り、同じ手法群（Tenengrad の global/af/maxtile、被写体領域解析）を縮小後の画像に対して
+再計算する。タイルサイズの既定を `--tile`（256）より小さい 64 にしているのは、256 のままだと
+長辺 1600px の縮小画像でタイルが 6 個ほどしか取れず（256×6≒1536）粒度が粗すぎるため。
+`ratio_global`/`ratio_subj` は等倍値÷フィット値で、値が大きいほど「等倍では見えるボケが、
+フィット表示では相対的に目立たなくなる」度合いが強いことを示す。
+
 比較用4手法（`SharpnessMetric` enum）：
 
 - `lapv`＝LaplacianVariance（ラプラシアン分散。値が大きいほど鮮鋭）
@@ -21,7 +31,7 @@
 ## 実行方法
 
 ```powershell
-dotnet run --project tools\sharpness\SharpnessBench -c Release -- <folder> [--out <file.tsv>] [--tile 256] [--threshold 32] [--group-seconds 3]
+dotnet run --project tools\sharpness\SharpnessBench -c Release -- <folder> [--out <file.tsv>] [--tile 256] [--threshold 32] [--group-seconds 3] [--fit-long 1600] [--fit-tile 64]
 ```
 
 - `<folder>`: 対象フォルダ（非再帰）。`.jpg`/`.jpeg` のみ処理（`MetadataReader.IsSupported` 準拠）。
@@ -33,6 +43,10 @@ dotnet run --project tools\sharpness\SharpnessBench -c Release -- <folder> [--ou
   でも解析し直す（`*_t0` 列・`analyze0_ms`）。
 - `--group-seconds`: 連写グループの分割秒数（既定 3）。カメラ機種が変わる／直前ファイルとの
   撮影時刻差がこの秒数を超える／撮影時刻が取れないファイルを境界としてグループを区切る。
+- `--fit-long`: フィット表示相当の長辺 px（既定 1600）。`BgraDownscaler.FitSize` に渡す
+  （元画像の長辺がこれ以下なら縮小しない＝拡大はしない）。
+- `--fit-tile`: フィット画像側の `TileSize`（既定 64）。長辺 1600px 前後の縮小画像では
+  `--tile` の既定 256 だとタイルが数個しか取れず粒度が粗すぎるため、独立した既定値にしている。
 
 ビルドのみ: `dotnet build tools\sharpness\SharpnessBench -c Release`
 
@@ -82,5 +96,19 @@ dotnet run --project tools\sharpness\SharpnessBench -c Release -- <folder> [--ou
 | `af_edges`/`af_edge_density` | AF 窓内（クリップ後）のエッジ画素数・エッジ密度（`AfWindowEdgeCount`/`AfWindowEdgeCount÷AfWindowPixelCount`） |
 | `rel_subj_w`/`rel_subj_extent` | 同一グループ内の相対値（%）。`edgew` と同じ向き＝グループ最小/値×100（`subj_w_worst`/`subj_w_rel_extent` それぞれに適用。値が小さいほど鮮鋭なため） |
 | `subj_ms` | `SubjectRegionAnalyzer.Analyze` の所要時間（ms） |
+| `fit_w`/`fit_h` | `BgraDownscaler.FitSize` が返したフィット画像の寸法（px。`--fit-long` 適用後） |
+| `fit_global`/`fit_af`/`fit_maxtile` | フィット画像に対する `SharpnessAnalyzer.Analyze`（`--fit-tile`・`--threshold` 適用）のスコア。等倍の `global`/`af_window`/`max_tile` に対応 |
+| `fit_maxtile_x`/`fit_maxtile_y` | フィット画像上の最鋭タイル位置（fit px） |
+| `fit_aniso` | フィット画像全体の異方性比（等倍の `anisotropy` に対応） |
+| `fit_subj_ten` | 等倍側で見つかった被写体領域（`subj_x/y/w/h`）を fit 座標へ縮尺した矩形を「AF窓」として渡し、フィット画像上で測った Tenengrad（被写体タイル探索のやり直しではない）。等倍側に被写体タイルが無ければ（`subj_tiles`=0）空欄 |
+| `fit_subj_tiles`/`fit_subj_x`/`fit_subj_y`/`fit_subj_w`/`fit_subj_h` | フィット画像そのものに対する独立の `SubjectRegionAnalyzer.Analyze`（`--fit-tile` 適用）が見つけた被写体タイル数・外接矩形。タイルサイズが等倍側と異なるスケールのため、`subj_x/y/w/h` とは境界が一致するとは限らない |
+| `fit_subj_w_worst`/`fit_subj_w_best`/`fit_subj_w_ratio` | 上記フィット側 `SubjectRegionAnalyzer` の `WorstWidth`/`BestWidth`/`WidthRatio`（fit px。等倍の `subj_w_worst` 等に対応） |
+| `fit_subj_aniso` | 上記フィット側 `SubjectRegionAnalyzer` の `AnisotropyRatio`（等倍の `subj_aniso` に対応） |
+| `ratio_global` | `global ÷ fit_global`。値が大きいほど「等倍では見えるボケが、フィット表示（縮小）では相対的に目立たなくなる」度合いが強い。どちらかが NaN、または `fit_global` が 0 なら空欄 |
+| `ratio_subj` | `subj_ten ÷ fit_subj_ten`。同上の被写体領域版 |
+| `rel_fit_maxtile`/`rel_fit_subj` | 同一グループ内の相対値（%）。Tenengrad系＝値が大きいほど鮮鋭なので「値/グループ最大×100」（`fit_maxtile`/`fit_subj_ten` にそれぞれ適用） |
+| `rel_fit_subj_w` | 同一グループ内の相対値（%）。`edgew`/`rel_subj_w` と同じ向き＝グループ最小/値×100（`fit_subj_w_worst` に適用。値が小さいほど鮮鋭なため） |
+| `fit_downscale_ms` | `BgraDownscaler.AreaAverage` の所要時間（ms） |
+| `fit_ms` | フィット画像側の解析3手法（`SharpnessAnalyzer.Analyze`×2＋`SubjectRegionAnalyzer.Analyze`×1）の合計所要時間（ms）。ダウンスケール自体（`fit_downscale_ms`）は含まない |
 
 数値は小数点表記（不変カルチャ）。スコア系は 3 桁、時間系は 1 桁。値が無い（NaN・null）場合は空欄。

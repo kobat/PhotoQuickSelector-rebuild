@@ -50,6 +50,8 @@ internal static class Program
         byte[]? reusableBuffer = null; // 直前フレームと同寸なら使い回し、確保由来の時間ブレを消す。
         bool warmedUp = false;
         bool warmedUpSubject = false;
+        bool warmedUpFit = false;
+        bool warmedUpFitSubject = false;
         var warmedUpMetrics = new HashSet<SharpnessMetric>();
 
         var thresholdOptions = new SharpnessOptions { TileSize = options.TileSize, Threshold = options.Threshold };
@@ -62,7 +64,10 @@ internal static class Program
             for (int i = 0; i < targetFiles.Length; i++)
             {
                 var path = targetFiles[i];
-                var row = ProcessFile(path, thresholdOptions, zeroThresholdOptions, ref reusableBuffer, ref warmedUp, ref warmedUpSubject, warmedUpMetrics);
+                var row = ProcessFile(
+                    path, thresholdOptions, zeroThresholdOptions, options.FitLong, options.FitTile,
+                    ref reusableBuffer, ref warmedUp, ref warmedUpSubject, ref warmedUpFit, ref warmedUpFitSubject,
+                    warmedUpMetrics);
                 rows.Add(row);
 
                 partialWriter.WriteLine(FormatRow(row));
@@ -90,8 +95,9 @@ internal static class Program
 
     /// <summary>1 ファイル分の計測を行う。例外・デコード失敗はスコア列を空のまま行を返す（継続のため）。</summary>
     private static Row ProcessFile(
-        string path, SharpnessOptions thresholdOptions, SharpnessOptions zeroThresholdOptions,
-        ref byte[]? reusableBuffer, ref bool warmedUp, ref bool warmedUpSubject, HashSet<SharpnessMetric> warmedUpMetrics)
+        string path, SharpnessOptions thresholdOptions, SharpnessOptions zeroThresholdOptions, int fitLong, int fitTile,
+        ref byte[]? reusableBuffer, ref bool warmedUp, ref bool warmedUpSubject, ref bool warmedUpFit, ref bool warmedUpFitSubject,
+        HashSet<SharpnessMetric> warmedUpMetrics)
     {
         var row = new Row { File = Path.GetFileName(path) };
 
@@ -220,6 +226,75 @@ internal static class Program
                 int maxExtent = Math.Max(subjectScore.Bounds.Width, subjectScore.Bounds.Height);
                 if (maxExtent > 0) row.Subject.RelExtent = subjectScore.WorstWidth / maxExtent * 1000.0;
             }
+
+            // フィット表示相当（縮小して見たときにボケが目立つか）の計測ブロック。面積平均縮小＋
+            // 同じ手法群を fit 解像度で再計算する。ダウンスケール自体の時間は fit_downscale_ms、
+            // 解析（3手法分）は合算して fit_ms に記録し、いずれも total_ms には含めない
+            // （ベンチ用の追加計測で通常経路のコストではないため。analyze0_ms と同じ扱い）。
+            var fitDownscaleSw = Stopwatch.StartNew();
+            (int fw, int fh) = BgraDownscaler.FitSize(frame.Width, frame.Height, fitLong);
+            byte[] fitBytes = BgraDownscaler.AreaAverage(frame.Bytes, frame.Width, frame.Height, frame.Width * 4, fw, fh);
+            row.Fit.DownscaleMs = fitDownscaleSw.Elapsed.TotalMilliseconds;
+            row.Fit.Width = fw;
+            row.Fit.Height = fh;
+
+            double fitScale = fw / (double)frame.Width;
+            RectI? fitAf = ScaleRect(afWindow, fitScale);
+            var fitOptions = new SharpnessOptions { TileSize = fitTile, Threshold = threshold };
+
+            if (!warmedUpFit)
+            {
+                SharpnessAnalyzer.Analyze(fitBytes, fw, fh, fw * 4, fitOptions, fitAf);
+                warmedUpFit = true;
+            }
+            var fitAnalyzeSw = Stopwatch.StartNew();
+            var fitScore = SharpnessAnalyzer.Analyze(fitBytes, fw, fh, fw * 4, fitOptions, fitAf);
+            double fitMs = fitAnalyzeSw.Elapsed.TotalMilliseconds;
+
+            row.Fit.Global = fitScore.Global;
+            row.Fit.Af = fitScore.AfWindow;
+            row.Fit.MaxTile = fitScore.MaxTile;
+            row.Fit.MaxTileX = fitScore.MaxTileX;
+            row.Fit.MaxTileY = fitScore.MaxTileY;
+            row.Fit.Anisotropy = fitScore.Anisotropy;
+
+            // fit_subj_ten：全解像度側で見つけた被写体領域（subjectScore.Bounds）を fit 座標へ縮尺し、
+            // その矩形を「AF窓」として渡して fit 画像上の Tenengrad だけを取り出す（被写体タイル探索の
+            // やり直しではない）。全解像度側に被写体タイルが無ければ計算しない（NaNのまま）。
+            if (subjectScore.TileCount > 0)
+            {
+                RectI scaledSubjectBounds = ScaleRect(subjectScore.Bounds, fitScale)!.Value;
+                var subjTenSw = Stopwatch.StartNew();
+                var subjTenScore = SharpnessAnalyzer.Analyze(fitBytes, fw, fh, fw * 4, fitOptions, scaledSubjectBounds);
+                fitMs += subjTenSw.Elapsed.TotalMilliseconds;
+                row.Fit.SubjectTenengrad = subjTenScore.AfWindow;
+            }
+
+            // fit 画像そのものに対する独立の被写体領域解析（全解像度側の被写体タイルとは tile size が
+            // 異なるスケールのため、境界が一致するとは限らない＝別物として fit_subj_x/y/w/h 等に記録）。
+            var fitSubjectOptions = new SubjectRegionOptions { TileSize = fitTile, Threshold = threshold };
+            if (!warmedUpFitSubject)
+            {
+                SubjectRegionAnalyzer.Analyze(fitBytes, fw, fh, fw * 4, fitSubjectOptions, fitAf);
+                warmedUpFitSubject = true;
+            }
+            var fitSubjSw = Stopwatch.StartNew();
+            var fitSubjectScore = SubjectRegionAnalyzer.Analyze(fitBytes, fw, fh, fw * 4, fitSubjectOptions, fitAf);
+            fitMs += fitSubjSw.Elapsed.TotalMilliseconds;
+
+            row.Fit.SubjectTiles = fitSubjectScore.TileCount;
+            row.Fit.SubjectX = fitSubjectScore.Bounds.X;
+            row.Fit.SubjectY = fitSubjectScore.Bounds.Y;
+            row.Fit.SubjectW = fitSubjectScore.Bounds.Width;
+            row.Fit.SubjectH = fitSubjectScore.Bounds.Height;
+            row.Fit.SubjectWorstWidth = fitSubjectScore.WorstWidth;
+            row.Fit.SubjectBestWidth = fitSubjectScore.BestWidth;
+            row.Fit.SubjectWidthRatio = fitSubjectScore.WidthRatio;
+            row.Fit.SubjectAnisotropy = fitSubjectScore.AnisotropyRatio;
+
+            row.Fit.AnalyzeMs = fitMs;
+            row.Fit.RatioGlobal = RatioOrNaN(row.Global, row.Fit.Global);
+            row.Fit.RatioSubject = RatioOrNaN(row.Subject.Tenengrad, row.Fit.SubjectTenengrad);
         }
         catch (Exception ex)
         {
@@ -304,6 +379,18 @@ internal static class Program
                 s.RelWorst = RelativeToInverse(s.WorstWidth, minWorst);
                 s.RelExtentGroup = RelativeToInverse(s.RelExtent, minExtent);
             }
+
+            // フィット表示相当の相対値。fit_maxtile/fit_subj_ten は Tenengrad 系＝大きいほど鮮鋭
+            // （既存の rel_maxtile と同じ向き）、fit_subj_w_worst は edgew と同じ「小さいほど鮮鋭」。
+            double maxFitMaxTile = MaxOrNaN(group.Select(r => r.Fit.MaxTile));
+            double maxFitSubj = MaxOrNaN(group.Select(r => r.Fit.SubjectTenengrad));
+            double minFitSubjWorst = MinOrNaN(group.Select(r => r.Fit.SubjectWorstWidth));
+            foreach (var row in group)
+            {
+                row.Fit.RelMaxTile = RelativeTo(row.Fit.MaxTile, maxFitMaxTile);
+                row.Fit.RelSubject = RelativeTo(row.Fit.SubjectTenengrad, maxFitSubj);
+                row.Fit.RelSubjectWidth = RelativeToInverse(row.Fit.SubjectWorstWidth, minFitSubjWorst);
+            }
         }
     }
 
@@ -361,6 +448,24 @@ internal static class Program
     private static double RelativeToInverse(double value, double groupMin)
         => double.IsNaN(value) || double.IsNaN(groupMin) || groupMin <= 0 ? double.NaN : groupMin / value * 100.0;
 
+    /// <summary>ratio_* 列用：分子/分母のどちらかが NaN、または分母が 0 なら比は無意味として NaN を返す。</summary>
+    private static double RatioOrNaN(double numerator, double denominator)
+        => double.IsNaN(numerator) || double.IsNaN(denominator) || denominator == 0 ? double.NaN : numerator / denominator;
+
+    /// <summary>
+    /// 矩形（表示px）を <paramref name="scale"/> 倍した矩形を返す（四捨五入・幅高さは最小1pxを維持）。
+    /// フィット画像はダウンスケールなので scale&lt;=1 だが、丸めで幅/高さが 0 になり得るため下限を敷く。
+    /// </summary>
+    private static RectI? ScaleRect(RectI? rect, double scale)
+    {
+        if (rect is not { } r) return null;
+        int x = (int)Math.Round(r.X * scale, MidpointRounding.AwayFromZero);
+        int y = (int)Math.Round(r.Y * scale, MidpointRounding.AwayFromZero);
+        int w = Math.Max(1, (int)Math.Round(r.Width * scale, MidpointRounding.AwayFromZero));
+        int h = Math.Max(1, (int)Math.Round(r.Height * scale, MidpointRounding.AwayFromZero));
+        return new RectI(x, y, w, h);
+    }
+
     private const string TsvHeader =
         "file\tgroup\tcamera\twidth\theight\torientation\tiso\texposure\tfocal_mm\taperture\ttaken\t" +
         "af_x\taf_y\taf_w\taf_h\tglobal\taf_window\tmax_tile\tmax_tile_x\tmax_tile_y\tanisotropy\taf_anisotropy\t" +
@@ -372,7 +477,10 @@ internal static class Program
         "edgew_global\tedgew_af\tedgew_maxtile\tedgew_maxtile_x\tedgew_maxtile_y\trel_edgew_af\trel_edgew_maxtile\tedgew_ms\t" +
         "subj_tiles\tsubj_x\tsubj_y\tsubj_w\tsubj_h\tsubj_ten\tsubj_edge_density\tsubj_per_edge\tsubj_aniso\tsubj_dir_deg\t" +
         "subj_w_worst\tsubj_w_worst_deg\tsubj_w_best\tsubj_w_ratio\tsubj_w_rel_extent\tsubj_bins\t" +
-        "af_edges\taf_edge_density\trel_subj_w\trel_subj_extent\tsubj_ms";
+        "af_edges\taf_edge_density\trel_subj_w\trel_subj_extent\tsubj_ms\t" +
+        "fit_w\tfit_h\tfit_global\tfit_af\tfit_maxtile\tfit_maxtile_x\tfit_maxtile_y\tfit_aniso\tfit_subj_ten\t" +
+        "fit_subj_tiles\tfit_subj_x\tfit_subj_y\tfit_subj_w\tfit_subj_h\tfit_subj_w_worst\tfit_subj_w_best\tfit_subj_w_ratio\tfit_subj_aniso\t" +
+        "ratio_global\tratio_subj\trel_fit_maxtile\trel_fit_subj\trel_fit_subj_w\tfit_downscale_ms\tfit_ms";
 
     private static string FormatRow(Row r) => string.Join('\t',
         r.File,
@@ -399,7 +507,8 @@ internal static class Program
         r.Analyze0Ms.ToString("F1", CultureInfo.InvariantCulture),
         r.TotalMs.ToString("F1", CultureInfo.InvariantCulture),
         FormatMetricRow(r.Lapv), FormatMetricRow(r.Bren), FormatMetricRow(r.Reblur), FormatMetricRow(r.Edgew),
-        FormatSubjectRow(r.Subject));
+        FormatSubjectRow(r.Subject),
+        FormatFitRow(r.Fit));
 
     private static string FormatMetricRow(MetricRow m) => string.Join('\t',
         FormatDouble(m.Global, 3), FormatDouble(m.Af, 3), FormatDouble(m.MaxTile, 3),
@@ -430,6 +539,24 @@ internal static class Program
         FormatDouble(s.RelWorst, 3),
         FormatDouble(s.RelExtentGroup, 3),
         s.Ms.ToString("F1", CultureInfo.InvariantCulture));
+
+    private static string FormatFitRow(Row.FitRow f) => string.Join('\t',
+        FormatInt(f.Width), FormatInt(f.Height),
+        FormatDouble(f.Global, 3), FormatDouble(f.Af, 3), FormatDouble(f.MaxTile, 3),
+        FormatInt(f.MaxTileX), FormatInt(f.MaxTileY),
+        FormatDouble(f.Anisotropy, 3),
+        FormatDouble(f.SubjectTenengrad, 3),
+        f.SubjectTiles.ToString(CultureInfo.InvariantCulture),
+        f.SubjectTiles > 0 ? f.SubjectX.ToString(CultureInfo.InvariantCulture) : "",
+        f.SubjectTiles > 0 ? f.SubjectY.ToString(CultureInfo.InvariantCulture) : "",
+        f.SubjectTiles > 0 ? f.SubjectW.ToString(CultureInfo.InvariantCulture) : "",
+        f.SubjectTiles > 0 ? f.SubjectH.ToString(CultureInfo.InvariantCulture) : "",
+        FormatDouble(f.SubjectWorstWidth, 3), FormatDouble(f.SubjectBestWidth, 3), FormatDouble(f.SubjectWidthRatio, 3),
+        FormatDouble(f.SubjectAnisotropy, 3),
+        FormatDouble(f.RatioGlobal, 3), FormatDouble(f.RatioSubject, 3),
+        FormatDouble(f.RelMaxTile, 3), FormatDouble(f.RelSubject, 3), FormatDouble(f.RelSubjectWidth, 3),
+        f.DownscaleMs.ToString("F1", CultureInfo.InvariantCulture),
+        f.AnalyzeMs.ToString("F1", CultureInfo.InvariantCulture));
 
     /// <summary>方向ビンの中央値を '/' 区切りで並べる（NaN は '-'）。<c>subj_bins</c> 列。</summary>
     private static string FormatBins(IReadOnlyList<double>? medians)
@@ -462,6 +589,12 @@ internal static class Program
             Console.WriteLine($"{prefix}_ms: mean={Mean(ms):F1} median={Median(ms):F1} max={(ms.Length > 0 ? ms[^1] : 0):F1}");
         }
 
+        // フィット表示相当：ダウンスケール自体と解析3手法合計、それぞれの所要時間（成功行のみ）。
+        var fitDownscaleMs = rows.Where(r => !double.IsNaN(r.Global)).Select(r => r.Fit.DownscaleMs).OrderBy(v => v).ToArray();
+        var fitAnalyzeMs = rows.Where(r => !double.IsNaN(r.Global)).Select(r => r.Fit.AnalyzeMs).OrderBy(v => v).ToArray();
+        Console.WriteLine($"fit_downscale_ms: mean={Mean(fitDownscaleMs):F1} median={Median(fitDownscaleMs):F1} max={(fitDownscaleMs.Length > 0 ? fitDownscaleMs[^1] : 0):F1}");
+        Console.WriteLine($"fit_ms: mean={Mean(fitAnalyzeMs):F1} median={Median(fitAnalyzeMs):F1} max={(fitAnalyzeMs.Length > 0 ? fitAnalyzeMs[^1] : 0):F1}");
+
         Console.WriteLine($"マシン: {Environment.MachineName} / 論理プロセッサ数: {Environment.ProcessorCount}");
         Console.WriteLine($"出力: {outPath}");
 
@@ -482,9 +615,16 @@ internal static class Program
             var bestExtent = members.Where(r => !double.IsNaN(r.Subject.RelExtent)).OrderBy(r => r.Subject.RelExtent).FirstOrDefault();
             var bestExtentDesc = bestExtent == null ? "（有効値なし）" : bestExtent.File;
 
+            // フィット表示相当：fit_subj_ten は Tenengrad系（大きいほど鮮鋭）、fit_subj_w_worst は
+            // edgew と同じ向き（小さいほど鮮鋭）。
+            var bestFitSubj = members.Where(r => !double.IsNaN(r.Fit.SubjectTenengrad)).OrderByDescending(r => r.Fit.SubjectTenengrad).FirstOrDefault();
+            var bestFitSubjDesc = bestFitSubj == null ? "（有効値なし）" : bestFitSubj.File;
+            var bestFitW = members.Where(r => !double.IsNaN(r.Fit.SubjectWorstWidth)).OrderBy(r => r.Fit.SubjectWorstWidth).FirstOrDefault();
+            var bestFitWDesc = bestFitW == null ? "（有効値なし）" : bestFitW.File;
+
             Console.WriteLine(
                 $"group {group.Key}: {members[0].File}..{members[^1].File} ({members.Length} 枚) best={bestDesc} " +
-                $"best_subj={bestSubjDesc} best_extent={bestExtentDesc}");
+                $"best_subj={bestSubjDesc} best_extent={bestExtentDesc} best_fit_subj={bestFitSubjDesc} best_fit_w={bestFitWDesc}");
         }
     }
 
@@ -506,9 +646,12 @@ internal sealed class Options
     public int TileSize { get; init; } = 256;
     public int Threshold { get; init; } = 32;
     public double GroupSeconds { get; init; } = 3;
+    public int FitLong { get; init; } = 1600;
+    public int FitTile { get; init; } = 64;
 
     public const string Usage =
-        "使い方: SharpnessBench <folder> [--out <file.tsv>] [--tile 256] [--threshold 32] [--group-seconds 3]";
+        "使い方: SharpnessBench <folder> [--out <file.tsv>] [--tile 256] [--threshold 32] [--group-seconds 3] " +
+        "[--fit-long 1600] [--fit-tile 64]";
 
     public static Options Parse(string[] args)
     {
@@ -517,6 +660,8 @@ internal sealed class Options
         int tile = 256;
         int threshold = 32;
         double groupSeconds = 3;
+        int fitLong = 1600;
+        int fitTile = 64;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -535,6 +680,12 @@ internal sealed class Options
                 case "--group-seconds":
                     groupSeconds = double.Parse(RequireValue(args, ref i, "--group-seconds"), CultureInfo.InvariantCulture);
                     break;
+                case "--fit-long":
+                    fitLong = int.Parse(RequireValue(args, ref i, "--fit-long"), CultureInfo.InvariantCulture);
+                    break;
+                case "--fit-tile":
+                    fitTile = int.Parse(RequireValue(args, ref i, "--fit-tile"), CultureInfo.InvariantCulture);
+                    break;
                 default:
                     if (a.StartsWith("--", StringComparison.Ordinal))
                         throw new ArgumentException($"未知のオプション: {a}");
@@ -548,7 +699,11 @@ internal sealed class Options
         if (folder == null) throw new ArgumentException("フォルダを指定してください。");
 
         outPath ??= BuildDefaultOutPath(folder);
-        return new Options { Folder = folder, OutPath = outPath, TileSize = tile, Threshold = threshold, GroupSeconds = groupSeconds };
+        return new Options
+        {
+            Folder = folder, OutPath = outPath, TileSize = tile, Threshold = threshold, GroupSeconds = groupSeconds,
+            FitLong = fitLong, FitTile = fitTile,
+        };
     }
 
     private static string RequireValue(string[] args, ref int i, string optionName)
@@ -630,6 +785,61 @@ internal sealed class Row
 
     // 被写体領域解析（SubjectRegionAnalyzer）。列プレフィックスは subj。
     public SubjectRow Subject { get; } = new();
+
+    // フィット表示相当（面積平均縮小＋同手法群の再計算）。列プレフィックスは fit / ratio。
+    public FitRow Fit { get; } = new();
+
+    /// <summary>
+    /// フィット表示相当の計測結果＋所要時間（TSV の <c>fit_*</c>/<c>ratio_*</c> 列に対応）。
+    /// <see cref="Program.ProcessFile"/> がデコード成功後にのみ埋める。未計測時の既定値は NaN/null/0。
+    /// </summary>
+    public sealed class FitRow
+    {
+        public int? Width;
+        public int? Height;
+        public double Global = double.NaN;
+        public double Af = double.NaN;
+        public double MaxTile = double.NaN;
+        public int? MaxTileX;
+        public int? MaxTileY;
+        public double Anisotropy = double.NaN;
+
+        /// <summary>
+        /// fit_subj_ten＝全解像度側の被写体領域（<see cref="SubjectRow.Tenengrad"/> の元になった矩形）を
+        /// fit 座標へ縮尺し、その矩形内で fit 画像上の Tenengrad を測った値。全解像度側に被写体タイルが
+        /// 無ければ（<c>subj_tiles</c>=0）NaN のまま。
+        /// </summary>
+        public double SubjectTenengrad = double.NaN;
+
+        // fit 画像そのものに対する独立の SubjectRegionAnalyzer 結果（タイルサイズが fit_tile のため、
+        // 全解像度側の被写体タイルとは境界が一致するとは限らない）。
+        public int SubjectTiles;
+        public int SubjectX, SubjectY, SubjectW, SubjectH;
+        public double SubjectWorstWidth = double.NaN;
+        public double SubjectBestWidth = double.NaN;
+        public double SubjectWidthRatio = double.NaN;
+        public double SubjectAnisotropy = double.NaN;
+
+        /// <summary>ratio_global＝全解像度 global ÷ fit_global（大きいほど、縮小表示でボケが目立たなくなる度合いが強い）。</summary>
+        public double RatioGlobal = double.NaN;
+
+        /// <summary>ratio_subj＝全解像度 subj_ten ÷ fit_subj_ten。</summary>
+        public double RatioSubject = double.NaN;
+
+        /// <summary>rel_fit_maxtile＝グループ内相対値（%）。Tenengrad系＝大きいほど鮮鋭（グループ最大値比）。</summary>
+        public double RelMaxTile = double.NaN;
+
+        /// <summary>rel_fit_subj＝同上を <see cref="SubjectTenengrad"/> に適用したもの。</summary>
+        public double RelSubject = double.NaN;
+
+        /// <summary>rel_fit_subj_w＝グループ内相対値（%）。edgew と同じ向き＝グループ最小/値×100。</summary>
+        public double RelSubjectWidth = double.NaN;
+
+        public double DownscaleMs;
+
+        /// <summary>fit_ms＝ダウンスケールを除く解析3手法（Analyze×2＋SubjectRegionAnalyzer×1）の合計所要時間。</summary>
+        public double AnalyzeMs;
+    }
 
     /// <summary>1 ファイル分の <see cref="SubjectRegionAnalyzer"/> 結果＋計測時間（TSV の <c>subj_*</c> 列に対応）。</summary>
     public sealed class SubjectRow
